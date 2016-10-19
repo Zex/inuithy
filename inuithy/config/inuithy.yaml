@@ -3,5 +3,6 @@ agents:
   agent_1: {host: 127.0.0.2}
   agent_2: {host: 127.0.0.3}
 controller: {host: 127.0.0.1}
-mqtt: {host: 127.0.0.1, port: 1883}
+enable_localdebug: false
+mqtt: {host: 127.0.0.1, port: 1883, qos: 0}
 workmode: AUTO
