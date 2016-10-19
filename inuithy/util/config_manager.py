@@ -2,15 +2,17 @@
 # Author: Zex Li <top_zlynch@yahoo.com>
 #
 import logging
-from common.predef import *
+from inuithy.common.predef import *
 
 # Configure keywords
 CFGKW_WORKMODE = 'workmode'
 CFGKW_MQTT = 'mqtt'
 CFGKW_HOST = 'host'
 CFGKW_PORT = 'port'
+CFGKW_QOS = 'qos'
 CFGKW_CONTROLLER = 'controller'
 CFGKW_AGENTS = 'agents'
+CFGKW_ENABLE_LDEBUG = 'enable_localdebug'
 
 class ConfigManager:
     """Configure manager
@@ -31,6 +33,14 @@ class ConfigManager:
 
     @mqtt.setter
     def mqtt(self, val):
+        pass
+
+    @property
+    def mqtt_qos(self):
+        return self.config[CFGKW_MQTT][CFGKW_QOS]
+      
+    @mqtt_qos.setter
+    def mqtt_qos(self):
         pass
 
     @property
@@ -57,14 +67,23 @@ class ConfigManager:
     def agents(self, val):
         pass
 
+    @property
+    def enable_localdebug(self):
+        return self.config[CFGKW_ENABLE_LDEBUG]
+
+    @enable_localdebug.setter
+    def enable_localdebug(self, val):
+        pass
+
     def __init__(self, path):
         self.config_path = path
         self.config = {}
 
     def create_dummy_config(self):
         self.config[CFGKW_MQTT] = {
-            CFGKW_HOST:'127.0.0.1',
-            CFGKW_PORT:1883,
+            CFGKW_HOST: '127.0.0.1',
+            CFGKW_PORT: 1883,
+            CFGKW_QOS:  0
         }
         self.config[CFGKW_WORKMODE] = WorkMode.AUTO.name
         self.config[CFGKW_CONTROLLER] = {
@@ -81,6 +100,7 @@ class ConfigManager:
                 CFGKW_HOST:'127.0.0.3',
             }
         }
+        self.config[CFGKW_ENABLE_LDEBUG] = False
 
     def load(self):
         logging.info("Loading configure from [{}]".format(self.config_path))
@@ -137,10 +157,11 @@ if __name__ == '__main__':
     import logging.config as lconf
     lconf.fileConfig(INUITHY_LOGCONFIG)
     logger = logging.getLogger('InuithyConfigure')
-    cfg = ConfigManager('config/inuithy_config.yaml')
+    logging.info(INUITHY_TITLE.format(INUITHY_VERSION, "ConfigManager"))
+    cfg = ConfigManager(INUITHY_CONFIG_PATH)
     cfg.create_dummy_config()
     cfg.dump_yaml()
-    cfg.config_path = 'config/inuithy_config.json'
+    cfg.config_path = INUITHY_CONFIG_PATH.replace('yaml', 'json')
     cfg.dump_json()
 
 

@@ -1,19 +1,24 @@
 ## Makefile for Inuithy
 # Author: Zex Li <top_zlynch@yahoo.com>
 #
-VERSION	:= 0.0.0
-VERSION_PATH := inuithy/common/version.py
+PROJECT		           := Inuithy
+VERSION		           := 0.0.1
 
-.PHONY: $(VERSION_PATH) clean
+include makefiles/predef.mk
+include makefiles/pack.mk
 
-all: $(VERSION_PATH)
+.PHONY: $(VERSION_PATH) $(OUTPUT_TAR_PATH) $(BUILD) clean version
 
-$(VERSION_PATH):
-	@echo "## AUTO GENERATED ON `date`" > $@
-	@echo "" >> $@
-	@echo "INUITHY_VERSION = \""$(VERSION)"\"" >> $@
-	@echo "" >> $@
+all: $(OUTPUT_TAR_PATH)
+
+version: $(VERSION_PATH)
 
 clean:
-	find . -name *.pyc -delete 
-	rm -f $(VERSION_PATH)
+	$(ECHO) "-----------------Cleaning-------------------"
+	$(FIND) . -name *.pyc -delete 
+	$(RM) $(VERSION_PATH)
+	$(RM) $(BUILD)
+
+$(BUILD):
+	$(MKDIR) $@	
+

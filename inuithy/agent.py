@@ -6,8 +6,9 @@ import logging.config as lconf
 import paho.mqtt.client as mqtt
 import threading as thrd
 import socket, signal, sys
-from common.predef import *
-from util.config_manager import *
+from inuithy.common.predef import *
+from inuithy.common.commands import *
+from inuithy.util.config_manager import *
 
 lconf.fileConfig(INUITHY_LOGCONFIG)
 logger = logging.getLogger('InuithyAgent')
@@ -39,6 +40,14 @@ class Agent:
 
     @cfgmng.setter
     def cfgmng(self, val):
+        pass
+    
+    @property
+    def enable_heartbeat(self):
+        return self.__enable_heartbeat
+
+    @enable_heartbeat.setter
+    def enable_heartbeat(self):
         pass
 
     @property
@@ -94,8 +103,17 @@ class Agent:
     def register(self):
         """Register an agent to controller
         """
-        logger.info("Register {}".format(self.clientid))
-        self.__subscriber.publish(INUITHY_TOPIC_REGISTER, create_payload(self.clientid), 2, False)
+        logger.info("Registering {}".format(self.clientid))
+        self.__subscriber.publish(INUITHY_TOPIC_REGISTER, create_payload(self.clientid), self.cfgmng.mqtt_qos, False)
+
+    def unregister(self):
+        """Unregister an agent from controller
+        """
+        logger.info("Unregistering {}".format(self.clientid))
+        try:
+            self.__subscriber.publish(INUITHY_TOPIC_UNREGISTER, create_payload(self.clientid), self.cfgmng.mqtt_qos, False)
+        except Exception as ex:
+            logger.error("Unregister failed")
 
     def create_subscriber(self, host, port):
         self.__topic_handlers = {
@@ -110,11 +128,15 @@ class Agent:
         self.__subscriber.on_subscribe = Agent.on_subscribe
         self.__subscriber.connect(host, port)
         self.__subscriber.subscribe([
-            (INUITHY_TOPIC_COMMAND, 2),
+            (INUITHY_TOPIC_COMMAND, self.cfgmng.mqtt_qos),
         ])
 
     def get_clientid(self):
-        return INUITHYAGENT_CLIENT_ID.format(self.host)
+        rd = ''
+        if self.cfgmng.enable_localdebug:
+            from random import randint
+            rd = '-{}'.format(hex(randint(1000000,10000000))[2:])
+        return INUITHYAGENT_CLIENT_ID.format(self.host+rd)
 
     def __do_init(self):
         """
@@ -152,6 +174,26 @@ class Agent:
     def parse_command(msg):
         logger.info("Receive command [{}]".format(msg))
 
+    def on_new_controller(self, message):
+        logger.info("New controller")
+        self.register()
+
+    def on_agent_restart(self, message):
+        logger.info("Restart agent")
+        pass
+
+    def on_agent_stop(self, message):
+        logger.info("Stop agent")
+        pass
+
+    def on_agent_enable_heartbeat(self, message):
+        logger.info("Enable heartbeat")
+        self.__enable_heartbeat = True
+
+    def on_agent_disable_heartbeat(self, message):
+        logger.info("Disable heartbeat")
+        self.__enable_heartbeat = False
+
     def start(self):
         if not self.initialized:
             logger.error("Agent not initialized")
@@ -161,6 +203,7 @@ class Agent:
             logger.info("Starting Agent {}".format(self.clientid))
             self.__subscriber.loop_forever()
         except KeyboardInterrupt:
+            self.unregister()
             self.__subscriber.disconnect()
             logger.error("Agent received keyboard interrupt")
         finally:
@@ -171,6 +214,6 @@ def start_agent(cfgpath):
     agent.start()
 
 if __name__ == '__main__':
-    logger.info("Inuithy ver {} Agent".format(INUITHY_VERSION))
-    start_agent("config/inuithy_config.yaml")
+    logger.info(INUITHY_TITLE.format(INUITHY_VERSION, "Agent"))
+    start_agent(INUITHY_CONFIG_PATH)
 

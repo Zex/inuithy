@@ -6,8 +6,9 @@ import logging.config as lconf
 import paho.mqtt.client as mqtt
 import threading as thrd
 import socket, signal, sys
-from common.predef import *
-from util.config_manager import *
+from inuithy.common.predef import *
+from inuithy.common.commands import *
+from inuithy.util.config_manager import *
 
 lconf.fileConfig(INUITHY_LOGCONFIG)
 logger = logging.getLogger('InuithyController')
@@ -95,7 +96,7 @@ class Controller:
     def __str__(self):
         return "subscriber:{}".format(self.__subscriber)
     
-    def create_subscriber(self, host, port):
+    def create_mqtt_subscriber(self, host, port):
         self.topic_handlers = {
             INUITHY_TOPIC_REGISTER:  self.on_topic_register,
             INUITHY_TOPIC_STATUS:    self.on_topic_status,
@@ -110,9 +111,10 @@ class Controller:
         self.__subscriber.on_subscribe = Controller.on_subscribe
         self.__subscriber.connect(host, port)
         self.__subscriber.subscribe([
-            (INUITHY_TOPIC_REGISTER, 2),
-            (INUITHY_TOPIC_STATUS, 2),
-            (INUITHY_TOPIC_RESPONSE, 2),
+            (INUITHY_TOPIC_REGISTER,  self.cfgmng.mqtt_qos),
+            (INUITHY_TOPIC_UNREGISTER,self.cfgmng.mqtt_qos),
+            (INUITHY_TOPIC_STATUS,    self.cfgmng.mqtt_qos),
+            (INUITHY_TOPIC_RESPONSE,  self.cfgmng.mqtt_qos),
         ])
 
     def __do_init(self):
@@ -128,7 +130,7 @@ class Controller:
             self.__available_agents = {}
             self.__host = socket.gethostbyname(socket.gethostname())
             self.__clientid = INUITHYCONTROLLER_CLIENT_ID.format(self.host)
-            self.create_subscriber(*self.cfgmng.mqtt)
+            self.create_mqtt_subscriber(*self.cfgmng.mqtt)
             self.initialized = True
         except Exception as ex:
             logging.error("Failed to initialize:{}".format(ex))
@@ -143,6 +145,9 @@ class Controller:
 
     def add_agent(self, agentid):
         self.__available_agents[agentid] = AgentInfo(agentid, AgentStatus.ONLINE)
+
+    def add_agent(self, agentid):
+        del self.__available_agents[agentid]
 
     def on_topic_register(self, message):
         """Register message format:
@@ -161,11 +166,33 @@ class Controller:
         except:
             logger.error("Exception on registering agent {}".format(agentid))
 
+    def on_topic_unregister(self, message):
+        """Unregister message format:
+        <agentid>
+        """
+        logger.info("On topic register")
+        agentid = agent_id_from_payload(message.payload)
+        if len(agentid) == 0:
+            logger.error("Invalid agent ID")
+            return
+        try:
+            self.remove_agent(agentid)
+            logger.info("Agent {} removed".format(agentid))
+            logger.info("Available Agents({}): {}".format(len(self.__available_agents), self.__available_agents))
+        except:
+            logger.error("Exception on unregistering agent {}".format(agentid))
+
     def on_topic_status(self, message):
         logger.info("On topic status")
 
     def on_topic_response(self, message):
         logger.info("On topic response")
+
+    def alive_notification(self):
+        """Broadcast on new controller startup
+        """
+        logger.info("New controller notification {}".format(self.clientid))
+        self.__subscriber.publish(INUITHY_TOPIC_COMMAND, create_payload(self.clientid), self.cfgmng.mqtt_qos, False)
 
     def start(self):
         if not self.initialized:
@@ -186,6 +213,6 @@ def start_controller(cfgpath):
     controller.start()
 
 if __name__ == '__main__':
-    logger.info("Inuithy ver {} Controller".format(INUITHY_VERSION))
-    start_controller("config/inuithy_config.yaml")
+    logger.info(INUITHY_TITLE.format(INUITHY_VERSION, "Controller"))
+    start_controller(INUITHY_CONFIG_PATH)
 
