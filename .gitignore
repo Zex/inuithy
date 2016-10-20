@@ -1,6 +1,8 @@
 build
 output
+__pycache__
 *.pyc
 *.o
 *.out
 *.log
+
