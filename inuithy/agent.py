@@ -56,10 +56,10 @@ class Agent:
 
     @initialized.setter
     def initialized(self, val):
-        if __mutex.acquire_lock():
+        if Agent.__mutex.acquire_lock():
             if not self.__initialized:
                 self.__initialized = True
-            __mutex.release()
+            Agent.__mutex.release()
 
     @staticmethod
     def on_connect(client, userdata, rc):
@@ -151,7 +151,7 @@ class Agent:
             self.register()
             self.initialized = True
         except Exception as ex:
-            logging.error("Failed to initialize")
+            logger.error("Failed to initialize")
     
     def __init__(self, cfgpath='config/inuithy.conf'):
         self.__initialized = False

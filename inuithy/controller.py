@@ -48,10 +48,10 @@ class Controller:
 
     @initialized.setter
     def initialized(self, val):
-        if __mutex.acquire_lock():
+        if Controller.__mutex.acquire_lock():
             if not self.__initialized:
                 self.__initialized = True
-            __mutex.release()
+            Controller.__mutex.release()
 
     @staticmethod
     def on_connect(client, userdata, rc):
@@ -133,7 +133,7 @@ class Controller:
             self.create_mqtt_subscriber(*self.cfgmng.mqtt)
             self.initialized = True
         except Exception as ex:
-            logging.error("Failed to initialize:{}".format(ex))
+            logger.error("Failed to initialize:{}".format(ex))
 
     def __init__(self, cfgpath='config/inuithy.conf'):
         self.__initialized = False

@@ -78,5 +78,9 @@ WorkMode = Enum("WorkMode", [
     "MONITOR",
     ])
 
-terminal_reader = hasattr(__builtins__, 'raw_input') and raw_input or input
+TrafficStorage = Enum("TrafficStorage", [
+    "DB",      # Database
+    "FILE",    # Local file
+    ])
+
     
