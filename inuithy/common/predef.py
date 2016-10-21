@@ -23,15 +23,22 @@ INUITHYAGENT_MSGFMT = "INUITHYAGENT [{}]"
 INUITHYAGENT_CLIENT_ID = "inuithy/agent/{}"
 #INUITHYAGENT_TOPIC_ID = "inuithy/agent/{}/topic/status"
 
-INUITHYCONTROLLER_MSGFMT = "INUITHYCONTROLLER [{}]"
-INUITHYCONTROLLER_CLIENT_ID = "inuithy/controller/{}"
+INUITHYCONTROLLER_MSGFMT      = "INUITHYCONTROLLER [{}]"
+INUITHYCONTROLLER_CLIENT_ID   = "inuithy/controller/{}"
+
+# command message from Controller to Agents
+# <command> <parameters>
+INUITHY_CTRL_CMD       = "{} {}"
 
 INUITHY_ROOT          = "inuithy"
 INUITHY_LOGCONFIG     = INUITHY_ROOT+"/config/logging.conf"
 INUITHY_CONFIG_PATH   = INUITHY_ROOT+"/config/inuithy_config.yaml"
 INUITHY_MQLOG_FMT     = "MQ.Log: {}"
 # Inuithy ver <version> <component>
-INUITHY_TITLE         = "Inuithy verson {} {}"
+INUITHY_TITLE         = "Inuithy version {} {}"
+
+DEV_TTYUSB          = '/dev/ttyUSB{}'
+DEV_TTYS            = '/dev/ttyS{}'
 
 def mqlog_map(logger, level, msg):
     if level == mqtt.MQTT_LOG_INFO:
@@ -41,7 +48,8 @@ def mqlog_map(logger, level, msg):
     elif level == mqtt.MQTT_LOG_NOTICE or level == mqtt.MQTT_LOG_WARNING:
         logger.warning(INUITHY_MQLOG_FMT.format(msg))
     else: # level == mqtt.MQTT_LOG_DEBUG:
-        logger.debug(INUITHY_MQLOG_FMT.format(msg))
+        #logger.debug(INUITHY_MQLOG_FMT.format(msg))
+        pass
 
 AgentStatus = Enum("AgentStatus", [
     "OFFLINE",
@@ -49,28 +57,6 @@ AgentStatus = Enum("AgentStatus", [
     "UNKNOWN",
     ])
 
-class AgentInfo:
-    def __init__(self, agentid="", status=AgentStatus.OFFLINE):
-        self.agentid = agentid
-        self.status = status
-
-    def __str__(self):
-        return "agent<{}>: status:{}".format(self.agentid, self.status)
-
-def agent_id_from_payload(msg):
-    msgitems = msg.split(INUITHY_MQPAYLOAD_DELEMER)
-    if 0 < len(msgitems):
-        return msgitems[0]
-    return ""
-
-def message_from_payload(msg):
-    msgitems = msg.split(INUITHY_MQPAYLOAD_DELEMER)
-    if 1 < len(msgitems):
-        return msgitems[1]
-    return ""
-
-def create_payload(agentid, msg=""):
-    return INUITHY_MQPAYLOAD_FMT.format(agentid, msg)
 
 WorkMode = Enum("WorkMode", [
     "AUTO",
@@ -83,4 +69,21 @@ TrafficStorage = Enum("TrafficStorage", [
     "FILE",    # Local file
     ])
 
+CtrlCmds = Enum("CtrlCmds", [
+    "NEW_CONTROLLER",
+    "AGENT_RESTART",
+    "AGENT_STOP",
+    "AGENT_ENABLE_HEARTBEAT",
+    "AGENT_DISABLE_HEARTBEAT",
+    "TRAFFIC",
+])
+
+class AgentInfo:
+    def __init__(self, agentid="", status=AgentStatus.OFFLINE):
+        self.agentid = agentid
+        self.status = status
+
+    def __str__(self):
+        return string_write("agent<{}>: status:{}", self.agentid, self.status)
     
+

@@ -4,5 +4,7 @@ agents:
   agent_2: {host: 127.0.0.3}
 controller: {host: 127.0.0.1}
 enable_localdebug: false
+enable_mqdebug: false
 mqtt: {host: 127.0.0.1, port: 1883, qos: 0}
+traffic_storage: {passwd: '', path: '127.0.0.1:7671', type: DB, user: ''}
 workmode: AUTO

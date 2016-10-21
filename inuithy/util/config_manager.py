@@ -3,7 +3,7 @@
 #
 import logging
 import logging.config as lconf
-from inuithy.common.predef import *
+from inuithy.util.helper import *
 
 # Configure keywords
 CFGKW_WORKMODE          = 'workmode'
@@ -14,6 +14,7 @@ CFGKW_QOS               = 'qos'
 CFGKW_CONTROLLER        = 'controller'
 CFGKW_AGENTS            = 'agents'
 CFGKW_ENABLE_LDEBUG     = 'enable_localdebug'
+CFGKW_ENABLE_MQDEBUG     = 'enable_mqdebug'
 CFGKW_TRAFFIC_STORAGE   = 'traffic_storage'
 CFGKW_TYPE              = 'type'
 CFGKW_PATH              = 'path'
@@ -84,6 +85,14 @@ class ConfigManager:
     def enable_localdebug(self, val):
         pass
 
+    @property
+    def enable_mqdebug(self):
+        return self.config[CFGKW_ENABLE_MQDEBUG]
+
+    @enable_mqdebug.setter
+    def enable_mqdebug(self, val):
+        pass
+
     def __init__(self, path):
         self.config_path = path
         self.config = {}
@@ -115,6 +124,7 @@ class ConfigManager:
             }
         }
         self.config[CFGKW_ENABLE_LDEBUG] = False
+        self.config[CFGKW_ENABLE_MQDEBUG] = False
         self.config[CFGKW_TRAFFIC_STORAGE] = {
             # Storage types:
             # - TrafficStorage.DB
@@ -130,7 +140,7 @@ class ConfigManager:
         }
 
     def load(self):
-        logger.info("Loading configure from [{}]".format(self.config_path))
+        logger.info(string_write("Loading configure from [{}]", self.config_path))
         ret = True
         if self.config_path.endswith('yaml'):
             ret  = self.load_yaml()
@@ -148,7 +158,7 @@ class ConfigManager:
             with open(self.config_path, 'w') as fd:
                 yaml.dump(self.config, fd)
         except Exception as ex:
-            logger.error("dumping yaml config file [{}]: {}".format(self.config_path, ex))
+            logger.error(string_write("dumping yaml config file [{}]: {}", self.config_path, ex))
 
     def dump_json(self):
         try:
@@ -156,7 +166,7 @@ class ConfigManager:
             with open(self.config_path, 'w') as fd:
                 json.dump(self.config, fd)
         except Exception as ex:
-            logger.error("dumping json config file [{}]: {}".format(self.config_path, ex))
+            logger.error(string_write("dumping json config file [{}]: {}", self.config_path, ex))
 
     def load_yaml(self):
         ret = True
@@ -165,7 +175,7 @@ class ConfigManager:
             with open(self.config_path, 'r') as fd:
                 self.config = yaml.load(fd)
         except Exception as ex:
-            logger.error("loading yaml config file [{}]: {}".format(self.config_path, ex))
+            logger.error(string_write("loading yaml config file [{}]: {}", self.config_path, ex))
             ret = False
         return ret
 
@@ -176,12 +186,12 @@ class ConfigManager:
             with open(self.config_path, 'r') as fd:
                 self.config = json.load(fd)
         except Exception as ex:
-            logger.error("loading json config file [{}]: {}".format(self.config_path, ex))
+            logger.error(string_write("loading json config file [{}]: {}", self.config_path, ex))
             ret = False
         return ret
 
 if __name__ == '__main__':
-    logger.info(INUITHY_TITLE.format(INUITHY_VERSION, "ConfigManager"))
+    logger.info(string_write(INUITHY_TITLE, INUITHY_VERSION, "ConfigManager"))
     cfg = ConfigManager(INUITHY_CONFIG_PATH)
     cfg.create_dummy_config()
     cfg.dump_yaml()

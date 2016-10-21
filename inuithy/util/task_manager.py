@@ -2,14 +2,41 @@
 # Author: Zex Li <top_zlynch@yahoo.com>
 #
 
-import os, multiprocessing, logging
+import os, multiprocessing, logging, threading
 import logging.config as lconf
-from inuithy.common.predef import *
+from inuithy.util.helper import *
 
 lconf.fileConfig(INUITHY_LOGCONFIG)
 logger = logging.getLogger('TaskManager')
 
-class TaskManager:
+class ProcTaskManager:
+
+    def __init__(self):
+        self.__tasks = []
+
+    def waitall(self):
+        logger.info(string_write('[{}] tasks running', len(self.__tasks)))
+        try:
+            [os.waitpid(t.pid, 0) for p in self.__tasks if t.is_alive()]
+            logger.info('[{}] tasks finished'.format(len(self.__tasks)))
+        except Exception as ex:
+            logger.error(string_write("Exception on to waiting all: {}", ex))
+
+    def create_task(self, proc, args=()):
+        try:
+            p = multiprocessing.Process(target=proc, args=args)
+            self.__tasks.append(p)
+            t.start()
+            logger.info(string_write('[{}]/{} running', t.pid, len(self.__tasks)))
+        except Exception as ex:
+            logger.error(string_write("Create task with [{}] failed: {}", args, ex))
+
+    def create_task_foreach(self, proc, objs):
+        logger.info("Tasks creation begin")
+        [self.create_task(proc, (o,)) for o in objs]
+        logger.info("Tasks creation end")
+
+class ThrTaskManager:
 
     def __init__(self):
         self.__tasks = []
@@ -17,19 +44,19 @@ class TaskManager:
     def waitall(self):
         logger.info('[{}] tasks running'.format(len(self.__tasks)))
         try:
-            [os.waitpid(p.pid, 0) for p in self.__tasks if p.is_alive()]
+            [t.join() for t in self.__tasks if t.isAlive()]
             logger.info('[{}] tasks finished'.format(len(self.__tasks)))
         except Exception as ex:
-            logger.error("Exception on to waiting all: {}".format(ex))
+            logger.error(string_write("Exception on to waiting all: {}", ex))
 
     def create_task(self, proc, args=()):
         try:
-            p = multiprocessing.Process(target=proc, args=args)
-            self.__tasks.append(p)
-            p.start()
-            logger.info('[{}]/{} running'.format(p.pid, len(self.__tasks)))
+            t = threading.Thread(target=proc, args=args)
+            self.__tasks.append(t)
+            t.start()
+            logger.info('[{}]/{} running'.format(t.name, len(self.__tasks)))
         except Exception as ex:
-            logger.error("Create task with [{}] failed: {}".format(args, ex))
+            logger.error(string_write("Create task with [{}] failed: {}", args, ex))
 
     def create_task_foreach(self, proc, objs):
         logger.info("Tasks creation begin")
@@ -43,6 +70,7 @@ def dummy_task(port):
 if __name__ == '__main__':
 
     import glob, time
+    from inuithy.common.node import *
     DEV_TTYS = '/dev/ttyS1{}'
     ports = enumerate(name for name in glob.glob(DEV_TTYUSB.format('*')))
     mng = TaskManager()
