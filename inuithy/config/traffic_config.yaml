@@ -1,0 +1,22 @@
+target_traffics: [traffic_0, traffic_2]
+traffic_0:
+  duration: 180
+  nwconfig: inuithy/config/network_config.yaml:network_2
+  pkgrate: 0.5
+  pkgsize: 1
+  recipients: ['0x1122', '0x1123', '0x1124', '0x1134']
+  senders: ['0x1111', '0x1112', '0x1113', '0x1114']
+traffic_1:
+  duration: 180
+  nwconfig: inuithy/config/network_config.yaml:network_0
+  pkgrate: 0.5
+  pkgsize: 2
+  recipients: ['0x1122', '0x1123', '0x1124', '0x1134']
+  senders: ['0x1114']
+traffic_2:
+  duration: 360
+  nwconfig: inuithy/config/network_config.yaml:network_1
+  pkgrate: 0.2
+  pkgsize: 2
+  recipients: ['0x1122']
+  senders: ['0x1123']
