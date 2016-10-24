@@ -7,12 +7,14 @@ from enum import Enum
 
 INUITHY_MQTTMSGFMT = "dup:{}, info:{}, mid:{}, payload:[{}], qos:{}, retain:{}, state:{}, timestamp:{}, topic:[{}]"
 # Controller => Agents
-INUITHY_TOPIC_COMMAND = "inuithy/topic/command"
+INUITHY_TOPIC_COMMAND     = "inuithy/topic/command"
+INUITHY_TOPIC_CONFIG      = "inuithy/topic/config"
+INUITHY_TOPIC_TRAFFIC     = "inuithy/topic/traffic"
 # Agents => Controller
-INUITHY_TOPIC_STATUS = "inuithy/topic/status"
-INUITHY_TOPIC_RESPONSE = "inuithy/topic/response"
-INUITHY_TOPIC_REGISTER = "inuithy/topic/register"
-INUITHY_TOPIC_UNREGISTER = "inuithy/topic/unregister"
+INUITHY_TOPIC_REGISTER    = "inuithy/topic/register"
+INUITHY_TOPIC_UNREGISTER  = "inuithy/topic/unregister"
+INUITHY_TOPIC_STATUS      = "inuithy/topic/status"
+INUITHY_TOPIC_RESPONSE    = "inuithy/topic/response"
 INUITHY_TOPIC_NOTIFICATION = "inuithy/topic/notification"
 # <topic id>::<message>
 INUITHY_MQPAYLOAD_DELEMER = "::>"
@@ -33,6 +35,8 @@ INUITHY_CTRL_CMD       = "{} {}"
 INUITHY_ROOT          = "inuithy"
 INUITHY_LOGCONFIG     = INUITHY_ROOT+"/config/logging.conf"
 INUITHY_CONFIG_PATH   = INUITHY_ROOT+"/config/inuithy_config.yaml"
+NETWORK_CONFIG_PATH = INUITHY_ROOT+"/config/network_config.yaml"
+TRAFFIC_CONFIG_PATH = INUITHY_ROOT+"/config/traffic_config.yaml"
 INUITHY_MQLOG_FMT     = "MQ.Log: {}"
 # Inuithy ver <version> <component>
 INUITHY_TITLE         = "Inuithy version {} {}"
@@ -75,8 +79,18 @@ CtrlCmds = Enum("CtrlCmds", [
     "AGENT_STOP",
     "AGENT_ENABLE_HEARTBEAT",
     "AGENT_DISABLE_HEARTBEAT",
-    "TRAFFIC",
 ])
+
+def string_write(fmt, *params):
+    if params == None or len(params) == 0:
+        return(fmt)
+    return fmt.format(*params)
+
+def console_write(fmt, *params):
+    if params == None or len(params) == 0:
+        print(fmt)
+        return
+    print(fmt.format(*params))
 
 class AgentInfo:
     def __init__(self, agentid="", status=AgentStatus.OFFLINE):

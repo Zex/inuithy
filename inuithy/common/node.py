@@ -8,6 +8,7 @@ from enum import Enum
 NodeType = Enum("NodeType", [
     "BLE",
     "Zigbee",
+    "UNKNOWN",
 ])
 
 class Node:
