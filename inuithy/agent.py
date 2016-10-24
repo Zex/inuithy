@@ -5,7 +5,7 @@ import socket, signal, sys, logging
 import logging.config as lconf
 import paho.mqtt.client as mqtt
 import threading as thrd
-from inuithy.util.helper import *
+from inuithy.util.cmd_helper import *
 from inuithy.util.config_manager import *
 from inuithy.common.serial_adapter import *
 
@@ -14,6 +14,23 @@ logger = logging.getLogger('InuithyAgent')
 
 class Agent:
     """
+    Message Flow:
+                        register
+        Agent -------------------------> Controller
+                        command
+        Agent <------------------------- Controller
+                         config
+        Agent <------------------------- Controller
+                       newcontrller
+        Agent <------------------------- Controller
+                        traffic
+        Agent <------------------------- Controller
+                        response
+        Agent -------------------------> Controller
+                         status
+        Agent -------------------------> Controller
+                        unregister
+        Agent -------------------------> Controller
     """
     __mutex     = thrd.Lock()
     __mutex_msg = thrd.Lock()
@@ -35,11 +52,19 @@ class Agent:
         pass
 
     @property
-    def cfgmng(self):
-        return self.__cfg_mng
+    def traffic(self):
+        return self.__traffic
 
-    @cfgmng.setter
-    def cfgmng(self, val):
+    @traffic.setter
+    def traffic(self, val):
+        pass
+
+    @property
+    def tcfg(self):
+        return self.__inuithy_cfg
+
+    @tcfg.setter
+    def tcfg(self, val):
         pass
     
     @property
@@ -72,7 +97,7 @@ class Agent:
             message.dup, message.info, message.mid, message.payload, 
             message.qos, message.retain, message.state, message.timestamp,
             message.topic))
-        userdata.topic_handlers[message.topic](message)
+        userdata.topic_routes[message.topic](message)
 
     @staticmethod
     def on_disconnect(client, userdata, rc):
@@ -92,32 +117,35 @@ class Agent:
 
     def teardown(self):
         if self.initialized:
+            self.unregister()
             self.__subscriber.disconnect()
 
     def __del__(self):
         pass
 
     def __str__(self):
-        return string_write("subscriber:{}", self.__subscriber)
+        return string_write("clientid:[{}] host:[{}] heartbeat:[{}]", self.clientid, self.host, self.enable_heartbeat)
     
     def register(self):
         """Register an agent to controller
         """
         logger.info(string_write("Registering {}", self.clientid))
-        pub_register(self.__subscriber, self.cfgmng.mqtt_qos, self.clientid, self.__sad.nodes)
+        pub_register(self.__subscriber, self.tcfg.mqtt_qos, self.clientid, self.__sad.nodes)
 
     def unregister(self):
         """Unregister an agent from controller
         """
         logger.info(string_write("Unregistering {}", self.clientid))
         try:
-            pub_unregister(self.__subscriber, self.cfgmng.mqtt_qos, self.clientid)
+            pub_unregister(self.__subscriber, self.tcfg.mqtt_qos, self.clientid)
         except Exception as ex:
             logger.error(string_write("Unregister failed"))
 
     def create_subscriber(self, host, port):
-        self.topic_handlers = {
+        self.topic_routes = {
             INUITHY_TOPIC_COMMAND:  self.on_topic_command,
+            INUITHY_TOPIC_CONFIG:   self.on_topic_config,
+            INUITHY_TOPIC_TRAFFIC:  self.on_topic_traffic,
         }
         self.__subscriber = mqtt.Client(self.clientid, True, self)
         self.__subscriber.on_connect    = Agent.on_connect
@@ -128,24 +156,32 @@ class Agent:
         self.__subscriber.on_subscribe  = Agent.on_subscribe
         self.__subscriber.connect(host, port)
         self.__subscriber.subscribe([
-            (INUITHY_TOPIC_COMMAND, self.cfgmng.mqtt_qos),
+            (INUITHY_TOPIC_COMMAND, self.tcfg.mqtt_qos),
         ])
-        self.ctrlcmd_handlers = {
+        self.ctrlcmd_routes = {
             CtrlCmds.NEW_CONTROLLER.name:               self.on_new_controller,
             CtrlCmds.AGENT_RESTART.name:                self.on_agent_restart,
             CtrlCmds.AGENT_STOP.name:                   self.on_agent_stop,
             CtrlCmds.AGENT_ENABLE_HEARTBEAT.name:       self.on_agent_enable_heartbeat,
             CtrlCmds.AGENT_DISABLE_HEARTBEAT.name:      self.on_agent_disable_heartbeat,
-            CtrlCmds.TRAFFIC.name:                      self.on_traffic,
         }
-
 
     def get_clientid(self):
         rd = ''
-        if self.cfgmng.enable_localdebug:
+        if self.tcfg.enable_localdebug:
             from random import randint
             rd = string_write('-{}', hex(randint(1000000,10000000))[2:])
         return string_write(INUITHYAGENT_CLIENT_ID, self.host+rd)
+
+    def set_host(self):
+        try:
+            self.__host = getpredefaddr()
+        except Exception as ex:
+            logger.error(string_write("Failed to get predefined static address: {}", ex))
+            try:
+                self.__host = socket.gethostname() #socket.gethostbyname(socket.gethostname())
+            except Exception as ex:
+                logger.error(string_write("Failed to get host by name: {}", ex))
 
     def __do_init(self):
         """
@@ -154,18 +190,25 @@ class Agent:
         """
         logger.info(string_write("Do initialization"))
         try:
-            self.__host = socket.gethostbyname(socket.gethostname())
+            self.set_host()
             self.__clientid = self.get_clientid()
             self.__sad = SerialAdapter()
-            self.create_subscriber(*self.cfgmng.mqtt)
+            self.create_subscriber(*self.tcfg.mqtt)
+            self.__traffics = []
+            if self.tcfg.workmode == WorkMode.MONITOR.name:
+                self.__enable_heartbeat = True
             self.initialized = True
         except Exception as ex:
             logger.error(string_write("Failed to initialize: {}", ex))
     
-    def __init__(self, cfgpath='config/inuithy.conf'):
+    def __init__(self, cfgpath='config/inuithy.conf', lg=None):
         self.__initialized = False
-        self.__cfg_mng = ConfigManager(cfgpath)
-        if False == self.__cfg_mng.load():
+        self.__enable_heartbeat = False
+        self.__inuithy_cfg = InuithyConfig(cfgpath)
+        if lg != None:
+            global logger
+            logger = lg
+        if False == self.__inuithy_cfg.load():
             logger.error(string_write("Failed to load configure"))
         else:
             self.__do_init()
@@ -174,56 +217,20 @@ class Agent:
         logger.info(string_write("Receive command [{}]", command))
         cmds = valid_cmds(command)
         if len(cmds) == 0:
-            logging.error(string_write('Invalid command [{}]', command))
+            logger.error(string_write('Invalid command [{}]', command))
             return
         ctrlcmd = cmds[0]
         try:
-            if self.ctrlcmd_handlers.has_key(ctrlcmd):
-                self.ctrlcmd_handlers[ctrlcmd](command[len(ctrlcmd)+1:])
+            if self.ctrlcmd_routes.has_key(ctrlcmd):
+                self.ctrlcmd_routes[ctrlcmd](command[len(ctrlcmd)+1:])
             else:
-                logging.error(string_write('Invalid command [{}]', command))
+                logger.error(string_write('Invalid command [{}]', command))
         except Exception as ex:
-                logging.error(string_write('Exception on handling command [{}]', command))
+                logger.error(string_write('Exception on handling command [{}]:{}', command, ex))
 #        if Agent.__mutex_msg.acquire():
 #            # TODO
 #            Agent.__mutex_msg.release()
 
-    def on_topic_command(self, message):
-        """Command message format:
-        <command> <parameters>
-        """
-        logger.info(string_write("On topic command"))
-        try:
-            self.ctrlcmd_dispatch(message.payload.strip())
-        except Exception as ex:
-            logger.error(string_write("Exception on dispating control command: {}", ex))
-
-    def on_new_controller(self, message):
-        logger.info(string_write("New controller"))
-        self.register()
-
-    def on_agent_restart(self, message):
-        logger.info(string_write("Restart agent"))
-        #TODO
-        pass
-
-    def on_agent_stop(self, message):
-        logger.info(string_write("Stop agent"))
-        #TODO
-        pass
-
-    def on_agent_enable_heartbeat(self, message):
-        logger.info(string_write("Enable heartbeat"))
-        self.__enable_heartbeat = True
-
-    def on_agent_disable_heartbeat(self, message):
-        logger.info(string_write("Disable heartbeat"))
-        self.__enable_heartbeat = False
-
-    def on_traffic(self, message):
-        logger.info(string_write("Traffic command"))
-        #TODO
-        pass
 
     def start(self):
         if not self.initialized:
@@ -237,11 +244,76 @@ class Agent:
             self.register()
             self.__subscriber.loop_forever()
         except KeyboardInterrupt:
-            self.unregister()
-            self.__subscriber.disconnect()
+            self.teardown()
             logger.error(string_write("Agent received keyboard interrupt"))
         finally:
             logger.info(string_write("Agent terminated"))
+
+    def on_topic_command(self, message):
+        """Command message format:
+        <command> <parameters>
+        """
+        logger.info(string_write("On topic command"))
+        try:
+            self.ctrlcmd_dispatch(message.payload.strip())
+        except Exception as ex:
+            logger.error(string_write("Exception on dispating control command: {}", ex))
+
+    def on_topic_config(self, message):
+        """Config message format:
+        <key> <value>
+        """
+        logger.info(string_write("On topic config"))
+        try:
+            # TODO
+            pass
+        except Exception as ex:
+            logger.error(string_write("Exception on updating config: {}", ex))
+
+    def on_topic_traffic(self, message):
+        logger.info(string_write("On topic traffic"))
+        command = message.payload.strip()
+        cmds = valid_cmds(message.payload)
+        if len(cmds) == 0:
+            logger.error(string_write('Invalid command [{}]', command))
+            return
+        ctrlcmd = cmds[0]
+        if ctrlcmd == 'start':
+            self.start_traffic
+            return
+        self.__traffic.append(command)
+
+    def start_traffic(self):
+        try:
+            #TODO
+            #[t.run for t in self.traffic]
+            pass
+        except Exception as ex:
+            logger.error(string_write("Exception on running traffic [{}]: {}", t, ex))
+
+    def on_new_controller(self, message):
+        logger.info(string_write("New controller"))
+        self.register()
+
+    def on_agent_restart(self, message):
+        logger.info(string_write("Restart agent"))
+        #TODO
+        pass
+
+    def on_agent_stop(self, message):
+        if message == None or len(message) == 0:
+            return
+        if message in ['*', self.__host, self.__clientid]:
+            logger.info(string_write("Stop agent"))
+            self.teardown()
+
+    def on_agent_enable_heartbeat(self, message):
+        logger.info(string_write("Enable heartbeat"))
+        self.__enable_heartbeat = True
+
+    def on_agent_disable_heartbeat(self, message):
+        logger.info(string_write("Disable heartbeat"))
+        self.__enable_heartbeat = False
 
 def start_agent(cfgpath):
     agent = Agent(cfgpath)
