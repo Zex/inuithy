@@ -21,6 +21,7 @@ class SerialAdapter:
     @staticmethod
     def get_type(port):
         # TODO
+        return NodeType.BLE
         dev = serial.Serial(port, baudrate=115200, timeout=2)
         dev.write(candidates)
         buf = ''
@@ -32,8 +33,10 @@ class SerialAdapter:
         return NodeType.BLE
     
     def create_node(self, port):
+        if isinstance(port, tuple): port = port[1]
         if not isinstance(port, str) or port == None or len(port) == 0:
             return
+        port = port.strip()
         node = None
         try:
             ptype = SerialAdapter.get_type(port)

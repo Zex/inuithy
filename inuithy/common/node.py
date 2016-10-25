@@ -31,11 +31,11 @@ class Node:
 class NodeBLE(Node):
     """Bluetooth node definition
     """
-    def __init__(self, port):
+    def __init__(self, port='', addr=''):
         super(NodeBLE, self).__init__(NodeType.BLE)
         #TODO
         self.__serial = None
-        self.__addr = ''
+        self.addr = addr
 
     def read(self, rdbyte=0, **kwargs):
         pass
@@ -45,14 +45,14 @@ class NodeBLE(Node):
     
     def __str__(self):
         # TODO: node info
-        return json.dumps({'type':self.ntype.name, 'addr':self.__addr})
+        return json.dumps({'type':self.ntype.name, 'addr':self.addr})
     # TODO: BLE command
 
 class NodeZigbee(Node):
     """Zigbee node definition
     """
     def __init__(self, port):
-        super(NodeBLE, self).__init__(NodeType.Zigbee)
+        super(NodeZigbee, self).__init__(NodeType.Zigbee)
         #TODO
         self.__serial = None
 

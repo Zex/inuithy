@@ -44,6 +44,41 @@ INUITHY_TITLE         = "Inuithy version {} {}"
 DEV_TTYUSB          = '/dev/ttyUSB{}'
 DEV_TTYS            = '/dev/ttyS{}'
 
+# Configure keywords
+CFGKW_WORKMODE          = 'workmode'
+CFGKW_MQTT              = 'mqtt'
+CFGKW_HOST              = 'host'
+CFGKW_PORT              = 'port'
+CFGKW_QOS               = 'qos'
+CFGKW_CONTROLLER        = 'controller'
+CFGKW_AGENTS            = 'agents'
+CFGKW_ENABLE_LDEBUG     = 'enable_localdebug'
+CFGKW_ENABLE_MQDEBUG    = 'enable_mqdebug'
+CFGKW_TRAFFIC_STORAGE   = 'traffic_storage'
+CFGKW_TYPE              = 'type'
+CFGKW_PATH              = 'path'
+CFGKW_USER              = 'user'
+CFGKW_PASSWD            = 'passwd'
+CFGKW_TSH               = 'inuithy_shell'
+CFGKW_HISTORY           = 'history'
+CFGKW_SUBNET            = 'subnet'
+CFGKW_NODES             = 'nodes'
+CFGKW_GATEWAY           = 'gateway'
+CFGKW_PKGSIZE           = 'pkgsize'
+CFGKW_PKGRATE           = 'pkgrate'
+CFGKW_RECIPIENTS        = 'recipients'
+CFGKW_SENDERS           = 'senders'
+CFGKW_DURATION          = 'duration'
+CFGKW_TARGET_TRAFFICS   = 'target_traffics'
+CFGKW_NWLAYOUT          = 'nwlayout'
+CFGKW_NWCONFIG_PATH     = 'network_config'
+CFGKW_NWLAYOUT_ID_FMT   = '{}:{}'
+CFGKW_TRAFFICS          = 'traffics'
+CFGKW_PANID             = 'panid'
+CFGKW_CHANNEL           = 'channel'
+
+CFGKW_CLIENTID          = 'clientid'
+
 def mqlog_map(logger, level, msg):
     if level == mqtt.MQTT_LOG_INFO:
         logger.info(INUITHY_MQLOG_FMT.format(msg))
@@ -92,12 +127,4 @@ def console_write(fmt, *params):
         return
     print(fmt.format(*params))
 
-class AgentInfo:
-    def __init__(self, agentid="", status=AgentStatus.OFFLINE):
-        self.agentid = agentid
-        self.status = status
-
-    def __str__(self):
-        return string_write("agent<{}>: status:{}", self.agentid, self.status)
-    
 
