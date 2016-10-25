@@ -7,6 +7,7 @@ import paho.mqtt.client as mqtt
 import threading as thrd
 from inuithy.util.cmd_helper import *
 from inuithy.util.config_manager import *
+from inuithy.common.traffic import *
 
 lconf.fileConfig(INUITHY_LOGCONFIG)
 logger = logging.getLogger('InuithyController')
@@ -60,6 +61,8 @@ class Controller:
 
     @property
     def tcfg(self):
+        """Inuithy configure
+        """
         return self.__inuithy_cfg
 
     @tcfg.setter
@@ -68,6 +71,8 @@ class Controller:
 
     @property
     def nwcfg(self):
+        """Network configure
+        """
         return self.__network_cfg
 
     @nwcfg.setter
@@ -75,11 +80,13 @@ class Controller:
         pass
 
     @property
-    def trafficcfg(self):
+    def trcfg(self):
+        """Traffic configure
+        """
         return self.__traffic_cfg
 
-    @trafficcfg.setter
-    def trafficcfg(self, val):
+    @trcfg.setter
+    def trcfg(self, val):
         pass
 
     @property
@@ -100,6 +107,17 @@ class Controller:
             if not self.__initialized:
                 self.__initialized = True
             Controller.__mutex.release()
+    
+    @property
+    def current_nwlayout(self):
+        """FORMAT: <networkconfig_path>:<networklayout_name>"""
+        return getnwlayoutid(*self.__current_nwlayout)
+
+    @current_nwlayout.setter
+    def current_nwlayout(self, val):
+        if not isinstance(tuple, val):
+            raise TypeError("Tuple expected")
+        self.__current_nwlayout = val
 
     @staticmethod
     def on_connect(client, userdata, rc):
@@ -145,12 +163,6 @@ class Controller:
         return string_write("clientid:[{}] host:[{}]", self.clientid, self.host)
     
     def create_mqtt_subscriber(self, host, port):
-        self.topic_routes = {
-            INUITHY_TOPIC_REGISTER:       self.on_topic_register,
-            INUITHY_TOPIC_UNREGISTER:     self.on_topic_unregister,
-            INUITHY_TOPIC_STATUS:         self.on_topic_status,
-            INUITHY_TOPIC_RESPONSE:       self.on_topic_response,
-        }
         self.__subscriber = mqtt.Client(self.clientid, True, self)
         self.__subscriber.on_connect    = Controller.on_connect
         self.__subscriber.on_message    = Controller.on_message
@@ -166,6 +178,14 @@ class Controller:
             (INUITHY_TOPIC_RESPONSE,  self.tcfg.mqtt_qos),
         ])
 
+    def register_routes(self):
+        self.topic_routes = {
+            INUITHY_TOPIC_REGISTER:       self.on_topic_register,
+            INUITHY_TOPIC_UNREGISTER:     self.on_topic_unregister,
+            INUITHY_TOPIC_STATUS:         self.on_topic_status,
+            INUITHY_TOPIC_RESPONSE:       self.on_topic_response,
+        }
+
     def __do_init(self):
         """
         __host: IP address of agent
@@ -179,45 +199,68 @@ class Controller:
             self.__available_agents = {}
             self.__host = socket.gethostname()
             self.__clientid = string_write(INUITHYCONTROLLER_CLIENT_ID, self.host)
+            self.register_routes()
             self.create_mqtt_subscriber(*self.tcfg.mqtt)
             self.initialized = True
         except Exception as ex:
             logger.error(string_write("Failed to initialize: {}", ex))
 
-    def load_configs(self, inuithy_cfgpath, nw_cfgpath, traffic_cfgpath):
+    def load_configs(self, inuithy_cfgpath, traffic_cfgpath):
         is_configured = True
         try:
             self.__inuithy_cfg    = InuithyConfig(inuithy_cfgpath)
             if False == self.__inuithy_cfg.load():
                 logger.error(string_write("Failed to load inuithy configure"))
                 return False
-            self.__network_cfg  = NetworkConfig(nw_cfgpath) 
-            if False == self.__network_cfg.load():
-                logger.error(string_write("Failed to load network configure"))
-                return False
             self.__traffic_cfg  = TrafficConfig(traffic_cfgpath) 
             if False == self.__traffic_cfg.load():
                 logger.error(string_write("Failed to load traffics configure"))
                 return False
+            self.__network_cfg  = NetworkConfig(self.__traffic_cfg.nw_cfgpath) 
+            if False == self.__network_cfg.load():
+                logger.error(string_write("Failed to load network configure"))
+                return False
+            self.__current_nwlayout = ('', '')
             is_configured = True
         except Exception as ex:
             logger.error(string_write("Configure failed", ex))
             is_configured = False
         return is_configured
 
-    def __init__(self, inuithy_cfgpath='config/inuithy.conf', nw_cfgpath='config/networks.conf', traffic_cfgpath='config/traffics.conf', lg=None):
+    def __init__(self, inuithy_cfgpath='config/inuithy.conf', traffic_cfgpath='config/traffics.conf', lg=None):
         self.__initialized = False
+        self.trgens = []
         if lg != None:
             global logger
             logger = lg
-        if self.load_configs(inuithy_cfgpath, nw_cfgpath, traffic_cfgpath):
+        if self.load_configs(inuithy_cfgpath, traffic_cfgpath):
             self.__do_init()
+        if self.tcfg.workmode == WorkMode.AUTO and self.initialized:
+            self.trgens = create_traffics(self.trcfg, self.nwcfg)
+
+    def config_network(self, tg):
+        """Configure network for given traffic generator
+        """
+        logger.info(string_write("Config network: [{}] for [{}]", tg.nwlayout, tg.traffic_name))
+        #TODO
+        #pub_traffic()
+
+    def run_traffics(self):
+        logger.info(string_write("Run traffics"))
+        if self.trgens == None or len(self.trgens) == 0: return
+        logger.info("Total generator: [{}]", len(self.trgens))
+        for tg in tgs:
+            logger.info(str(tg))
+#            logger.info(string_write('\n'.join([str(traffic) for traffic in tg.traffics])))
+            if self.current_nwlayout != tg.nwlayoutid:
+                self.config_network(tg)
+
+            pub_traffic(self.subscriber, self.tcfg.mqtt_qos, data, "*")
 
     def start(self):
         if not self.initialized:
             logger.error(string_write("Controller not initialized"))
             return
-
         try:
             logger.info(string_write("Expected Agents({}): {}", len(self.__expected_agents), self.__expected_agents))
             self.__alive_notification()
@@ -228,28 +271,39 @@ class Controller:
         finally:
             logger.info(string_write("Controller terminated"))
 
-    def add_agent(self, agentid):
-        self.__available_agents[agentid] = AgentInfo(agentid, AgentStatus.ONLINE)
+    def add_agent(self, agentid, nodes):
+        self.__available_agents[agentid] = AgentInfo(agentid, AgentStatus.ONLINE, nodes)
+        logger.info(string_write("Agent {} added", agentid))
 
     def del_agent(self, agentid):
         if self.__available_agents.has_key(agentid):
             del self.__available_agents[agentid]
+            logger.info(string_write("Agent {} removed", agentid))
+
+    def whohas(self, addr):
+        """Find out which host has node with given address connected
+        """
+        for aid, ainfo in self.available_agents.items():
+            if ainfo.has_node(addr) != None:
+                logger.info(string_write("{} has node {}", aid, addr))
+                return aid
+        return None
 
     def on_topic_register(self, message):
         """Register message format:
         <agentid>
         """
         logger.info(string_write("On topic register"))
-        agentid = agent_id_from_payload(message.payload)
+        agentid, nodes = extract_register(message.payload)
         if len(agentid) == 0:
             logger.error(string_write("Invalid agent ID"))
             return
         try:
             agentid = agentid.strip('\t\n ')
-            self.add_agent(agentid)
-            logger.info(string_write("Agent {} added", agentid))
+            self.add_agent(agentid, nodes)
             logger.info(string_write("Expected Agents({}): {}", len(self.__expected_agents), self.__expected_agents))
-            logger.info(string_write("Available Agents({}): {}", len(self.__available_agents), self.__available_agents))
+            logger.info(string_write("Available Agents({}): {}", len(self.__available_agents), 
+                        [str(a) for a in self.__available_agents.values()]))
         except Exception as ex:
             logger.error(string_write("Exception on registering agent {}: {}", agentid, ex))
 
@@ -264,7 +318,6 @@ class Controller:
             return
         try:
             self.del_agent(agentid)
-            logger.info(string_write("Agent {} removed", agentid))
             logger.info(string_write("Available Agents({}): {}", len(self.__available_agents), self.__available_agents))
         except Exception as ex:
             logger.error(string_write("Exception on unregistering agent {}: {}", agentid, ex))
@@ -281,11 +334,11 @@ class Controller:
         logger.info(string_write("New controller notification {}", self.clientid))
         pub_newctrl(self.__subscriber, self.tcfg.mqtt_qos, self.clientid)
 
-def start_controller(tcfg, nwcfg, trcfg):
-    controller = Controller(tcfg, nwcfg, trcfg)
+def start_controller(tcfg, trcfg):
+    controller = Controller(tcfg, trcfg)
     controller.start()
 
 if __name__ == '__main__':
     logger.info(string_write(INUITHY_TITLE, INUITHY_VERSION, "Controller"))
-    start_controller(INUITHY_CONFIG_PATH, NETWORK_CONFIG_PATH, TRAFFIC_CONFIG_PATH)
+    start_controller(INUITHY_CONFIG_PATH, TRAFFIC_CONFIG_PATH)
 
