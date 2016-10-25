@@ -10,11 +10,13 @@ import socket, threading
 import signal, sys, glob
 import os, logging, os.path
 import multiprocessing as mp
+from inuithy.common.command import *
 
 DEFAULT_PROMPT = "inuithy@{}>"
 # Inuithy shell commands
 TSH_CMD_AGENT       = "agent"
 TSH_CMD_TRAFFIC     = "traffic"
+TSH_CMD_CONFIG      = "config"
 TSH_CMD_CTRL        = "ctrl"
 TSH_CMD_HELP        = "help"
 TSH_CMD_QUIT        = "quit"
@@ -24,12 +26,10 @@ TSH_CMD_RESTART     = "restart"
 TSH_CMD_START       = "start"
 TSH_CMD_STOP        = "stop"
 TSH_CMD_LIST        = "list"
+TSH_CMD_HOST        = "host"
+TSH_CMD_LOAD        = "load"
+TSH_CMD_RUN         = "run"
 TSH_CMD_WHOHAS      = "whohas"
-
-TSH_ERR_GENERAL      = "ERROR: {}"
-TSH_ERR_INVALID_CMD  = "Invalid command [{}], type `{}` for the usages."
-TSH_ERR_INVALID_PARAM = "Invalid parameters [{}], type `{}` for the usages."
-TSH_ERR_HANDLING_CMD  = "Exception on handling command [{}]: {}"
 
 console_reader = hasattr(__builtins__, 'raw_input') and raw_input or input
 
@@ -66,6 +66,7 @@ class Console(threading.Thread):
             console_write("Setup banner failed: {}", ex)
 
     def __register_routes(self):
+        # TODO
         self.usages = {
         "usage":        self.__title + "\n" \
          + "Usage:\n"\
@@ -74,6 +75,7 @@ class Console(threading.Thread):
          + "  quit                  Leave me\n"\
          + "  agent                 Operations on agents\n"\
  #       + "  ctrl                  Operation on controller\n"\
+         + "  config                Configure items\n"\
          + "  ! <system command>    Excute shell command\n",
         "usage_agent":  self.__title + "\n"\
          + "  agent list            Print available agents\n"\
@@ -82,9 +84,16 @@ class Console(threading.Thread):
          + "  agent stop <host>     Stop agent on <host>\n"\
          + "                        '*' for all connected hosts\n",
         "usage_traffic": self.__title + "\n"\
-         + "  traffic <host> <serial command>\n"\
+         + "  traffic host <host> <serial command>\n"\
          + "                        Send serial command to agent on <host>\n"\
-         + "                        '*' for all connected hosts",
+         + "                        '*' for all connected hosts\n"\
+         + "  traffic load <traffic_config_file>\n"\
+         + "                        Load predefined traffic from <traffic_config_file>\n"
+         + "  traffic run <traffic_name>\n"\
+         + "                        Run predefined traffic by name\n",
+        "usage_config": self.__title + "\n"\
+         + "  config nw <network_config_file>\n"\
+         + "                        Create network layout based on <network_config_file>\n",
 #        "usage_ctrl":   self.__title + "\n"\
 #         + "  ctrl start            Restart controller\n"\
 #         + "  ctrl stop             Stop controller\n"\
@@ -98,6 +107,7 @@ class Console(threading.Thread):
             TSH_CMD_AGENT:      self.on_cmd_agent,
 #            TSH_CMD_CTRL:       self.on_cmd_ctrl,
             TSH_CMD_TRAFFIC:    self.on_cmd_traffic,
+            TSH_CMD_CONFIG:     self.on_cmd_config,
             TSH_CMD_HELP:       self.on_cmd_help,
             TSH_CMD_QUIT:       self.on_cmd_quit,
             TSH_CMD_EXCLAM:     self.on_cmd_sys,
@@ -111,6 +121,11 @@ class Console(threading.Thread):
             TSH_CMD_START:      self.on_cmd_ctrl_start,
             TSH_CMD_STOP:       self.on_cmd_ctrl_stop,
             TSH_CMD_WHOHAS:     self.on_cmd_ctrl_whohas,
+        }
+        self.__cmd_traffic_routes = {
+            TSH_CMD_HOST:       self.on_cmd_traffic_host,
+            TSH_CMD_LOAD:       self.on_cmd_traffic_load,
+            TSH_CMD_RUN:        self.on_cmd_traffic_run,
         }
 
     def __init__(self, group=None, target=None, name=None, args=(), kwargs=None, verbose=None):
@@ -149,9 +164,7 @@ class Console(threading.Thread):
         if len(clientid) == 0:
             console_write(TSH_ERR_INVALID_PARAM, args, 'help agent')
             return
-            
         pub_stop_agent(self.__ctrl.subscriber, self.__ctrl.tcfg.mqtt_qos, clientid)
-
 
     def on_cmd_agent_list(self, *args, **kwargs):
         [console_write("AGENT[{}]:{}", k, str(v)) for k,v in self.__ctrl.available_agents.items()] 
@@ -192,6 +205,31 @@ class Console(threading.Thread):
         pass
 
     def on_cmd_traffic(self, *args, **kwargs):
+        if args == None or len(args) == 0:
+            return
+        command = args[0].strip('\t \n')
+        if len(command) == 0:
+            return
+        cmds = valid_cmds(command)
+        if len(cmds) == 0:
+            console_write(TSH_ERR_INVALID_CMD, command, 'help traffic')
+            return
+        try:
+            if self.__cmd_traffic_routes.has_key(cmds[0]):
+                self.__cmd_traffic_routes[cmds[0]](command[len(cmds[0])+1:])
+            else:
+                console_write(self.usages['usage_traffic'])
+        except Exception as ex:
+            console_write(TSH_ERR_HANDLING_CMD, command, ex)
+#TODO
+    def on_cmd_traffic_host(self, *args, **kwargs):
+        pass
+    def on_cmd_traffic_load(self, *args, **kwargs):
+        pass
+    def on_cmd_traffic_run(self, *args, **kwargs):
+        pass
+
+    def on_cmd_config(self, *args, **kwargs):
         pass
 
     def on_cmd_help(self, *args, **kwargs):
@@ -214,8 +252,11 @@ class Console(threading.Thread):
     def on_cmd_quit(self, *args, **kwargs):
         """FORMAT: quit
         """
-        self.__ctrl.subscriber.disconnect()
-        self.__ctrl_proc.join()
+        try:
+            self.__ctrl.subscriber.disconnect()
+            self.__ctrl_proc.join()
+        except Exception as ex:
+            pass
         self.running = False
 
     def on_cmd_sys(self, *args, **kwargs):

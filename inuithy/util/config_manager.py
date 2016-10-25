@@ -3,37 +3,8 @@
 #
 import logging
 import logging.config as lconf
+from abc import ABCMeta, abstractmethod
 from inuithy.util.helper import *
-
-# Configure keywords
-CFGKW_WORKMODE          = 'workmode'
-CFGKW_MQTT              = 'mqtt'
-CFGKW_HOST              = 'host'
-CFGKW_PORT              = 'port'
-CFGKW_QOS               = 'qos'
-CFGKW_CONTROLLER        = 'controller'
-CFGKW_AGENTS            = 'agents'
-CFGKW_ENABLE_LDEBUG     = 'enable_localdebug'
-CFGKW_ENABLE_MQDEBUG    = 'enable_mqdebug'
-CFGKW_TRAFFIC_STORAGE   = 'traffic_storage'
-CFGKW_TYPE              = 'type'
-CFGKW_PATH              = 'path'
-CFGKW_USER              = 'user'
-CFGKW_PASSWD            = 'passwd'
-CFGKW_TSH               = 'inuithy_shell'
-CFGKW_HISTORY           = 'history'
-CFGKW_SUBNET            = 'subnet'
-CFGKW_NODES             = 'nodes'
-CFGKW_GATEWAY           = 'gateway'
-CFGKW_PKGSIZE           = 'pkgsize'
-CFGKW_PKGRATE           = 'pkgrate'
-CFGKW_RECIPIENTS        = 'recipients'
-CFGKW_SENDERS           = 'senders'
-CFGKW_DURATION          = 'duration'
-CFGKW_TARGET_TRAFFICS   = 'target_traffics'
-CFGKW_NWCONFIG          = 'nwconfig'
-CFGKW_NWCONFIG_ID_FMT   = '{}:{}'
-CFGKW_TRAFFICS          = 'traffics'
 
 lconf.fileConfig(INUITHY_LOGCONFIG)
 logger = logging.getLogger('InuithyConfig')
@@ -52,6 +23,7 @@ class Config:
         self.__config_path = val
     
     def __init__(self, path):
+        __metaclass__ = ABCMeta
         self.config_path = path
         self.config = {}
 
@@ -209,7 +181,34 @@ class InuithyConfig(Config):
         }
 
 class NetworkConfig(Config):
-    """
+    """Network layout definition
+    General format:
+    @code
+    <agents> => <agent_name> => <host>
+                                <nodes>
+             => <agent_name> => <host>
+                                <nodes>
+    <network_name> => <subnet_name> => <channel>
+                                    => <gateway>
+                                    => <nodes>
+                                    => <panid>
+                   => <subnet_name> => <channel>
+                                    => <gateway>
+                                    => <nodes>
+                                    => <panid>
+    <network_name> => <subnet_name> => <channel>
+                                    => <gateway>
+                                    => <nodes>
+                                    => <panid>
+    @endcode
+    - host      IP address
+    - panid     PAN ID, hex
+    - gateway   Node address, hex
+    - channel   Channel, 10-based integer
+    - nodes     List of node addresses
+    - network_name  Network layout identification 
+    - subnet_name   Subnet identification 
+    - agent_name    Agent identification
     """
     @property
     def agents(self):
@@ -219,91 +218,128 @@ class NetworkConfig(Config):
     def agents(self, val):
         pass
 
+    def subnet(self, nwlayout_name, subnet_name):
+        if self.config[nwlayout_name].has_key(subnet_name):
+            return self.config[nwlayout_name][subnet_name]
+        return None
+
     def create_sample(self):
         # Expected agent list
         self.config[CFGKW_AGENTS] = {
         'agent_0': {
             CFGKW_HOST:     '127.0.0.1',
             CFGKW_NODES:    [
-                '0x1111', '0x1112', '0x1113', '0x1114',
+                '1111', '1112', '1113', '1114',
             ],
         },
         'agent_1': {
             CFGKW_HOST:     '127.0.0.2',
             CFGKW_NODES:    [
-                '0x1121', '0x1122', '0x1123', '0x1124',
+                '1121', '1122', '1123', '1124',
             ],
         },
         'agent_2': {
             CFGKW_HOST:     '127.0.0.3',
             CFGKW_NODES:    [
-                '0x1131', '0x1132', '0x1133', '0x1134',
+                '1131', '1132', '1133', '1134',
                 ],
         },
         'agent_3': {
             CFGKW_HOST:     '127.0.0.4',
             CFGKW_NODES:    [
-                '0x1141', '0x1142', '0x1143', '0x1144',
+                '1141', '1142', '1143', '1144',
             ],
         },
         }
         # Expected network layout
         self.config['network_0'] = {
             'subnet_0': {
-                CFGKW_GATEWAY   : '0x1122',
+                CFGKW_PANID     : 'F5F5E6E617171515',
+                CFGKW_CHANNEL   : 15,
+                CFGKW_GATEWAY   : '1122',
                 CFGKW_NODES     : [
-                    '0x1111', '0x1112', '0x1113', '0x1114',
-                    '0x1122', '0x1123', '0x1124', '0x1134',
+                    '1111', '1112', '1113', '1114',
+                    '1122', '1123', '1124', '1134',
                 ],
             },
             'subnet_1': {
-                CFGKW_GATEWAY   : '0x1144',
+                CFGKW_PANID     : 6262441166221516,
+                CFGKW_CHANNEL   : 16,
+                CFGKW_GATEWAY   : '1144',
                 CFGKW_NODES     : [
-                    '0x1121', '0x1131', '0x1132', '0x1133',
-                    '0x1141', '0x1142', '0x1143', '0x1144',
+                    '1121', '1131', '1132', '1133',
+                    '1141', '1142', '1143', '1144',
                 ],
             },
         }
         self.config['network_1'] = {
             'subnet_0': {
-                CFGKW_GATEWAY   : '0x1122',
+                CFGKW_PANID     : '2021313515101517',
+                CFGKW_CHANNEL   : 17,
+                CFGKW_GATEWAY   : '1122',
                 CFGKW_NODES     : [
-                    '0x1111', '0x1112', '0x1113', '0x1114',
-                    '0x1122', '0x1123', '0x1124', '0x1134',
-                    '0x1121', '0x1131', '0x1132', '0x1133',
-                    '0x1141', '0x1142', '0x1143', '0x1144',
+                    '1111', '1112', '1113', '1114',
+                    '1122', '1123', '1124', '1134',
+                    '1121', '1131', '1132', '1133',
+                    '1141', '1142', '1143', '1144',
                 ],
             },
         }
         self.config['network_2'] = {
             'subnet_0': {
-                CFGKW_GATEWAY   : '0x1122',
+                CFGKW_PANID     : '1717909012121522',
+                CFGKW_CHANNEL   : 22,
+                CFGKW_GATEWAY   : '1122',
                 CFGKW_NODES     : [
-                    '0x1111', '0x1112', '0x1113', '0x1114',
-                    '0x1122', '0x1123', '0x1124', '0x1134',
+                    '1111', '1112', '1113', '1114',
+                    '1122', '1123', '1124', '1134',
                 ],
             },
             'subnet_1': {
-                CFGKW_GATEWAY   : '0x1121',
+                CFGKW_PANID     : '4040101033441513',
+                CFGKW_CHANNEL   : 13,
+                CFGKW_GATEWAY   : '1121',
                 CFGKW_NODES     : [
-                    '0x1121', '0x1131', '0x1132', '0x1133',
+                    '1121', '1131', '1132', '1133',
                 ]
             },
             'subnet_2': {
-                CFGKW_GATEWAY   : '0x1144',
+                CFGKW_PANID     : '5151131320201516',
+                CFGKW_CHANNEL   : 16,
+                CFGKW_GATEWAY   : '1144',
                 CFGKW_NODES     : [
-                    '0x1141', '0x1142', '0x1143', '0x1144',
+                    '1141', '1142', '1143', '1144',
                 ],
             },
         }
         
 class TrafficConfig(Config):
+    """Wireless network traffic configure
+    Sender/Recipient are indecated by
+    - *               All nodes in a network layout
+    - <subnet_name>   All nodes in a subnet
+    - <node_address>  Node with given address
     """
-    """
+    @property
+    def nw_cfgpath(self):
+        return self.config[CFGKW_NWCONFIG_PATH]
+
+    @nw_cfgpath.setter
+    def nw_cfgpath(self, val):
+        pass
+
+    @property
+    def target_traffics(self):
+        return self.config[CFGKW_TARGET_TRAFFICS]
+
+    @target_traffics.setter
+    def target_traffics(self, val):
+        pass
+
     def create_sample(self):
         # Network config to use
         self.config["traffic_0"] = {
-            CFGKW_NWCONFIG  : string_write(CFGKW_NWCONFIG_ID_FMT, NETWORK_CONFIG_PATH, 'network_2'),
+            CFGKW_NWLAYOUT  : 'network_2',
             CFGKW_SENDERS   : [
                 '0x1111', '0x1112', '0x1113', '0x1114',
             ],
@@ -317,7 +353,7 @@ class TrafficConfig(Config):
             CFGKW_DURATION  : 180,
         }
         self.config["traffic_1"] = {
-            CFGKW_NWCONFIG  : string_write(CFGKW_NWCONFIG_ID_FMT, NETWORK_CONFIG_PATH, 'network_0'),
+            CFGKW_NWLAYOUT  : 'network_0',
             CFGKW_SENDERS   : [
                 '0x1114'
             ],
@@ -331,7 +367,7 @@ class TrafficConfig(Config):
             CFGKW_DURATION  : 180,
         }
         self.config["traffic_2"] = {
-            CFGKW_NWCONFIG  : string_write(CFGKW_NWCONFIG_ID_FMT, NETWORK_CONFIG_PATH, 'network_1'),
+            CFGKW_NWLAYOUT  : 'network_1',
             CFGKW_SENDERS   : [
                 '0x1123',
             ],
@@ -344,8 +380,38 @@ class TrafficConfig(Config):
             # seconds
             CFGKW_DURATION  : 360,
         }
+        self.config["traffic_3"] = {
+            CFGKW_NWLAYOUT  : 'network_1',
+            CFGKW_SENDERS   : [
+                '0x1111',
+            ],
+            CFGKW_RECIPIENTS: [
+                '*',
+            ],
+            # package / seconds
+            CFGKW_PKGRATE   : 0.2,
+            CFGKW_PKGSIZE   : 2,
+            # seconds
+            CFGKW_DURATION  : 360,
+        }
+        self.config["traffic_4"] = {
+            CFGKW_NWLAYOUT  : 'network_2',
+            CFGKW_SENDERS   : [
+                '*',
+            ],
+            CFGKW_RECIPIENTS: [
+                '0x1144',
+            ],
+            # package / seconds
+            CFGKW_PKGRATE   : 0.2,
+            CFGKW_PKGSIZE   : 2,
+            # seconds
+            CFGKW_DURATION  : 360,
+        }
+        # Network layout configure path
+        self.config[CFGKW_NWCONFIG_PATH]    = NETWORK_CONFIG_PATH
         # Traffics to run
-        self.config[CFGKW_TARGET_TRAFFICS] = [
+        self.config[CFGKW_TARGET_TRAFFICS]  = [
             "traffic_0", "traffic_2",
         ]
 
@@ -370,4 +436,6 @@ if __name__ == '__main__':
     cfg.config_path = TRAFFIC_CONFIG_PATH.replace('yaml', 'json')
     cfg.dump_json()
 
+    cfg = TrafficConfig(TRAFFIC_CONFIG_PATH)
+#   print(dir(cfg))
 

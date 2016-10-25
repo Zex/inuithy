@@ -2,6 +2,7 @@
 # Author: Zex Li <top_zlynch@yahoo.com>
 #
 from inuithy.util.helper import *
+import json
 
 #            newctrl
 # Agent <------------------------ Controller
@@ -50,8 +51,15 @@ def pub_config(publisher, qos, config={}, clientid="*"):
 #           register
 # Agent ------------------> Controller
 def pub_register(publisher, qos, clientid, nodes=[]):
-    payload = string_write("{} {}", clientid, ' '.join([str(node) for node in nodes]))
+    payload = json.dumps({
+        CFGKW_CLIENTID: clientid,
+        CFGKW_NODES:    [str(node) for node in nodes]
+    })
     publisher.publish(INUITHY_TOPIC_REGISTER, payload, qos, False)
+
+def extract_register(jpack):
+    s = json.loads(jpack)
+    return s[CFGKW_CLIENTID], s[CFGKW_NODES]
 
 #           unregister
 # Agent ------------------> Controller

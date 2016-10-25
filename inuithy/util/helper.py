@@ -1,11 +1,12 @@
 ## Node under test definition
 # Author: Zex Li <top_zlynch@yahoo.com>
 #
-import serial, glob
 from inuithy.common.predef import *
 from inuithy.common.node import *
 from inuithy.util.task_manager import *
 
+def getnwlayoutid(nwcfg_path, layout_name):
+    return string_write(CFGKW_NWLAYOUT_ID_FMT, nwcfg_path, layout_name)
 
 def getpredefaddr():
     ret = ''
