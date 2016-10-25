@@ -2,6 +2,6 @@ controller: {host: 127.0.0.1}
 enable_localdebug: true
 enable_mqdebug: false
 mqtt: {host: 127.0.0.1, port: 1883, qos: 0}
-inuithy_shell: {history: /home/lab/.inuithy.cache}
+inuithy_shell: {history: .inuithy.cache}
 traffic_storage: {passwd: '', path: '127.0.0.1:7671', type: DB, user: ''}
 workmode: AUTO
