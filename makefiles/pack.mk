@@ -20,7 +20,7 @@ OUTPUT_TAR_EXCLUDES	   := $(BUILD) *.pyc .git .svn .*.swp docs *~
 
 $(OUTPUT_TAR_PATH): $(BUILD) $(VERSION_PATH)
 	$(ECHO) "---------------Creating $@------------------"
-	$(TAR) cfj $(OUTPUT_TAR_PATH) $(OUTPUT_TAR_SOURCE) $(OUTPUT_TAR_EXCLUDES:%=--exclude=%) --total
+	$(TAR) cfj $(OUTPUT_TAR_PATH) $(OUTPUT_TAR_SOURCE) $(OUTPUT_TAR_EXCLUDES:%=--exclude=%) --total -l
 
 $(VERSION_PATH):
 	$(ECHO) "---------------Creating $@------------------"

@@ -6,9 +6,13 @@ TAR			:= tar
 FIND		:= find
 RM			:= rm -rf
 MKDIR		:= mkdir -p
+PYTHON		:= python
+TAILMON		:= tail -f
 
 
-BUILD		           := build
-VERSION_PATH           := inuithy/common/version.py
+BUILD		    := build
+VERSION_PATH    := inuithy/common/version.py
+LOGBASE			:= /var/log/inuithy/
+LOGPATH			:= $(LOGBASE)/inuithy.log
 
 

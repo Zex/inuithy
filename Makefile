@@ -7,7 +7,7 @@ VERSION		           := 0.0.1
 include makefiles/predef.mk
 include makefiles/pack.mk
 
-.PHONY: $(VERSION_PATH) $(OUTPUT_TAR_PATH) $(BUILD) clean version
+.PHONY: $(VERSION_PATH) $(OUTPUT_TAR_PATH) $(BUILD) clean version sample_config traffic_config_chk run_controller run_tsh $(LOGBASE) install run_agent
 
 all: $(OUTPUT_TAR_PATH)
 
@@ -20,6 +20,30 @@ clean:
 	$(RM) $(VERSION_PATH)
 	$(RM) $(BUILD)
 
+sample_config: inuithy/util/config_manager.py
+	$(PYTHON) $<
+
+traffic_config_chk: inuithy/common/traffic.py
+	$(PYTHON) $<
+
+run_controller: inuithy/controller.py
+	$(PYTHON) $<
+
+run_tsh: inuithy/util/console.py
+	$(PYTHON) $<
+
+run_agent: inuithy/agent.py
+	$(PYTHON) $<
+
 $(BUILD):
 	$(MKDIR) $@	
 
+$(LOGBASE):
+	$(MKDIR) $@
+
+logmon:
+	$(TAILMON) $(LOGPATH)
+
+install: $(LOGPATH)
+
+	
