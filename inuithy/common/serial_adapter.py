@@ -15,8 +15,9 @@ class SerialAdapter:
     def nodes(self, val):
         pass
 
-    def __init__(self):
+    def __init__(self, reporter=None):
         self.__nodes = []
+        self.reporter = reporter
 
     @staticmethod
     def get_type(port):
@@ -41,9 +42,9 @@ class SerialAdapter:
         try:
             ptype = SerialAdapter.get_type(port)
             if ptype == NodeType.BLE:
-                node = NodeBLE(port)
+                node = NodeBLE(port, reporter=self.reporter)
             elif ptype == NodeType.Zigbee:
-                node = NodeZigbee(port)
+                node = NodeZigbee(port, reporter=self.reporter)
             if node != None:
                 self.__nodes.append(node)
         except Exception as ex:
@@ -53,6 +54,7 @@ class SerialAdapter:
     
     def scan_nodes(self):
         self.__nodes = []
+        # TODO DEV_TTYS => DEV_TTYUSB
         ports = enumerate(name for name in glob.glob(DEV_TTYS.format('*')))
         mng = ThrTaskManager()
         mng.create_task_foreach(self.create_node, ports)

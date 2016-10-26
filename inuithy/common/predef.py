@@ -7,14 +7,22 @@ from enum import Enum
 
 INUITHY_MQTTMSGFMT = "dup:{}, info:{}, mid:{}, payload:[{}], qos:{}, retain:{}, state:{}, timestamp:{}, topic:[{}]"
 # Controller => Agents
+# Command for agents
 INUITHY_TOPIC_COMMAND     = "inuithy/topic/command"
+# Configuration for agents
 INUITHY_TOPIC_CONFIG      = "inuithy/topic/config"
+# Traffc data to send via serial port on agent
 INUITHY_TOPIC_TRAFFIC     = "inuithy/topic/traffic"
 # Agents => Controller
+# Register agent with connected nodes
 INUITHY_TOPIC_REGISTER    = "inuithy/topic/register"
+# Unregister agent
 INUITHY_TOPIC_UNREGISTER  = "inuithy/topic/unregister"
+# Status of agent/nodes
 INUITHY_TOPIC_STATUS      = "inuithy/topic/status"
-INUITHY_TOPIC_RESPONSE    = "inuithy/topic/response"
+# Report data wriited to serial port
+INUITHY_TOPIC_REPORTWRITE  = "inuithy/topic/reportwrite"
+# Report data read from serial port
 INUITHY_TOPIC_NOTIFICATION = "inuithy/topic/notification"
 # <topic id>::<message>
 INUITHY_MQPAYLOAD_DELEMER = "::>"
@@ -68,8 +76,11 @@ CFGKW_PKGSIZE           = 'pkgsize'
 CFGKW_PKGRATE           = 'pkgrate'
 CFGKW_RECIPIENTS        = 'recipients'
 CFGKW_SENDERS           = 'senders'
+CFGKW_SENDER            = 'sender'
+CFGKW_RECIPIENT         = 'recipient'
 CFGKW_DURATION          = 'duration'
 CFGKW_TARGET_TRAFFICS   = 'target_traffics'
+CFGKW_TARGET_AGENTS     = 'target_agents'
 CFGKW_NWLAYOUT          = 'nwlayout'
 CFGKW_NWCONFIG_PATH     = 'network_config'
 CFGKW_NWLAYOUT_ID_FMT   = '{}:{}'
@@ -78,6 +89,16 @@ CFGKW_PANID             = 'panid'
 CFGKW_CHANNEL           = 'channel'
 
 CFGKW_CLIENTID          = 'clientid'
+CFGKW_TRAFFIC_TYPE      = 'traffic_type'
+CFGKW_NODE              = 'node'
+CFGKW_ADDR              = 'addr'
+CFGKW_MSG               = 'msg'
+
+TrafficType = Enum("TrafficType", [
+    "JOIN", # Join network
+    "SCMD", # Serial command
+    "UNKNOWN",
+    ])
 
 def mqlog_map(logger, level, msg):
     if level == mqtt.MQTT_LOG_INFO:
