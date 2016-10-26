@@ -36,10 +36,25 @@ def pub_stop_agent(publisher, qos, clientid="*"):
 
 #            traffic
 # Agent <------------------------ Controller
-def pub_traffic(publisher, qos, data, clientid="*"):
-    # TODO
-    payload = string_write("{} {}", clientid, clientid)
+def pub_traffic(publisher, qos=0, data={}):
+    payload = json.dumps(data)
     publisher.publish(INUITHY_TOPIC_TRAFFIC, payload, qos, False)
+
+def extract_traffic(jpack):
+    """
+    - Join network traffic
+        channel: 15
+        gateway: '1122'
+        nodes: ['1111', '1112', '1113', '1114', '1122', '1123', '1124', '1134']
+        panid: F5F5E6E617171515
+        node: '1111'
+        traffic_type: JOIN
+    - Serial command traffic
+        node: '1111'
+        <parameters>
+    """
+    s = json.loads(jpack)
+    return s
 
 #            config
 # Agent <------------------------ Controller
@@ -50,38 +65,49 @@ def pub_config(publisher, qos, config={}, clientid="*"):
 
 #           register
 # Agent ------------------> Controller
-def pub_register(publisher, qos, clientid, nodes=[]):
-    payload = json.dumps({
-        CFGKW_CLIENTID: clientid,
-        CFGKW_NODES:    [str(node) for node in nodes]
-    })
+def pub_register(publisher, qos=0, data={}):
+    """
+        data = {
+            CFGKW_CLIENTID: self.clientid,
+            CFGKW_HOST:     self.host,
+            CFGKW_NODES:    [str(node) for node in self.__sad.nodes]
+        }
+    """
+    payload = json.dumps(data)
     publisher.publish(INUITHY_TOPIC_REGISTER, payload, qos, False)
 
 def extract_register(jpack):
     s = json.loads(jpack)
-    return s[CFGKW_CLIENTID], s[CFGKW_NODES]
+    return s[CFGKW_CLIENTID], s[CFGKW_HOST], s[CFGKW_NODES]
 
 #           unregister
 # Agent ------------------> Controller
-def pub_unregister(publisher, qos, clientid):
+def pub_unregister(publisher, qos=0, clientid=''):
     payload = string_write("{}", clientid)
     publisher.publish(INUITHY_TOPIC_UNREGISTER, payload, qos, False)
 
 #           status
 # Agent ------------------> Controller
-def pub_status(publisher, qos, clientid, data):
-    payload = string_write("{} {}", clientid, data)
+def pub_status(publisher, qos=0, data={}):
+    payload = json.dumps(data)
     publisher.publish(INUITHY_TOPIC_STATUS, payload, qos, False)
 
+def extract_status(jpack):
+    #TODO
+    return json.loads(jpack)
 #           notification
 # Agent ------------------> Controller
-def pub_notification(publisher, qos, clientid, data):
-    payload = string_write("{} {}", clientid, data)
+def pub_notification(publisher, qos=0, data={}):
+    payload = json.dumps(data)
     publisher.publish(INUITHY_TOPIC_NOTIFICATION, payload, qos, False)
 
 #           response
 # Agent ------------------> Controller
-def pub_response(publisher, qos, clientid, data):
-    payload = string_write("{} {}", clientid, data)
-    publisher.publish(INUITHY_TOPIC_RESPONSE, payload, qos, False)
+def pub_reportwrite(publisher, qos=0, data={}):
+    payload = json.dumps(data)
+    publisher.publish(INUITHY_TOPIC_REPORTWRITE, payload, qos, False)
+
+def extract_reportwrite(jpack):
+    s = json.loads(jpack)
+    return s[CFGKW_CLIENTID], s[CFGKW_HOST], s[CFGKW_NODES]
 

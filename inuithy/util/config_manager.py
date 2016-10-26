@@ -218,9 +218,19 @@ class NetworkConfig(Config):
     def agents(self, val):
         pass
 
+    def agent_by_name(self, name):
+        return self.config[CFGKW_AGENTS].get(name)
+
     def subnet(self, nwlayout_name, subnet_name):
-        if self.config[nwlayout_name].has_key(subnet_name):
-            return self.config[nwlayout_name][subnet_name]
+        return self.config[nwlayout_name].get(subnet_name)
+
+    def whohas(self, addr):
+        """Find out which host has node with given address connected
+        """
+        for agent in self.nwcfg.config.agents:
+            if addr in agent[CFGKW_NODES]:
+                logger.info(string_write("Found [{}] on agent [{}]", addr, agent[CFGKW_HOST]))
+                return agent
         return None
 
     def create_sample(self):
@@ -336,15 +346,23 @@ class TrafficConfig(Config):
     def target_traffics(self, val):
         pass
 
+    @property
+    def target_agents(self):
+        return self.config[CFGKW_TARGET_AGENTS]
+
+    @target_agents.setter
+    def target_agents(self, val):
+        pass
+
     def create_sample(self):
         # Network config to use
         self.config["traffic_0"] = {
             CFGKW_NWLAYOUT  : 'network_2',
             CFGKW_SENDERS   : [
-                '0x1111', '0x1112', '0x1113', '0x1114',
+                '1111', '1112', '1113', '1114',
             ],
             CFGKW_RECIPIENTS: [
-                '0x1122', '0x1123', '0x1124', '0x1134',
+                '1122', '1123', '1124', '1134',
             ],
             # package / seconds
             CFGKW_PKGRATE   : 0.5,
@@ -355,10 +373,10 @@ class TrafficConfig(Config):
         self.config["traffic_1"] = {
             CFGKW_NWLAYOUT  : 'network_0',
             CFGKW_SENDERS   : [
-                '0x1114'
+                '1114'
             ],
             CFGKW_RECIPIENTS: [
-                '0x1122', '0x1123', '0x1124', '0x1134'
+                '1122', '1123', '1124', '1134'
             ],
             # package / seconds
             CFGKW_PKGRATE   : 0.5,
@@ -369,10 +387,10 @@ class TrafficConfig(Config):
         self.config["traffic_2"] = {
             CFGKW_NWLAYOUT  : 'network_1',
             CFGKW_SENDERS   : [
-                '0x1123',
+                '1123',
             ],
             CFGKW_RECIPIENTS: [
-                '0x1122',
+                '1122',
             ],
             # package / seconds
             CFGKW_PKGRATE   : 0.2,
@@ -383,7 +401,7 @@ class TrafficConfig(Config):
         self.config["traffic_3"] = {
             CFGKW_NWLAYOUT  : 'network_1',
             CFGKW_SENDERS   : [
-                '0x1111',
+                '1111',
             ],
             CFGKW_RECIPIENTS: [
                 '*',
@@ -400,7 +418,7 @@ class TrafficConfig(Config):
                 '*',
             ],
             CFGKW_RECIPIENTS: [
-                '0x1144',
+                '1144',
             ],
             # package / seconds
             CFGKW_PKGRATE   : 0.2,
@@ -413,6 +431,9 @@ class TrafficConfig(Config):
         # Traffics to run
         self.config[CFGKW_TARGET_TRAFFICS]  = [
             "traffic_0", "traffic_2",
+        ]
+        self.config[CFGKW_TARGET_AGENTS]  = [
+            "agent_0", "agent_1",
         ]
 
 if __name__ == '__main__':
