@@ -7,7 +7,7 @@ VERSION		           := 0.0.1
 include makefiles/predef.mk
 include makefiles/pack.mk
 
-.PHONY: $(VERSION_PATH) $(OUTPUT_TAR_PATH) $(BUILD) clean version sample_config traffic_config_chk run_controller run_tsh $(LOGBASE) install run_agent
+.PHONY: $(VERSION_PATH) $(OUTPUT_TAR_PATH) $(BUILD) clean version sample_config traffic_config_chk run_controller run_tsh $(LOGBASE) install run_agent run_mosquitto
 
 all: $(OUTPUT_TAR_PATH)
 
@@ -34,6 +34,9 @@ run_tsh: inuithy/util/console.py
 
 run_agent: inuithy/agent.py
 	$(PYTHON) $<
+
+run_mosquitto:
+	mosquitto -c $(MOSQUITTO_CONFIG)
 
 $(BUILD):
 	$(MKDIR) $@	
