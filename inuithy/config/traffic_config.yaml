@@ -1,37 +1,40 @@
 network_config: inuithy/config/network_config.yaml
+target_agents: [agent_0, agent_1]
 target_traffics: [traffic_0, traffic_2]
 traffic_0:
   duration: 180
-  nwlayout: network_2
+  #nwlayout: network_2
+  nwlayout: network_1
   pkgrate: 0.5
   pkgsize: 1
-  recipients: ['0x1122', '0x1123', '0x1124', '0x1134']
-  senders: ['0x1111', '0x1112', '0x1113', '0x1114']
+  recipients: ['1122', '1123', '1124', '1134']
+  senders: ['1111', '1112', '1113', '1114']
 traffic_1:
   duration: 180
   nwlayout: network_0
   pkgrate: 0.5
   pkgsize: 2
-  recipients: ['0x1122', '0x1123', '0x1124', '0x1134']
-  senders: ['0x1114']
+  recipients: ['1122', '1123', '1124', '1134']
+  senders: ['1114']
 traffic_2:
   duration: 360
-  nwlayout: network_1
+  #nwlayout: network_1
+  nwlayout: network_0
   pkgrate: 0.2
   pkgsize: 2
-  recipients: ['0x1122']
-  senders: ['0x1123']
+  recipients: ['1122']
+  senders: ['1123']
 traffic_3:
   duration: 360
   nwlayout: network_1
   pkgrate: 0.2
   pkgsize: 2
   recipients: ['*']
-  senders: ['0x1111']
+  senders: ['1111']
 traffic_4:
   duration: 360
   nwlayout: network_2
   pkgrate: 0.2
   pkgsize: 2
-  recipients: ['0x1144']
+  recipients: ['1144']
   senders: ['*']
