@@ -7,7 +7,7 @@ from abc import ABCMeta, abstractmethod
 from inuithy.util.helper import *
 
 lconf.fileConfig(INUITHY_LOGCONFIG)
-logger = logging.getLogger('InuithyConfig')
+lg = logging#.getLogger('InuithyConfig')
 
 class Config:
     """Basic configure
@@ -18,7 +18,7 @@ class Config:
 
     def config_path(self, val):
         if val == None or len(val) == 0:
-            logger.error("Invalid config path")
+            lg.error("Invalid config path")
             return
         self.__config_path = val
     
@@ -26,12 +26,13 @@ class Config:
         __metaclass__ = ABCMeta
         self.config_path = path
         self.config = {}
+        
 
     def __str__(self):
         return '\n'.join([self.config_path, str(self.config)])
 
     def load(self):
-        logger.info(string_write("Loading configure from [{}]", self.config_path))
+        lg.info(string_write("Loading configure from [{}]", self.config_path))
         ret = True
         if self.config_path.endswith('yaml'):
             ret  = self.load_yaml()
@@ -39,7 +40,7 @@ class Config:
             ret = self.load_json()
         else:
             if self.load_yaml() == False and self.load_json == False:
-                logger.error("Unsupported format for config file")
+                lg.error("Unsupported format for config file")
                 ret = False
         return ret
 
@@ -49,7 +50,7 @@ class Config:
             with open(self.config_path, 'w') as fd:
                 yaml.dump(self.config, fd)
         except Exception as ex:
-            logger.error(string_write("dumping yaml config file [{}]: {}", self.config_path, ex))
+            lg.error(string_write("dumping yaml config file [{}]: {}", self.config_path, ex))
 
     def dump_json(self):
         try:
@@ -57,7 +58,7 @@ class Config:
             with open(self.config_path, 'w') as fd:
                 json.dump(self.config, fd)
         except Exception as ex:
-            logger.error(string_write("dumping json config file [{}]: {}", self.config_path, ex))
+            lg.error(string_write("dumping json config file [{}]: {}", self.config_path, ex))
 
     def load_yaml(self):
         ret = True
@@ -66,7 +67,7 @@ class Config:
             with open(self.config_path, 'r') as fd:
                 self.config = yaml.load(fd)
         except Exception as ex:
-            logger.error(string_write("loading yaml config file [{}]: {}", self.config_path, ex))
+            lg.error(string_write("loading yaml config file [{}]: {}", self.config_path, ex))
             ret = False
         return ret
 
@@ -77,16 +78,16 @@ class Config:
             with open(self.config_path, 'r') as fd:
                 self.config = json.load(fd)
         except Exception as ex:
-            logger.error(string_write("loading json config file [{}]: {}", self.config_path, ex))
+            lg.error(string_write("loading json config file [{}]: {}", self.config_path, ex))
             ret = False
         return ret
 
     def dump_protobuf(self):
-        logger.error("Not implemented")
+        lg.error("Not implemented")
         return False
 
     def load_protobuf(self):
-        logger.error("Not implemented")
+        lg.error("Not implemented")
         return False
 
 class InuithyConfig(Config):
@@ -146,6 +147,13 @@ class InuithyConfig(Config):
     def tsh_hist(self, val):
         pass
 
+    @property
+    def storagetype(self):
+        return (self.config[CFGKW_TRAFFIC_STORAGE][CFGKW_TYPE].split(':'))
+    @storagetype.setter
+    def storagetype(self, val):
+        pass
+
     def create_sample(self):
         self.config[CFGKW_MQTT] = {
             CFGKW_HOST: '127.0.0.1',
@@ -164,20 +172,21 @@ class InuithyConfig(Config):
         self.config[CFGKW_ENABLE_MQDEBUG] = False
         self.config[CFGKW_TRAFFIC_STORAGE] = {
             # Storage types:
+            # <TrafficStorage>:<StorageType>
             # - TrafficStorage.DB
             # - TrafficStorage.FILE
-            CFGKW_TYPE:     TrafficStorage.DB.name,
+            CFGKW_TYPE:     string_write("{}:{}", TrafficStorage.DB.name, StorageType.MongoDB.name),
             # Path to traffic database
             # - For database storage, the path is host and port combination formated as <host>:<port>
             # - For local file storage, the path is absolute or relative path to storage file on local machine
-            CFGKW_PATH:     '127.0.0.1:7671',
+            CFGKW_PATH:     '127.0.0.1:19713',
             # Authentication for storage access if required
             CFGKW_USER:     '',
             CFGKW_PASSWD:   '',
         }
         # Inuithy shell config
         self.config[CFGKW_TSH]  = {
-            CFGKW_HISTORY: '/home/lab/.inuithy.cache',
+            CFGKW_HISTORY: '.inuithy.cache',
         }
 
 class NetworkConfig(Config):
@@ -229,7 +238,7 @@ class NetworkConfig(Config):
         """
         for agent in self.nwcfg.config.agents:
             if addr in agent[CFGKW_NODES]:
-                logger.info(string_write("Found [{}] on agent [{}]", addr, agent[CFGKW_HOST]))
+                lg.info(string_write("Found [{}] on agent [{}]", addr, agent[CFGKW_HOST]))
                 return agent
         return None
 
@@ -437,7 +446,7 @@ class TrafficConfig(Config):
         ]
 
 if __name__ == '__main__':
-    logger.info(string_write(INUITHY_TITLE, INUITHY_VERSION, "InuithyConfig"))
+    lg.info(string_write(INUITHY_TITLE, INUITHY_VERSION, "InuithyConfig"))
 
     cfg = InuithyConfig(INUITHY_CONFIG_PATH)
     cfg.create_sample()

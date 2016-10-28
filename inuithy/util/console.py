@@ -1,16 +1,12 @@
 ## Console for manual mode
 # Author: Zex Li <top_zlynch@yahoo.com>
 #
-#from inuithy.common.predef import *
-#from inuithy.util.helper import *
-from inuithy.controller import *
-from inuithy.agent import *
-from random import randint
-import socket, threading
-import signal, sys, glob
-import os, logging, os.path
+import socket, threading, signal, sys, glob, os, logging, os.path
 import multiprocessing as mp
+from random import randint
 from inuithy.common.command import *
+from inuithy.agent import *
+from inuithy.mode.manual_mode import *
 
 DEFAULT_PROMPT = "inuithy@{}>"
 # Inuithy shell commands
@@ -129,7 +125,6 @@ class Console(threading.Thread):
         }
 
     def __init__(self, group=None, target=None, name=None, args=(), kwargs=None, verbose=None):
-        super(Console, self).__init__(group, target, name, args, kwargs, verbose)
         self.__title = INUITHY_TITLE.format(INUITHY_VERSION, "Shell")
         self.__running = True
         self.__banner = ""
@@ -139,8 +134,7 @@ class Console(threading.Thread):
         self.create_controller()
 
     def create_controller(self):
-        global logger
-        self.__ctrl = Controller(INUITHY_CONFIG_PATH, logger)
+        self.__ctrl = ManualController(INUITHY_CONFIG_PATH, TRAFFIC_CONFIG_PATH)
         self.__ctrl_proc = threading.Thread(
             target=self.__ctrl.start, name="Ctrl@InuithyShell")
         self.__ctrl_proc.daemon = True
@@ -185,7 +179,7 @@ class Console(threading.Thread):
             console_write(TSH_ERR_INVALID_CMD, command, 'help agent')
             return
         try:
-            if self.__cmd_agent_routes.has_key(cmds[0]):
+            if self.__cmd_agent_routes.get(cmds[0]):
                 self.__cmd_agent_routes[cmds[0]](command[len(cmds[0])+1:])
             else:
                 console_write(self.usages['usage_agent'])
@@ -215,7 +209,7 @@ class Console(threading.Thread):
             console_write(TSH_ERR_INVALID_CMD, command, 'help traffic')
             return
         try:
-            if self.__cmd_traffic_routes.has_key(cmds[0]):
+            if self.__cmd_traffic_routes.get(cmds[0]):
                 self.__cmd_traffic_routes[cmds[0]](command[len(cmds[0])+1:])
             else:
                 console_write(self.usages['usage_traffic'])
@@ -244,7 +238,7 @@ class Console(threading.Thread):
             console_write(self.usages['usage'])
             return
         subhelp = 'usage_{}'.format(cmds[0])
-        if self.usages.has_key(subhelp):
+        if self.usages.get(subhelp):
             console_write(self.usages[subhelp])
             return
         console_write(TSH_ERR_INVALID_CMD, command, 'help')
@@ -291,18 +285,18 @@ class Console(threading.Thread):
         if len(cmds) == 0 or len(cmds[0]) == 0:
             console_write(TSH_ERR_INVALID_CMD, command, 'help')
         try:
-            if self.__cmd_routes.has_key(cmds[0]):
+            if self.__cmd_routes.get(cmds[0]):
                 self.__cmd_routes[cmds[0]](command[len(cmds[0])+1:])
             else:
                 self.on_cmd_help()
         except Exception as ex:
             console_write(TSH_ERR_HANDLING_CMD, command, ex)
 
-if __name__ == '__main__':
-    global logger
+def start_console(lg=None):
     lconf.fileConfig(INUITHY_LOGCONFIG)
-    logger = logging.getLogger('InuithyShell')
     term = Console()
     term.start()
     console_write("\nBye~\n")
 
+if __name__ == '__main__':
+    start_console()

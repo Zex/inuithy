@@ -1,14 +1,19 @@
 ## Command helper
 # Author: Zex Li <top_zlynch@yahoo.com>
 #
-from inuithy.util.helper import *
+#from inuithy.util.helper import *
+from inuithy.util.trigger import *
 import json
 
 #            newctrl
 # Agent <------------------------ Controller
-def pub_newctrl(publisher, qos, clientid):
-    payload = string_write("{} {}", CtrlCmds.NEW_CONTROLLER.name, clientid)
+def pub_ctrlcmd(publisher, qos, data):
+    payload = json.dumps(data)
     publisher.publish(INUITHY_TOPIC_COMMAND, payload, qos, False)
+
+def extract_payload(jdata):
+    if isinstance(jdata, bytes): jdata = jdata.decode()
+    return json.loads(jdata)
 
 #            enable heartbeat
 # Agent <------------------------ Controller
@@ -40,22 +45,6 @@ def pub_traffic(publisher, qos=0, data={}):
     payload = json.dumps(data)
     publisher.publish(INUITHY_TOPIC_TRAFFIC, payload, qos, False)
 
-def extract_traffic(jpack):
-    """
-    - Join network traffic
-        channel: 15
-        gateway: '1122'
-        nodes: ['1111', '1112', '1113', '1114', '1122', '1123', '1124', '1134']
-        panid: F5F5E6E617171515
-        node: '1111'
-        traffic_type: JOIN
-    - Serial command traffic
-        node: '1111'
-        <parameters>
-    """
-    s = json.loads(jpack)
-    return s
-
 #            config
 # Agent <------------------------ Controller
 def pub_config(publisher, qos, config={}, clientid="*"):
@@ -76,10 +65,6 @@ def pub_register(publisher, qos=0, data={}):
     payload = json.dumps(data)
     publisher.publish(INUITHY_TOPIC_REGISTER, payload, qos, False)
 
-def extract_register(jpack):
-    s = json.loads(jpack)
-    return s[CFGKW_CLIENTID], s[CFGKW_HOST], s[CFGKW_NODES]
-
 #           unregister
 # Agent ------------------> Controller
 def pub_unregister(publisher, qos=0, clientid=''):
@@ -92,9 +77,6 @@ def pub_status(publisher, qos=0, data={}):
     payload = json.dumps(data)
     publisher.publish(INUITHY_TOPIC_STATUS, payload, qos, False)
 
-def extract_status(jpack):
-    #TODO
-    return json.loads(jpack)
 #           notification
 # Agent ------------------> Controller
 def pub_notification(publisher, qos=0, data={}):
@@ -107,7 +89,42 @@ def pub_reportwrite(publisher, qos=0, data={}):
     payload = json.dumps(data)
     publisher.publish(INUITHY_TOPIC_REPORTWRITE, payload, qos, False)
 
-def extract_reportwrite(jpack):
-    s = json.loads(jpack)
-    return s[CFGKW_CLIENTID], s[CFGKW_HOST], s[CFGKW_NODES]
+#def extract_reportwrite(jpack):
+#    s = json.loads(jpack)
+#    return s[CFGKW_CLIENTID], s[CFGKW_HOST], s[CFGKW_NODES]
+
+#           heartbeat
+# Agent ------------------> Controller
+def pub_heartbeat(publisher, qos=0, data={}):
+    payload = json.dumps(data)
+    publisher.publish(INUITHY_TOPIC_HEARTBEAT, payload, qos, False)
+
+class Heartbeat(threading.Thread):
+    """Heartbeat generator
+    """
+    __mutex = threading.Lock()
+
+    def __init__(self, interval=2, target=None, name="Heartbeat", daemon=True, *args, **kwargs):
+        threading.Thread.__init__(self, target=None, name=name, args=args, kwargs=kwargs, daemon=daemon)
+        self.__interval = interval    
+        self.__running = False
+        self.__args = args
+        self.__kwargs = kwargs
+        self.__target = target
+
+    def run(self):
+        if self.__target == None: return # or self.__sender == None: return
+        self.__running = True
+
+        while self.__running:
+            if Heartbeat.__mutex.acquire():
+                self.__target()
+                Heartbeat.__mutex.release()
+            time.sleep(self.__interval)
+
+    def stop(self):
+        self.__running = False
+
+    def __del__(self):
+        self.stop()
 
