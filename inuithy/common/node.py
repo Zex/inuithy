@@ -4,6 +4,7 @@
 import serial, json
 from abc import ABCMeta, abstractmethod
 from inuithy.util.cmd_helper import *
+from inuithy.protocol.ble_protocol import BleProtocol as BleProt
 
 NodeType = Enum("NodeType", [
     "BLE",
@@ -30,7 +31,18 @@ class SerialNode:
 
     def report_write(self, data):
         if self.reporter != None:
-           pub_reportwrite(self.reporter, data=data)
+            pub_reportwrite(self.reporter, data={
+                CFGKW_MESSAGE_TYPE: MessageType.SENT.name,
+                CFGKW_AGENTID:      self.reporter.clientid,
+                CFGKW_DATA:         data
+            })
+
+    def report_read(self, data):
+        if self.reporter != None:
+            pub_notification(self.reporter, data={
+                CFGKW_MESSAGE_TYPE: MessageType.RECV.name,
+                CFGKW_DATA:         data
+            })
 
     def __str__(self):
         return json.dumps({CFGKW_TYPE:self.ntype.name})
@@ -59,22 +71,22 @@ class NodeBLE(SerialNode):
         self.report_write(msg)
 
     def leavegrp(self, grpid):
-        msg = string_write("leavegrp {}", grpid)
+        msg = BleProt.leavegrp(grpid)
         self.write(msg)
         self.report_write(msg)
 
     def lighton(self, raddr):
-        msg = string_write("lighton {}", raddr)
+        msg = BleProt.lighton(raddr)
         self.write(msg)
         self.report_write(msg)
 
     def lightoff(self, raddr):
-        msg = string_write("lightoff {}", raddr)
+        msg = BleProt.lighton(raddr)
         self.write(msg)
         self.report_write(msg)
 
     def setaddr(self, addr):
-        msg = string_write("addr {}", addr)
+        msg = BleProt.lighton(addr)
         self.write(msg)
         self.addr = addr
         self.report_write(msg)

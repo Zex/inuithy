@@ -8,18 +8,20 @@ from enum import Enum
 INUITHY_MQTTMSGFMT = "dup:{}, info:{}, mid:{}, payload:[{}], qos:{}, retain:{}, state:{}, timestamp:{}, topic:[{}]"
 # Controller => Agents
 # Command for agents
-INUITHY_TOPIC_COMMAND     = "inuithy/topic/command"
+INUITHY_TOPIC_COMMAND      = "inuithy/topic/command"
 # Configuration for agents
-INUITHY_TOPIC_CONFIG      = "inuithy/topic/config"
+INUITHY_TOPIC_CONFIG       = "inuithy/topic/config"
 # Traffc data to send via serial port on agent
-INUITHY_TOPIC_TRAFFIC     = "inuithy/topic/traffic"
+INUITHY_TOPIC_TRAFFIC      = "inuithy/topic/traffic"
 # Agents => Controller
 # Register agent with connected nodes
-INUITHY_TOPIC_REGISTER    = "inuithy/topic/register"
+INUITHY_TOPIC_REGISTER     = "inuithy/topic/register"
 # Unregister agent
-INUITHY_TOPIC_UNREGISTER  = "inuithy/topic/unregister"
+INUITHY_TOPIC_UNREGISTER   = "inuithy/topic/unregister"
 # Status of agent/nodes
-INUITHY_TOPIC_STATUS      = "inuithy/topic/status"
+INUITHY_TOPIC_STATUS       = "inuithy/topic/status"
+# Heartbeat from agent
+INUITHY_TOPIC_HEARTBEAT    = "inuithy/topic/heartbeat"
 # Report data wriited to serial port
 INUITHY_TOPIC_REPORTWRITE  = "inuithy/topic/reportwrite"
 # Report data read from serial port
@@ -92,11 +94,31 @@ CFGKW_CLIENTID          = 'clientid'
 CFGKW_TRAFFIC_TYPE      = 'traffic_type'
 CFGKW_NODE              = 'node'
 CFGKW_ADDR              = 'addr'
+CFGKW_CTRLCMD           = 'ctrlcmd'
 CFGKW_MSG               = 'msg'
+CFGKW_MESSAGE_TYPE      = "msgtype"
+
+TrafficStatus = Enum("TrafficStatus", [
+    "STOP",             # Initial status, traffic not yet launched
+    "STARTED",          # Traffic routine started
+    "NWCONFIGURING",    # Configuring network layout
+    "NWCONFIGED",       # Network layout configured
+    "REGISTERING",      # Registering traffics
+    "REGISTERED",       # Traffics already been registered to agents
+    "RUNNING",          # Traffics are fired
+    "FINISHED",         # Traffics finished
+])
 
 TrafficType = Enum("TrafficType", [
     "JOIN", # Join network
     "SCMD", # Serial command
+    "START", # Start execute traffic
+    "UNKNOWN",
+    ])
+
+MessageType = Enum("MessageType", [
+    "RECV",
+    "SENT",
     "UNKNOWN",
     ])
 
@@ -128,6 +150,17 @@ TrafficStorage = Enum("TrafficStorage", [
     "DB",      # Database
     "FILE",    # Local file
     ])
+
+StorageType = Enum("StorageType", [
+    "MongoDB",      # Default
+    "PostgreSQL",
+    "MySQL",
+    "SQLite3",
+    "Splunk",
+    "JSON",
+    "Protobuf",
+    "CSV",
+])
 
 CtrlCmds = Enum("CtrlCmds", [
     "NEW_CONTROLLER",

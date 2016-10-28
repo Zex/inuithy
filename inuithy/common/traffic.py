@@ -1,7 +1,8 @@
 ## Traffic generator based on configuration
 # Author: Zex Li <top_zlynch@yahoo.com>
 #
-from inuithy.util.helper import *
+from inuithy.util.trigger import *
+from queue import Queue
 
 TRAFFIC_ERR_NOSUBNET = "No subnet named [{}] in network [{}]"
 TRAFFIC_BROADCAST_ADDRESS = '0xFFFF'
@@ -16,7 +17,7 @@ class Traffic:
 
     @pkgsize.setter
     def pkgsize(self, val):
-        if not isinstance(int, val): raise TypeError("Integer expected")
+        if not isinstance(val, int): raise TypeError("Integer expected")
         self.__pkgsize = val
 
     def __init__(self, psize=1, sender=None, recv=None):
@@ -40,7 +41,7 @@ class TrafficGenerator:
 
     @duration.setter
     def duration(self, val):
-        if not isinstance(int, val): raise TypeError("Integer expected")
+        if not isinstance(val, int): raise TypeError("Integer expected")
         self.__duration = val
 
     @property
@@ -51,7 +52,7 @@ class TrafficGenerator:
 
     @nwconfig.setter
     def nwconfig(self, val):
-        if not isinstance(tuple, val): raise TypeError("Tuple expected")
+        if not isinstance(val, tuple): raise TypeError("Tuple expected")
         self.__nwconfig_file, self.__nwconfig_name = val
 
     @property
@@ -62,8 +63,17 @@ class TrafficGenerator:
 
     @pkgrate.setter
     def pkgrate(self, val):
-        if not isinstance(float, val): raise TypeError("Float expected")
+        if not isinstance(val, float): raise TypeError("Float expected")
         self.__pkgrate = val
+
+    @property
+    def genid(self):
+        """Generator ID
+        """
+        return self.__genid
+    @genid.setter
+    def genid(self, val):
+        pass
 
     def __init__(self, trcfg, nwcfg, trname):
         self.traffic_name = trname
@@ -75,6 +85,7 @@ class TrafficGenerator:
         self.traffics = []
         self.nwlayoutid = getnwlayoutid(trcfg.config[CFGKW_NWCONFIG_PATH], self.cur_trcfg[CFGKW_NWLAYOUT])
         self.create_traffic(trcfg, nwcfg)
+        self.__genid = string_write("[{}]{}:{}", time.clock_gettime(time.CLOCK_REALTIME), self.nwlayoutid, trname)
 
     def __str__(self):
         return string_write("layout:{},traffic:{},rate:{}/s,dur:{}s,", self.nwlayoutid, self.traffic_name, self.pkgrate, self.duration)
@@ -132,6 +143,37 @@ class TrafficGenerator:
                 tr = Traffic(self.cur_trcfg[CFGKW_PKGSIZE], s, r)
                 self.traffics.append(tr)
         return self
+
+
+    def start(self):
+        self.__trigger.start()
+
+class TrafficExecutor(TrafficTrigger):
+    """
+    @node       Sender node
+    @command    Command to send
+    @timeslot   Traffic trigger interval, in second
+    @duration   Stop traffic after given duration, in second
+    """
+    def __init__(self, node, command, timeslot, duration):
+        self.timeslot = timeslot
+        self.duration = duration
+        self.node = node
+        self.command = command
+
+    def run(self):
+
+        self.__running = True
+        self.__stop_timer.start()
+
+        while self.__running:
+            if TrafficTrigger.__mutex.acquire():
+                self.node.write(self.command)
+                TrafficTrigger.__mutex.release()
+            time.sleep(self.__interval)
+
+    def __str__(self):
+        return string_write("TE: ts:{}, dur:{}, node:[{}], cmd:{} ", self.timeslot, self.duration, str(self.node), self.command)
 
 def create_traffics(trcfg, nwcfg):
     """Create traffic generators for targe traffics
