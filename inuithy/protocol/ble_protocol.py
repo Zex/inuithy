@@ -8,10 +8,16 @@ class BleProtocol(Protocol):
     
     def __init__(self):
         pass
-
-    def joingrp(self, grpid):
+    @staticmethod
+    def joingrp(grpid):
         return string_write("joingrp {}", grpid)
 
-    def leavegrp(self, grpid):
+    @staticmethod
+    def leavegrp(grpid):
         return string_write("leavegrp {}", grpid)
+
+    @staticmethod
+    def traffic(*arg, **kwargs):
+        raddr = arg[0]
+        return string_write("lighton {}", raddr)
 

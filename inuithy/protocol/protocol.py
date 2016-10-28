@@ -1,7 +1,7 @@
 ## BLE protocol definition
 # Author: Zex Li <top_zlynch@yahoo.com>
 #
-from inuithy.common.helper import *
+from inuithy.util.helper import *
 
 class Protocol:
     
