@@ -87,11 +87,11 @@ class TrafficState:
 
     @before('register')
     def do_register(self, tg):
-        lg.info(string_write("Register traffic: [{}]", str(tg)))
+        self.lg.info(string_write("Register traffic: [{}]", str(tg)))
         print(self.current_state)
         for tr in tg.traffics:
             try:
-                lg.debug(string_write("TRAFFIC: {}", tr))
+                self.lg.debug(string_write("TRAFFIC: {}", tr))
                 data = {
                 CFGKW_GENID:        tg.genid,
                 CFGKW_DURATION:     tg.duration,
@@ -102,7 +102,7 @@ class TrafficState:
                 }
                 pub_traffic(self.ctrl.subscriber, self.ctrl.tcfg.mqtt_qos, data)
             except Exception as ex:
-                lg.error(string_write("Exception on publishing traffic, network [{}], traffic [{}]: {}", tg.nwlayoutid, tg.traffic_name, ex))
+                self.lg.error(string_write("Exception on publishing traffic, network [{}], traffic [{}]: {}", tg.nwlayoutid, tg.traffic_name, ex))
 
     @before('fire')
     def do_fire(self):
@@ -113,10 +113,11 @@ class TrafficState:
         }
         pub_traffic(self.ctrl.subscriber, self.ctrl.tcfg.mqtt_qos, data)      
 
-    @before('finish')
+    @after('finish')
     def do_finish(self):
         self.lg.info(string_write("Trafic finished"))
         print(self.current_state)
+        self.ctrl.teardown()
 
 def transition(sm, event, event_name):
     try:
