@@ -16,7 +16,7 @@ endif
 OUTPUT_TAR	           := $(strip $(PROJECT))-$(strip $(VERSION)).tar.bz2
 OUTPUT_TAR_SOURCE	   := .
 OUTPUT_TAR_PATH        := $(BUILD)/$(OUTPUT_TAR)
-OUTPUT_TAR_EXCLUDES	   := $(BUILD) *.pyc .git .svn .*.swp docs *~
+OUTPUT_TAR_EXCLUDES	   := $(BUILD) *.pyc .git .svn .*.swp docs *~ *.cache
 
 $(OUTPUT_TAR_PATH): $(BUILD) $(VERSION_PATH)
 	$(ECHO) "---------------Creating $@------------------"
