@@ -1,9 +1,9 @@
 agents:
   agent_0:
-    host: feet.pluto
+    host: 127.0.0.1
     nodes: ['1111', '1112', '1113', '1114']
   agent_1:
-    host: feet.pluto
+    host: 127.0.0.2
     nodes: ['1121', '1122', '1123', '1124']
   agent_2:
     host: 127.0.0.3
