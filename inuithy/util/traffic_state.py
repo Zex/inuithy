@@ -40,7 +40,7 @@ class TrafficState:
         else: self.lg = lg
 
     @before('start')
-    def do_start(self):
+    def start(self):
         self.lg.info(string_write("Run traffics, mode:[{}]", self.ctrl.tcfg.workmode))
         print(self.current_state)
         self.trgens = create_traffics(self.ctrl.trcfg, self.ctrl.nwcfg)
@@ -49,14 +49,14 @@ class TrafficState:
 #TODO
 #            while not self.is_agents_all_up(): pass
             self.lg.info(string_write("Deploy network begin"))
-            self.do_deploy(tg)
+            self.deploy(tg)
 #            while not self.is_network_layout_done(): pass
             self.lg.info(string_write("Register traffic begin"))
-            self.do_register(tg)
+            self.register(tg)
 #            while not self.is_traffic_all_set(): pass
             self.lg.info(string_write("Fire traffic begin"))
-            self.do_fire()
-            self.do_finish()
+            self.fire()
+            self.finish()
 
     def config_network(self, nwlayoutname):
         """Configure network by given network layout
@@ -75,7 +75,7 @@ class TrafficState:
                 pub_traffic(self.ctrl.subscriber, self.ctrl.tcfg.mqtt_qos, data)
 
     @before('deploy')
-    def do_deploy(self, tg):
+    def deploy(self, tg):
         self.lg.info(string_write("Deploy network: {}", tg.nwlayoutid))
         print(self.current_state)
         try:
@@ -86,7 +86,7 @@ class TrafficState:
             self.lg.error(string_write("Exception on configuring network [{}], traffic [{}]: {}", tg.nwlayoutid, tg.traffic_name, ex))
 
     @before('register')
-    def do_register(self, tg):
+    def register(self, tg):
         self.lg.info(string_write("Register traffic: [{}]", str(tg)))
         print(self.current_state)
         for tr in tg.traffics:
@@ -105,7 +105,7 @@ class TrafficState:
                 self.lg.error(string_write("Exception on publishing traffic, network [{}], traffic [{}]: {}", tg.nwlayoutid, tg.traffic_name, ex))
 
     @before('fire')
-    def do_fire(self):
+    def fire(self):
         self.lg.info(string_write("Fire traffic"))
         print(self.current_state)
         data = {
@@ -114,7 +114,7 @@ class TrafficState:
         pub_traffic(self.ctrl.subscriber, self.ctrl.tcfg.mqtt_qos, data)      
 
     @after('finish')
-    def do_finish(self):
+    def finish(self):
         self.lg.info(string_write("Trafic finished"))
         print(self.current_state)
         self.ctrl.teardown()
@@ -128,7 +128,7 @@ def transition(sm, event, event_name):
 if __name__ == '__main__':
     pass
 #    ts = TrafficState("AutoTraffic")
-#    ts.do_start()
-#    ts.do_deploy()
-#    ts.do_register()
-#    ts.do_finish()
+#    ts.start()
+#    ts.deploy()
+#    ts.register()
+#    ts.finish()

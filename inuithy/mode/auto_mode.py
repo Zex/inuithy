@@ -252,7 +252,7 @@ class AutoController:
         if self.load_configs(inuithy_cfgpath, traffic_cfgpath):
             self.__do_init()
             self.__traffic_state = TrafficState(self, lg)
-            self.__traffic_timer = threading.Timer(delay, self.__traffic_state.do_start)
+            self.__traffic_timer = threading.Timer(delay, self.__traffic_state.start)
 #    def whohas(self, addr):
 #        """Find out which host has node with given address connected
 #        """
