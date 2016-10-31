@@ -17,9 +17,11 @@ PS2PDF		:= ps2pdf
 BUILD		     := build
 BUILD_DOCS		 := $(BUILD)/docs
 VERSION_PATH     := inuithy/common/version.py
+PROJECT_PATH	 := /opt/inuithy
 LOGBASE			 := /var/log/inuithy/
 LOGPATH			 := $(LOGBASE)/inuithy.log
 MOSQUITTO_CONFIG := inuithy/config/mosquitto.conf
+MONGODB_CONFIG	 := inuithy/config/mongod.conf
 
 $(BUILD):
 	$(MKDIR) $@	

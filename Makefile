@@ -7,7 +7,7 @@ VERSION		           := 0.0.1
 include makefiles/predef.mk
 include makefiles/pack.mk
 
-#export PYTHONPATH=/home/zex/inuithy
+#export PYTHONPATH=/opt/inuithy
 
 .PHONY: $(VERSION_PATH) $(OUTPUT_TAR_PATH) $(BUILD) clean version sample_config traffic_config_chk run_controller run_tsh $(LOGBASE) install run_agent run_mosquitto
 
@@ -29,6 +29,7 @@ traffic_config_chk: inuithy/common/traffic.py
 	$(PYTHON) $<
 
 run_controller: inuithy/controller.py
+	$(ECHO) "" > $(LOGPATH)
 	$(PYTHON) $<
 
 run_tsh: inuithy/util/console.py
@@ -40,8 +41,17 @@ run_agent: inuithy/agent.py
 run_mosquitto:
 	mosquitto -c $(MOSQUITTO_CONFIG)
 
+run_mongod:
+	mongod -f $(MONGODB_CONFIG)
+
 logmon:
 	$(TAILMON) $(LOGPATH)
+
+run_all_agents:
+	ssh root@127.0.0.1 "pushd $(PROJECT_PATH);nohup $(PYTHON) inuithy/agent.py" &
+
+viewlog:
+	vim $(LOGPATH)
 
 sfood: $(BUILD_DOCS)
 	$(SFOOD) --follow --internal inuithy | sfood-graph > $(BUILD_DOCS)/inuithy.dot
