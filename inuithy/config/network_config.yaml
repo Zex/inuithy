@@ -1,15 +1,19 @@
 agents:
   agent_0:
-    host: 127.0.0.1
+    host: feet.pluto
+    #host: 192.168.100.131
     nodes: ['1111', '1112', '1113', '1114']
   agent_1:
-    host: 127.0.0.2
+    host: feet.pluto
+    #host: 192.168.100.132
     nodes: ['1121', '1122', '1123', '1124']
   agent_2:
-    host: 127.0.0.3
+    host: feet.pluto
+    #host: 192.168.100.133
     nodes: ['1131', '1132', '1133', '1134']
   agent_3:
-    host: 127.0.0.4
+    host: feet.pluto
+    #host: 192.168.100.134
     nodes: ['1141', '1142', '1143', '1144']
 network_0:
   subnet_0:

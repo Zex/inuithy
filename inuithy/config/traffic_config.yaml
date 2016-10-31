@@ -1,9 +1,9 @@
 network_config: inuithy/config/network_config.yaml
-target_agents: [agent_0, agent_1]
-target_traffics: [traffic_0, traffic_2]
+target_agents: [agent_0, agent_1, agent_2, agent_3]
+target_traffics: [traffic_0]
 traffic_0:
   duration: 180
-  nwlayout: network_2
+  nwlayout: network_0
   pkgrate: 0.5
   pkgsize: 1
   recipients: ['1122', '1123', '1124', '1134']
