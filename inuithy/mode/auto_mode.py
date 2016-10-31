@@ -93,17 +93,16 @@ class AutoController:
 
     @property
     def node2host(self): return self.__node2host
-
     @node2host.setter
     def node2host(self, val): pass
-    @property
-    def initialized(self): return self.__initialized
 
+    @property
+    def initialized(): return AutoController.__initialized
     @initialized.setter
-    def initialized(self, val):
+    def initialized(val):
         if AutoController.__mutex.acquire_lock():
-            if not self.__initialized:
-                self.__initialized = True
+            if not AutoController.__initialized:
+                AutoController.__initialized = val
             AutoController.__mutex.release()
     
     @property
@@ -155,7 +154,8 @@ class AutoController:
 
     def teardown(self):
         try:
-            if self.initialized:
+            if AutoController.initialized:
+                AutoController.initialized = False
                 self.__subscriber.disconnect()
         except Exception as ex:
             self.lg.error(string_write("Exception on teardown: {}", ex))
@@ -207,7 +207,7 @@ class AutoController:
             self.__clientid = string_write(INUITHYCONTROLLER_CLIENT_ID, self.host)
             self.register_routes()
             self.create_mqtt_subscriber(*self.tcfg.mqtt)
-            self.initialized = True
+            AutoController.initialized = True
         except Exception as ex:
             self.lg.error(string_write("Failed to initialize: {}", ex))
 
@@ -246,7 +246,7 @@ class AutoController:
         """
         if lgr != None: self.lg = lgr
         else: self.lg = logging
-        self.__initialized = False
+        AutoController.__initialized = False
         self.__node2host = {}
         self.__storage = None
         if self.load_configs(inuithy_cfgpath, traffic_cfgpath):
@@ -268,7 +268,7 @@ class AutoController:
 
 
     def start(self):
-        if not self.initialized:
+        if not AutoController.initialized:
             self.lg.error(string_write("AutoController not initialized"))
             return
         try:

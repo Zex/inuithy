@@ -4,7 +4,7 @@
 from datetime import datetime as dt
 from inuithy.common.predef import *
 
-class MongodbStorge:
+class MongodbStorage:
     """MongoDB adapter
     Provide:
     - Traffic Storage - Runtime traffic records
@@ -66,5 +66,9 @@ class MongodbStorge:
            ]
         """
         data[CFGKW_TIME] = datatime.now() 
-        self.__cli.insert_one(data)
+#        self.__cli.insert_one(data)
+        self.__cli.
 
+
+if __name__ == '__main__':
+    

@@ -23,40 +23,54 @@ class TrafficState:
     """
     stopped = State(initial=True)
     started = State()
-    nwconfigured    = State()
-    registered      = State()
-    running         = State()
-    finished        = State()
+    nwconfigured        = State()
+    registered          = State()
+    running             = State()
+    traffic_finished    = State()
+    finished            = State()
 
     start           = Event(from_states=(stopped), to_state=started)
-    deploy          = Event(from_states=(started), to_state=nwconfigured)
+    deploy          = Event(from_states=(started, traffic_finished), to_state=nwconfigured)
     register        = Event(from_states=(nwconfigured), to_state=registered)
     fire            = Event(from_states=(registered), to_state=running)
-    finish          = Event(from_states=(running), to_state=(finished))
+    traffic_finish  = Event(from_states=(running), to_state=traffic_finished)
+    finish          = Event(from_states=(stopped, started, traffic_finished), to_state=(finished))
 
-    def __init__(self, controller, lg=None):
+    def __init__(self, controller, trdelay=1, lg=None):
+        """
+        @controller Controler object
+        @trdelay    Seconds to delay before start next traffic
+        @lg         Logging object
+        """
         self.ctrl = controller
         if lg == None: self.lg = logging
         else: self.lg = lg
+        self.__current_tg = None
+        self.traffic_delay = trdelay
 
-    @before('start')
-    def start(self):
+    @after('start')
+    def do_start(self):
+        print("Start", self.current_state)
         self.lg.info(string_write("Run traffics, mode:[{}]", self.ctrl.tcfg.workmode))
-        print(self.current_state)
         self.trgens = create_traffics(self.ctrl.trcfg, self.ctrl.nwcfg)
         self.lg.info(string_write("Total generator: [{}]", len(self.trgens)))
         for tg in self.trgens:
+            try:
 #TODO
 #            while not self.is_agents_all_up(): pass
-            self.lg.info(string_write("Deploy network begin"))
-            self.deploy(tg)
+                self.lg.info(string_write("Deploy network begin"))
+                self.__current_tg = tg
+                self.deploy()
 #            while not self.is_network_layout_done(): pass
-            self.lg.info(string_write("Register traffic begin"))
-            self.register(tg)
+                self.lg.info(string_write("Register traffic begin"))
+                self.register()
 #            while not self.is_traffic_all_set(): pass
-            self.lg.info(string_write("Fire traffic begin"))
-            self.fire()
-            self.finish()
+                self.lg.info(string_write("Fire traffic begin"))
+                self.fire()
+                self.traffic_finish()
+            except Exception as ex:
+                self.lg.error(string_write("Traffic state transition failed: {}", ex))
+        self.finish()
 
     def config_network(self, nwlayoutname):
         """Configure network by given network layout
@@ -74,10 +88,11 @@ class TrafficState:
                 data[CFGKW_TRAFFIC_TYPE] = TrafficType.JOIN.name
                 pub_traffic(self.ctrl.subscriber, self.ctrl.tcfg.mqtt_qos, data)
 
-    @before('deploy')
-    def deploy(self, tg):
+    @after('deploy')
+    def do_deploy(self, tg=None):
+        print("Deploy", self.current_state)
+        if tg == None: tg = self.__current_tg
         self.lg.info(string_write("Deploy network: {}", tg.nwlayoutid))
-        print(self.current_state)
         try:
             self.lg.info(string_write("Current traffic [{}]", str(tg)))
             if self.ctrl.current_nwlayout != tg.nwlayoutid:
@@ -85,10 +100,11 @@ class TrafficState:
         except Exception as ex:
             self.lg.error(string_write("Exception on configuring network [{}], traffic [{}]: {}", tg.nwlayoutid, tg.traffic_name, ex))
 
-    @before('register')
-    def register(self, tg):
+    @after('register')
+    def do_register(self, tg=None):
+        print("Register", self.current_state)
+        if tg == None: tg = self.__current_tg
         self.lg.info(string_write("Register traffic: [{}]", str(tg)))
-        print(self.current_state)
         for tr in tg.traffics:
             try:
                 self.lg.debug(string_write("TRAFFIC: {}", tr))
@@ -104,19 +120,25 @@ class TrafficState:
             except Exception as ex:
                 self.lg.error(string_write("Exception on publishing traffic, network [{}], traffic [{}]: {}", tg.nwlayoutid, tg.traffic_name, ex))
 
-    @before('fire')
-    def fire(self):
+    @after('fire')
+    def do_fire(self):
         self.lg.info(string_write("Fire traffic"))
-        print(self.current_state)
+        print("Fire", self.current_state)
         data = {
             CFGKW_TRAFFIC_TYPE: TrafficType.START.name,
         }
         pub_traffic(self.ctrl.subscriber, self.ctrl.tcfg.mqtt_qos, data)      
 
+    @after('traffic_finish')
+    def do_traffic_finish(self):
+        print("Traffic finish", self.current_state)
+        self.lg.info(string_write("Traffic finished"))
+        time.sleep(self.traffic_delay)
+
     @after('finish')
-    def finish(self):
-        self.lg.info(string_write("Trafic finished"))
-        print(self.current_state)
+    def do_finish(self):
+        print("Finish", self.current_state)
+        self.lg.info(string_write("All finished"))
         self.ctrl.teardown()
 
 def transition(sm, event, event_name):

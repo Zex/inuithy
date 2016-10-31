@@ -92,17 +92,16 @@ class ManualController:
 
     @property
     def node2host(self): return self.__node2host
-
     @node2host.setter
     def node2host(self, val): pass
-    @property
-    def initialized(self): return self.__initialized
 
+    @property
+    def initialized(self): return ManualController.__initialized
     @initialized.setter
     def initialized(self, val):
         if ManualController.__mutex.acquire_lock():
-            if not self.__initialized:
-                self.__initialized = True
+            if not ManualController.__initialized:
+                ManualController.__initialized = True
             ManualController.__mutex.release()
     
     @property
@@ -155,7 +154,7 @@ class ManualController:
 
     def teardown(self):
         try:
-            if self.initialized:
+            if ManualController.initialized:
                 self.__subscriber.disconnect()
         except Exception as ex:
             lg.error(string_write("Exception on teardown: {}", ex))
@@ -205,7 +204,7 @@ class ManualController:
             self.__clientid = string_write(INUITHYCONTROLLER_CLIENT_ID, self.host)
             self.register_routes()
             self.create_mqtt_subscriber(*self.tcfg.mqtt)
-            self.initialized = True
+            ManualController.initialized = True
         except Exception as ex:
             lg.error(string_write("Failed to initialize: {}", ex))
 
@@ -238,7 +237,7 @@ class ManualController:
 
     def __init__(self, inuithy_cfgpath='config/inuithy.conf', traffic_cfgpath='config/traffics.conf', lgr=None):
         global lg
-        self.__initialized = False
+        ManualController.__initialized = False
         self.__node2host = {}
         self.__available_agents = {}
         self.__storage = None
@@ -271,7 +270,7 @@ class ManualController:
         return True
 
     def start(self):
-        if not self.initialized:
+        if not ManualController.initialized:
             lg.error(string_write("ManualController not initialized"))
             return
         try:

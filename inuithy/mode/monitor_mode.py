@@ -97,13 +97,13 @@ class MonitorController:
     @node2host.setter
     def node2host(self, val): pass
     @property
-    def initialized(self): return self.__initialized
+    def initialized(self): return MonitorController.__initialized
 
     @initialized.setter
     def initialized(self, val):
         if MonitorController.__mutex.acquire_lock():
-            if not self.__initialized:
-                self.__initialized = True
+            if not MonitorController.__initialized:
+                MonitorController.__initialized = True
             MonitorController.__mutex.release()
     
     @property
@@ -155,7 +155,7 @@ class MonitorController:
 
     def teardown(self):
         try:
-            if self.initialized:
+            if MonitorController.initialized:
                 self.__subscriber.disconnect()
         except Exception as ex:
             lg.error(string_write("Exception on teardown: {}", ex))
@@ -204,7 +204,7 @@ class MonitorController:
             self.__clientid = string_write(INUITHYCONTROLLER_CLIENT_ID, self.host)
             self.register_routes()
             self.create_mqtt_subscriber(*self.tcfg.mqtt)
-            self.initialized = True
+            MonitorController.initialized = True
         except Exception as ex:
             lg.error(string_write("Failed to initialize: {}", ex))
 
@@ -237,7 +237,7 @@ class MonitorController:
 
     def __init__(self, inuithy_cfgpath='config/inuithy.conf', traffic_cfgpath='config/traffics.conf', lgr=None):
         global lg
-        self.__initialized = False
+        MonitorController.__initialized = False
         self.__node2host = {}
         self.__available_agents = {}
         self.__storage = None
@@ -262,7 +262,7 @@ class MonitorController:
         return True
 
     def start(self):
-        if not self.initialized:
+        if not MonitorController.initialized:
             lg.error(string_write("MonitorController not initialized"))
             return
         try:
