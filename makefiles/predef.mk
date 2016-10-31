@@ -19,7 +19,7 @@ BUILD_DOCS		 := $(BUILD)/docs
 VERSION_PATH     := inuithy/common/version.py
 LOGBASE			 := /var/log/inuithy/
 LOGPATH			 := $(LOGBASE)/inuithy.log
-MOSQUITTO_CONFIG := /etc/mosquitto/mosquitto.conf
+MOSQUITTO_CONFIG := inuithy/config/mosquitto.conf
 
 $(BUILD):
 	$(MKDIR) $@	
