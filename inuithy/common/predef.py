@@ -42,7 +42,6 @@ INUITHYCONTROLLER_CLIENT_ID   = "inuithy/controller/{}"
 # <command> <parameters>
 INUITHY_CTRL_CMD       = "{} {}"
 
-INUITHY_ROOT          = "inuithy"
 INUITHY_LOGCONFIG     = INUITHY_ROOT+"/config/logging.conf"
 INUITHY_CONFIG_PATH   = INUITHY_ROOT+"/config/inuithy_config.yaml"
 NETWORK_CONFIG_PATH = INUITHY_ROOT+"/config/network_config.yaml"
@@ -116,6 +115,7 @@ TrafficStatus = Enum("TrafficStatus", [
 TrafficType = Enum("TrafficType", [
     "JOIN", # Join network
     "SCMD", # Serial command
+    "TSH",  # Command from TSH
     "START", # Start execute traffic
     "UNKNOWN",
     ])

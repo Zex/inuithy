@@ -80,7 +80,7 @@ class Console(threading.Thread):
          + "  agent stop <host>     Stop agent on <host>\n"\
          + "                        '*' for all connected hosts\n",
         "usage_traffic": self.__title + "\n"\
-         + "  traffic host <host> <serial command>\n"\
+         + "  traffic host <host>:<node addr> <serial command>\n"\
          + "                        Send serial command to agent on <host>\n"\
          + "                        '*' for all connected hosts\n"\
          + "  traffic load <traffic_config_file>\n"\
@@ -151,40 +151,27 @@ class Console(threading.Thread):
         pub_restart_agent(self.__ctrl.subscriber, self.__ctrl.tcfg.mqtt_qos, clientid)
 
     def on_cmd_agent_stop(self, *args, **kwargs):
-        if args == None or len(args) == 0 or len(args[0]) == 0:
-            console_write(TSH_ERR_INVALID_PARAM, args, 'help agent')
-            return
-        clientid = args[0].strip('\t ')
-        if len(clientid) == 0:
-            console_write(TSH_ERR_INVALID_PARAM, args, 'help agent')
-            return
-        pub_stop_agent(self.__ctrl.subscriber, self.__ctrl.tcfg.mqtt_qos, clientid)
+        if args == None or len(args) < 1: return
+        clientid = args[0]
+        data = {
+            CFGKW_CTRLCMD:  CtrlCmd.AGENT_STOP.name,
+            CFGKW_CLIENTID: clientid,
+            CFGKW_HOST:     clientid,
+        }
+        pub_ctrlcmd(self.__ctrl.subscriber, self.__ctrl.tcfg.mqtt_qos, data)
 
     def on_cmd_agent_list(self, *args, **kwargs):
         [console_write("AGENT[{}]:{}", k, str(v)) for k,v in self.__ctrl.available_agents.items()] 
 
     def on_cmd_agent(self, *args, **kwargs):
-        """FORMAT:
-        - agent[SP]restart[SP][host]
-        - agent[SP]stop[SP][host]
-        
         """
-        if args == None or len(args) == 0:
-            return
-        command = args[0].strip('\t \n')
-        if len(command) == 0:
-            return
-        cmds = valid_cmds(command)
-        if len(cmds) == 0:
-            console_write(TSH_ERR_INVALID_CMD, command, 'help agent')
-            return
-        try:
-            if self.__cmd_agent_routes.get(cmds[0]):
-                self.__cmd_agent_routes[cmds[0]](command[len(cmds[0])+1:])
-            else:
-                console_write(self.usages['usage_agent'])
-        except Exception as ex:
-            console_write(TSH_ERR_HANDLING_CMD, command, ex)
+        """
+        if args == None or len(args) == 0:  return
+        params = args[1:]
+        if self.__cmd_agent_routes.get(args[0]):
+            self.__cmd_agent_routes[args[0]](*(params))
+        else:
+            console_write(self.usages['usage_agent'])
 
     def on_cmd_ctrl_start(self, *args, **kwargs):
         pass
@@ -199,25 +186,35 @@ class Console(threading.Thread):
         pass
 
     def on_cmd_traffic(self, *args, **kwargs):
-        if args == None or len(args) == 0:
-            return
-        command = args[0].strip('\t \n')
-        if len(command) == 0:
-            return
-        cmds = valid_cmds(command)
-        if len(cmds) == 0:
-            console_write(TSH_ERR_INVALID_CMD, command, 'help traffic')
-            return
-        try:
-            if self.__cmd_traffic_routes.get(cmds[0]):
-                self.__cmd_traffic_routes[cmds[0]](command[len(cmds[0])+1:])
-            else:
-                console_write(self.usages['usage_traffic'])
-        except Exception as ex:
-            console_write(TSH_ERR_HANDLING_CMD, command, ex)
+        if args == None or len(args) == 0: return
+        params = args[1:]
+        if self.__cmd_traffic_routes.get(args[0]):
+            self.__cmd_traffic_routes[args[0]](*(params))
+        else:
+            console_write(self.usages['usage_traffic'])
 #TODO
     def on_cmd_traffic_host(self, *args, **kwargs):
-        pass
+        """
+        traffic host 127.0.0.1:1111 lighton 1112
+        ['traffic', 'host', '127.0.0.1', 'lighton', '1112']
+        ('127.0.0.1', 'lighton', '1112')
+        """
+        if len(args) < 3:
+            console_write(self.usages['usage_traffic'])
+            return
+        if len(self.__ctrl.host2aid) == 0:
+            console_write("No available agent")
+            return
+        host, node = args[0].split(':')
+        data = {
+            CFGKW_TRAFFIC_TYPE: TrafficType.TSH.name,
+            CFGKW_HOST:         host,
+            CFGKW_NODE:         node,
+            CFGKW_CLIENTID:     self.__ctrl.host2aid.get(host),
+            CFGKW_MSG:          ' '.join(list(args[1:])),
+        }
+        pub_traffic(self.__ctrl.subscriber, self.__ctrl.tcfg.mqtt_qos, data)
+
     def on_cmd_traffic_load(self, *args, **kwargs):
         pass
     def on_cmd_traffic_run(self, *args, **kwargs):
@@ -279,14 +276,14 @@ class Console(threading.Thread):
                     self.on_cmd_quit()
 
     def dispatch(self, command):
-        if command == None or len(command) == 0:
-            return
+        if command == None or len(command) == 0: return
         cmds = valid_cmds(command)
         if len(cmds) == 0 or len(cmds[0]) == 0:
             console_write(TSH_ERR_INVALID_CMD, command, 'help')
+        params = cmds[1:]
         try:
             if self.__cmd_routes.get(cmds[0]):
-                self.__cmd_routes[cmds[0]](command[len(cmds[0])+1:])
+                self.__cmd_routes[cmds[0]](*(params))
             else:
                 self.on_cmd_help()
         except Exception as ex:

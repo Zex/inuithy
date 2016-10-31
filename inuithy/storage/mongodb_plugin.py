@@ -183,5 +183,6 @@ if __name__ == '__main__':
 #    check_records() 
 #    check_fields()
 #    cleanup()
-    check_recv('127.0.0.1', 19713, '58176647362ac72cd0778fe5')
-    check_sent('127.0.0.1', 19713, '58176647362ac72cd0778fe5')
+    oid = '581776fa362ac737abefe32e'
+    check_recv('127.0.0.1', 19713, oid)
+#    check_sent('127.0.0.1', 19713, oid)

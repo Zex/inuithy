@@ -169,11 +169,11 @@ class AutoController:
         except Exception as ex:
             self.lg.error(string_write("Exception on teardown: {}", ex))
 
-    def launch_agents(self): 
-        self.lg.info("Launch agents") 
-        for agent in self.trcfg.target_agents:
-            #TODO
-            pass
+    def start_agents(self):
+        self.lg.info("Start agents") 
+        cmd = 'pushd /opt/inuithy;nohup python3 inuithy/agent.py'
+        for host in self.__expected_agents:
+            runonremote('root', host, cmd)
 
     def stop_agents(self):
         self.lg.info("Stop agents") 
@@ -194,8 +194,8 @@ class AutoController:
         self.__subscriber.on_message    = AutoController.on_message
         self.__subscriber.on_disconnect = AutoController.on_disconnect
         self.__subscriber.on_log        = AutoController.on_log
-        #self.__subscriber.on_publish    = AutoController.on_publish
-        self.__subscriber.on_subscribe  = AutoController.on_subscribe
+#       self.__subscriber.on_publish    = AutoController.on_publish
+#       self.__subscriber.on_subscribe  = AutoController.on_subscribe
         self.__subscriber.connect(host, port)
         self.__subscriber.subscribe([
             (INUITHY_TOPIC_HEARTBEAT,     self.tcfg.mqtt_qos),
@@ -225,8 +225,9 @@ class AutoController:
         """
         self.lg.info(string_write("Do initialization"))
         try:
-            self.__expected_agents = self.trcfg.target_agents
-            self.__available_agents = {}
+            for aname in self.trcfg.target_agents:
+                agent = self.nwcfg.agent_by_name(aname)
+                self.__expected_agents.append(agent[CFGKW_HOST])
             self.__host = socket.gethostname()
             self.__clientid = string_write(INUITHYCONTROLLER_CLIENT_ID, self.host)
             self.register_routes()
@@ -274,8 +275,11 @@ class AutoController:
         if lgr != None: self.lg = lgr
         else: self.lg = logging
         AutoController.__initialized = False
+        self.__expected_agents = []
+        self.__available_agents = {}
         self.__node2host = {}
         self.__host2aid = {}
+        self.__nwlayout_chk = {}
         self.__storage = None
         if self.load_configs(inuithy_cfgpath, traffic_cfgpath):
             self.__do_init()
@@ -326,11 +330,17 @@ class AutoController:
             del self.__available_agents[agentid]
             self.lg.info(string_write("Agent {} removed", agentid))
 
+    def update_nwlayout_chk(self, nwid, nodes):
+        if None == nodes or nwid == None: return
+        self.__nwlayout_chk[nwid] = {node:False for node in nodes}
+
     def is_network_layout_done(self):
         self.lg.info("Is network layout done")
-        #TODO
         if len(self.__available_agents) == 0:
             raise ValueError("No agent available")
+        for nw in self.__nwlayout_chk.values():
+            if len([chk for chk in nw if chk == True]) != len(nw):
+                return False
         if self.tcfg.enable_localdebug:
             return True
 
@@ -356,14 +366,9 @@ class AutoController:
         if len(self.__expected_agents) != len(self.__available_agents):
             return False
 
-        exps = []
-        for aname in self.__expected_agents:
-            agent = self.nwcfg.agent_by_name(aname)
-            exps.append(agent[CFGKW_HOST])
-
         avails = []
         for ai in self.__available_agents.values():
-            if ai.host not in exps: return False
+            if ai.host not in self.__expected_agents: return False
         if self.tcfg.enable_localdebug:
             return True
 
@@ -411,8 +416,19 @@ class AutoController:
         self.storage.insert_record(data)
 
     def on_topic_notification(self, message):
+        """{'msgtype': 'RECV', 'host': 'feet.pluto', 'channel': 16, 'genid': '581776fa362ac737abefe32e', 'time': '2016-11-01 00:54:04.464784', 'msg': 'joingrp 6262441166221516', 'traffic_type': 'JOIN', 'node': '1132', 'nodes': ['1121', '1131', '1132', '1133', '1141', '1142', '1143', '1144'], 'gateway': '1144', 'clientid': 'inuithy/agent/feet.pluto-93b73a', 'panid': 6262441166221516}
+
+        """
         self.lg.info(string_write("On topic notification"))
         data = extract_payload(message.payload)
+#        self.lg.debug(string_write("NOTIFY: {}", data))
+        try:
+            if data[CFGKW_TRAFFIC_TYPE] == TrafficType.JOIN.name:
+                if None != self.__nwlayout_chk.get(data[CFGKW_PANID]):
+                    self.__nwlayout_chk[data[CFGKW_PANID]][data[CFGKW_NODE]] = True
+                self.lg.debug(string_write("LAYOUT:{}", self.__nwlayout_chk))
+        except Exception as ex:
+            self.lg.error(string_write("Update nwlayout failed", ex))
         self.storage.insert_record(data)
 
     def __alive_notification(self):

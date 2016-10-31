@@ -2,6 +2,7 @@
 # Author: Zex Li <top_zlynch@yahoo.com>
 #
 import logging
+from datetime import datetime as dt
 from state_machine import State, Event, acts_as_state_machine, after, before, InvalidStateTransition
 from inuithy.util.cmd_helper import *
 from inuithy.common.traffic import *
@@ -52,7 +53,7 @@ class TrafficState:
     def record_genid(self, genid):
         try:
             with open(self.ctrl.tcfg.config[CFGKW_GENID][CFGKW_PATH], 'a') as fd:
-                fd.write(string_write("{},{}\n", genid, str(datetime.now())))
+                fd.write(string_write("{},{}\n", genid, str(dt.now())))
         except Exception as ex:
             self.lg.error(string_write("Record genid failed: {}", ex))
 
@@ -63,30 +64,31 @@ class TrafficState:
             self.trgens = create_traffics(self.ctrl.trcfg, self.ctrl.nwcfg)
             self.lg.info(string_write("Total generator: [{}]", len(self.trgens)))
             while not self.ctrl.is_agents_all_up(): time.sleep(2)
-            for tg in self.trgens:
-                try:
-                    self.lg.info(string_write("Deploy network begin"))
-                    self.__current_tg = tg
-                    nwlayoutname = getnwlayoutname(tg.nwlayoutid)
-                    cfg = {
-                        CFGKW_NWLAYOUT: deepcopy(self.ctrl.nwcfg.config.get(nwlayoutname))
-                    }
-                    tg.genid = self.ctrl.storage.insert_config(cfg)
-                    self.record_genid(tg.genid)
-                    self.deploy()
-                    while not self.ctrl.is_network_layout_done(): time.sleep(2)
-                    self.lg.info(string_write("Register traffic begin"))
-                    self.register()
-                    while not self.ctrl.is_traffic_all_set(): time.sleep(2)
-                    self.lg.info(string_write("Fire traffic begin"))
-                    self.fire()
-                    self.traffic_finish()
-                except Exception as ex:
-                    self.lg.error(string_write("Traffic state transition failed: {}", ex))
+            [self.start_one(tg) for tg in self.trgens]
             self.finish()
         except Exception as rex:
             self.lg.error(string_write("Traffic runtime error: {}", rex))
-            raise
+
+    def start_one(self, tg):
+        try:
+            self.lg.info(string_write("Deploy network begin"))
+            self.__current_tg = tg
+            nwlayoutname = getnwlayoutname(tg.nwlayoutid)
+            cfg = {
+                CFGKW_NWLAYOUT: deepcopy(self.ctrl.nwcfg.config.get(nwlayoutname))
+            }
+            tg.genid = self.ctrl.storage.insert_config(cfg)
+            self.record_genid(tg.genid)
+            self.deploy()
+            while not self.ctrl.is_network_layout_done(): time.sleep(2)
+            self.lg.info(string_write("Register traffic begin"))
+            self.register()
+            while not self.ctrl.is_traffic_all_set(): time.sleep(2)
+            self.lg.info(string_write("Fire traffic begin"))
+            self.fire()
+            self.traffic_finish()
+        except Exception as ex:
+            self.lg.error(string_write("Traffic state transition failed: {}", ex))
 
     def config_network(self, nwlayoutname):
         """Configure network by given network layout
@@ -94,6 +96,7 @@ class TrafficState:
         self.lg.info(string_write("Config network: [{}]", nwlayoutname))
         for name, subnet in self.ctrl.nwcfg.config.get(nwlayoutname).items():
             data = subnet
+            self.ctrl.update_nwlayout_chk(subnet.get(CFGKW_PANID), subnet.get(CFGKW_NODES))
             for node in subnet.get(CFGKW_NODES):
                 if None == self.ctrl.node2host.get(node):
                     raise ValueError(string_write("Node [{}] not found on any agent", node))
@@ -125,6 +128,7 @@ class TrafficState:
                 CFGKW_GENID:        self.__current_tg.genid,
                 CFGKW_TRAFFIC_TYPE: TrafficType.SCMD.name,
                 CFGKW_CLIENTID:     self.ctrl.host2aid[target_host],
+                CFGKW_NODE:         tr.sender,
                 CFGKW_HOST:         target_host,
                 CFGKW_DURATION:     tg.duration,
                 CFGKW_TIMESLOT:     tg.timeslot,

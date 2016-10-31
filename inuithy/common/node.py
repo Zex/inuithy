@@ -20,7 +20,6 @@ NodeType = Enum("NodeType", [
 ])
 
 class SerialNode:
-    __metaclass__ = ABCMeta
 
     def __init__(self, ntype, port="", reporter=None, lg=None, baudrate=115200, timeout=2):
         if lg == None: self.lg = logging
@@ -38,7 +37,6 @@ class SerialNode:
         if self.__serial != None and self.__serial.isOpen():
             if 0 < self.__serial.inWaiting(): 
                 rdbuf = self.__serial.readall()
-#                self.lg.debug(string_write("SerialNode: rdbuf:[{}], len:[{}]", rdbuf, len(rdbuf)))
         if report != None:
             #TODO DEBUG
 #            report[CFGKW_MSG] = rdbuf
@@ -50,7 +48,6 @@ class SerialNode:
         written = 0
         if self.__serial != None and self.__serial.isOpen():
             written = self.__serial.write(data)
-#            self.lg.debug(string_write("SerialNode: writebuf:[{}], len:[{}], written:[{}]", data, len(data), written))
         if report != None:
             report[CFGKW_MSG] = data
             self.report_write(report)
@@ -58,7 +55,7 @@ class SerialNode:
     def start_listener(self):
         if self.run_listener == False:
             self.run_listener = True
-            if self.__listener != None: self.__listener.start()
+            if self.__listener != None and self.__serial != None: self.__listener.start()
 
     def __listener_routine(self):
         while self.run_listener:
@@ -88,11 +85,9 @@ class SerialNode:
     def __del__(self):
         self.stop_listener()
 
-    @abstractmethod
     def join(self, data):
         pass
 
-    @abstractmethod
     def traffic(self, data):
         pass
 
@@ -103,12 +98,12 @@ class NodeBLE(SerialNode):
     """
     def __init__(self, port='', addr='', reporter=None):
         super(NodeBLE, self).__init__(NodeType.BLE, port, reporter)
-        #TODO
         self.addr = addr
         self.port = port
         self.prot = BleProt
-        self.start_listener()
         self.report = None
+        if port != None and len(port) > 0:
+            self.start_listener()
 
     def __str__(self):
         return json.dumps({
@@ -162,7 +157,6 @@ class NodeZigbee(SerialNode):
 #        pass
 
     def __str__(self):
-        # TODO: node info
         return json.dumps({CFGKW_TYPE:self.ntype.name, CFGKW_ADDR:self.addr, CFGKW_PORT: self.port})
     # TODO: Zigbee command
 

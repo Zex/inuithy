@@ -7,8 +7,10 @@ import paho.mqtt.client as mqtt
 import threading as thrd
 from inuithy.util.cmd_helper import *
 from inuithy.util.config_manager import *
+#from inuithy.common.traffic import *
 from inuithy.common.agent_info import *
 from inuithy.util.traffic_state import *
+from inuithy.storage.storage import Storage
 
 lconf.fileConfig(INUITHY_LOGCONFIG)
 lg = logging.getLogger('InuithyManualController')
@@ -16,7 +18,7 @@ lg = logging.getLogger('InuithyManualController')
 class ManualController:
     """
     Message Flow:
-                        register
+                        heartbeat
         Agent -------------------------> ManualController
                         command
         Agent <------------------------- ManualController
@@ -96,12 +98,17 @@ class ManualController:
     def node2host(self, val): pass
 
     @property
-    def initialized(self): return ManualController.__initialized
+    def host2aid(self): return self.__host2aid
+    @host2aid.setter
+    def host2aid(self, val): pass
+
+    @property
+    def initialized(): return ManualController.__initialized
     @initialized.setter
-    def initialized(self, val):
+    def initialized(val):
         if ManualController.__mutex.acquire_lock():
             if not ManualController.__initialized:
-                ManualController.__initialized = True
+                ManualController.__initialized = val
             ManualController.__mutex.release()
     
     @property
@@ -117,28 +124,27 @@ class ManualController:
 
     @staticmethod
     def on_connect(client, userdata, rc):
-        lg.info(string_write("MQ.Connection client:{} userdata:[{}] rc:{}", client, userdata, rc))
+        userdata.lg.info(string_write("MQ.Connection client:{} userdata:[{}] rc:{}", client, userdata, rc))
         if 0 != rc:
-            lg.info(string_write("MQ.Connection: connection error"))
+            userdata.lg.info(string_write("MQ.Connection: connection error"))
 
     @staticmethod
     def on_message(client, userdata, message):
-        lg.info(string_write("MQ.Message: userdata:[{}]", userdata))
-        lg.info(string_write("MQ.Message: message "+INUITHY_MQTTMSGFMT, 
-            message.dup, message.info, message.mid, payload,
-            message.qos, message.retain, message.state, message.timestamp,
-            message.topic))
+#        userdata.lg.info(string_write("MQ.Message: userdata:[{}]", userdata))
+#        userdata.lg.info(string_write("MQ.Message: message "+INUITHY_MQTTMSGFMT, 
+#            message.dup, message.info, message.mid, message.payload, 
+#            message.qos, message.retain, message.state, message.timestamp,
+#            message.topic))
         try:
             userdata.topic_routes[message.topic](message)
         except Exception as ex:
-            lg.error(string_write("Exception on MQ message dispatching: {}", ex))
-            raise
+            userdata.lg.error(string_write("Exception on MQ message dispatching: {}", ex))
 
     @staticmethod
     def on_disconnect(client, userdata, rc):
-        lg.info(string_write("MQ.Disconnection: client:{} userdata:[{}] rc:{}", client, userdata, rc))
+        userdata.lg.info(string_write("MQ.Disconnection: client:{} userdata:[{}] rc:{}", client, userdata, rc))
         if 0 != rc:
-            lg.info(string_write("MQ.Disconnection: disconnection error"))
+            userdata.lg.info(string_write("MQ.Disconnection: disconnection error"))
 
     @staticmethod
     def on_log(client, userdata, level, buf):
@@ -146,18 +152,37 @@ class ManualController:
 
     @staticmethod
     def on_publish(client, userdata, mid):
-        lg.info(string_write("MQ.Publish: client:{} userdata:[{}], mid:{}", client, userdata, mid))
+        userdata.lg.info(string_write("MQ.Publish: client:{} userdata:[{}], mid:{}", client, userdata, mid))
 
     @staticmethod
     def on_subscribe(client, userdata, mid, granted_qos):
-        lg.info(string_write("MQ.Subscribe: client:{} userdata:[{}], mid:{}, grated_qos:{}", client, userdata, mid, granted_qos))
+        userdata.lg.info(string_write("MQ.Subscribe: client:{} userdata:[{}], mid:{}, grated_qos:{}", client, userdata, mid, granted_qos))
 
     def teardown(self):
         try:
             if ManualController.initialized:
+                self.stop_agents()
+                ManualController.initialized = False
+                self.__traffic_timer.cancel()
+                self.storage.close()
                 self.__subscriber.disconnect()
         except Exception as ex:
-            lg.error(string_write("Exception on teardown: {}", ex))
+            self.lg.error(string_write("Exception on teardown: {}", ex))
+
+    def start_agents(self):
+        self.lg.info("Start agents") 
+        cmd = 'pushd /opt/inuithy;nohup python3 inuithy/agent.py'
+        for host in self.__expected_agents:
+            runonremote('root', host, cmd)
+
+    def stop_agents(self):
+        self.lg.info("Stop agents") 
+        data = {
+            CFGKW_CTRLCMD:  CtrlCmd.AGENT_STOP.name,
+            CFGKW_CLIENTID: "*",
+        }
+        pub_ctrlcmd(self.__subscriber, self.tcfg.mqtt_qos, data)
+            
 
     def __del__(self): pass
 
@@ -196,122 +221,154 @@ class ManualController:
         __clientid: identity in MQ network
         __expected_agents: list of agents
         __available_agents: agentid => AgentInfo
+
         """
-        lg.info(string_write("Do initialization"))
+        self.lg.info(string_write("Do initialization"))
         try:
-            self.__expected_agents = self.trcfg.target_agents
+            for aname in self.trcfg.target_agents:
+                agent = self.nwcfg.agent_by_name(aname)
+                self.__expected_agents.append(agent[CFGKW_HOST])
             self.__host = socket.gethostname()
             self.__clientid = string_write(INUITHYCONTROLLER_CLIENT_ID, self.host)
             self.register_routes()
             self.create_mqtt_subscriber(*self.tcfg.mqtt)
             ManualController.initialized = True
         except Exception as ex:
-            lg.error(string_write("Failed to initialize: {}", ex))
+            self.lg.error(string_write("Failed to initialize: {}", ex))
 
     def load_configs(self, inuithy_cfgpath, traffic_cfgpath):
+        """Load runtime configure from inuithy configure file, load traffic definitions from traffic file
+        """
         is_configured = True
         try:
             self.__inuithy_cfg    = InuithyConfig(inuithy_cfgpath)
             if False == self.__inuithy_cfg.load():
-                lg.error(string_write("Failed to load inuithy configure"))
+                self.lg.error(string_write("Failed to load inuithy configure"))
                 return False
             self.__traffic_cfg  = TrafficConfig(traffic_cfgpath) 
             if False == self.__traffic_cfg.load():
-                lg.error(string_write("Failed to load traffics configure"))
+                self.lg.error(string_write("Failed to load traffics configure"))
                 return False
             self.__network_cfg  = NetworkConfig(self.__traffic_cfg.nw_cfgpath) 
             if False == self.__network_cfg.load():
-                lg.error(string_write("Failed to load network configure"))
+                self.lg.error(string_write("Failed to load network configure"))
                 return False
             self.__current_nwlayout = ('', '')
             self.node_to_host()
             is_configured = True
         except Exception as ex:
-            lg.error(string_write("Configure failed: {}", ex))
+            self.lg.error(string_write("Configure failed: {}", ex))
             is_configured = False
         return is_configured
 
     def load_storage(self):
-        lg.error(string_write("Load DB plugin:{}", self.tcfg.storagetype))
-        self.__storage = Storage(self.tcfg, lg)
+        self.lg.info(string_write("Load DB plugin:{}", self.tcfg.storagetype))
+        try:
+            self.__storage = Storage(self.tcfg, lg)
+        except Exception as ex:
+            self.lg.error(string_write("Failed to load plugin: {}", ex))
 
-    def __init__(self, inuithy_cfgpath='config/inuithy.conf', traffic_cfgpath='config/traffics.conf', lgr=None):
-        global lg
+    def __init__(self, inuithy_cfgpath='config/inuithy.conf', traffic_cfgpath='config/traffics.conf', lgr=None, delay=4):
+        """
+        @delay Start traffic after @delay seconds
+        """
+        if lgr != None: self.lg = lgr
+        else: self.lg = logging
         ManualController.__initialized = False
-        self.__node2host = {}
+        self.__expected_agents = []
         self.__available_agents = {}
+        self.__node2host = {}
+        self.__host2aid = {}
+        self.__nwlayout_chk = {}
         self.__storage = None
-        if lgr != None: lg = lgr
-        #FIXME
-        lg = logging
         if self.load_configs(inuithy_cfgpath, traffic_cfgpath):
             self.__do_init()
-            self.__traffic_state = TrafficState(self, lg)
+            self.load_storage()
+            self.__traffic_state = TrafficState(self)#, lg)
+            self.__traffic_timer = thrd.Timer(delay, self.__traffic_state.start)
 #    def whohas(self, addr):
 #        """Find out which host has node with given address connected
 #        """
 #        for aid, ainfo in self.available_agents.items():
 #            if ainfo.has_node(addr) != None:
-#                lg.info(string_write("{} has node {}", aid, addr))
+#                self.lg.info(string_write("{} has node {}", aid, addr))
 #                return aid
 #        return None
     def node_to_host(self):
-        lg.info("Map node address to host")
+        self.lg.info("Map node address to host")
         for agent in self.nwcfg.agents:
             [self.__node2host.__setitem__(node, agent[CFGKW_HOST]) for node in agent[CFGKW_NODES]]
 
-    def is_network_layout_done(self):
-        lg.info("Is network layout done")
-        #TODO
-        return False
-
-    def is_traffic_all_set(self):
-        lg.info("Is traffic all set")
-        return True
-
     def start(self):
         if not ManualController.initialized:
-            lg.error(string_write("ManualController not initialized"))
+            self.lg.error(string_write("ManualController not initialized"))
             return
         try:
-            lg.info(string_write("Expected Agents({}): {}", len(self.__expected_agents), self.__expected_agents))
+            self.lg.info(string_write("Expected Agents({}): {}", len(self.__expected_agents), self.__expected_agents))
             self.__alive_notification()
+#            if self.__traffic_timer != None: self.__traffic_timer.start()
             self.__subscriber.loop_forever()
         except KeyboardInterrupt:
-            lg.info(string_write("ManualController received keyboard interrupt"))
+            self.lg.info(string_write("ManualController received keyboard interrupt"))
         except Exception as ex:
-            lg.error(string_write("Exception on ManualController: {}", ex))
+            self.lg.error(string_write("Exception on ManualController: {}", ex))
         finally:
             self.teardown()
-            lg.info(string_write("ManualController terminated"))
+            self.lg.info(string_write("ManualController terminated"))
 
     def add_agent(self, agentid, host, nodes):
-        lg.info(string_write("Add agent: {}, {}", agentid, host))
-        self.__available_agents[agentid] = AgentInfo(agentid, host, AgentStatus.ONLINE, nodes)
-        lg.info(string_write("Agent {} added", agentid))
+        if self.__available_agents.get(agentid) == None:
+            self.__available_agents[agentid] = AgentInfo(agentid, host, AgentStatus.ONLINE, nodes)
+            self.lg.info(string_write("Agent {} added", agentid))
+        else:
+            self.__available_agents[agentid].nodes = nodes
+            self.lg.info(string_write("Agent {} updated", agentid))
+        self.__host2aid.__setitem__(host, agentid)
 
     def del_agent(self, agentid):
         if self.__available_agents.get(agentid):
             del self.__available_agents[agentid]
-            lg.info(string_write("Agent {} removed", agentid))
+            self.lg.info(string_write("Agent {} removed", agentid))
+
+    def update_nwlayout_chk(self, nwid, nodes):
+        if None == nodes or nwid == None: return
+        self.__nwlayout_chk[nwid] = {node:False for node in nodes}
+
+    def is_network_layout_done(self):
+        self.lg.info("Is network layout done")
+        if len(self.__available_agents) == 0:
+            raise ValueError("No agent available")
+        for nw in self.__nwlayout_chk.values():
+            if len([chk for chk in nw if chk == True]) != len(nw):
+                return False
+        if self.tcfg.enable_localdebug:
+            return True
+
+        return False
+
+    def is_traffic_all_set(self):
+        self.lg.info("Is traffic all set")
+        #TODO
+        if len(self.__available_agents) == 0:
+            raise ValueError("No agent available")
+        if self.tcfg.enable_localdebug:
+            return True
+        return False
 
     def is_agents_all_up(self):
-        lg.info("Is agent all up")
-        lg.debug(string_write("Expected Agents({}): {}", len(self.__expected_agents), self.__expected_agents))
-        lg.debug(string_write("Available Agents({}): {}",
-            len(self.__available_agents),
-            [str(a) for a in self.__available_agents.values()]))
-
+#        self.lg.info("Is agent all up")
+#        self.lg.debug(string_write("Expected Agents({}): {}", len(self.__expected_agents), self.__expected_agents))
+#        self.lg.debug(string_write("Available Agents({}): {}",
+#            len(self.__available_agents),
+#            [a for a in self.__available_agents.values()]))
+#            [str(a) for a in self.__available_agents.values()]))
+        # TODO
         if len(self.__expected_agents) != len(self.__available_agents):
             return False
 
-        exps = []
-        for aname in self.__expected_agents:
-            agent = self.nwcfg.agent_by_name(aname)
-            exps.append(agent[CFGKW_HOST])
         avails = []
         for ai in self.__available_agents.values():
-            if ai.host not in exps: return False
+            if ai.host not in self.__expected_agents: return False
         if self.tcfg.enable_localdebug:
             return True
 
@@ -320,56 +377,71 @@ class ManualController:
     def on_topic_heartbeat(self, message):
         """Heartbeat message format:
         """
-        lg.info(string_write("On topic heartbeat"))
+#        self.lg.info(string_write("On topic heartbeat"))
         data = extract_payload(message.payload)
         agentid, host, nodes = data[CFGKW_CLIENTID], data[CFGKW_HOST], data[CFGKW_NODES]
         try:
             agentid = agentid.strip('\t\n ')
             self.add_agent(agentid, host, nodes)
         except Exception as ex:
-            lg.error(string_write("Exception on registering agent {}: {}", agentid, ex))
-
+            self.lg.error(string_write("Exception on registering agent {}: {}", agentid, ex))
 
     def on_topic_unregister(self, message):
         """Unregister message format:
         <agentid>
         """
-        lg.info(string_write("On topic unregister"))
+        self.lg.info(string_write("On topic unregister"))
         data = extract_payload(message.payload)
-        agentid, host, nodes = data[CFGKW_CLIENTID], data[CFGKW_HOST], data[CFGKW_NODES]
+        agentid = data[CFGKW_CLIENTID]
         try:
             self.del_agent(agentid)
-            lg.info(string_write("Available Agents({}): {}", len(self.__available_agents), self.__available_agents))
+            self.lg.info(string_write("Available Agents({}): {}", len(self.__available_agents), self.__available_agents))
         except Exception as ex:
-            lg.error(string_write("Exception on unregistering agent {}: {}", agentid, ex))
+            self.lg.error(string_write("Exception on unregistering agent {}: {}", agentid, ex))
 
     def on_topic_status(self, message):
-        lg.info(string_write("On topic status"))
-        lg.debug(message.payload)
+        """
+        NODEJOINED
+        AGENTSTARTED
+        AGENTSTOPPED
+        TRAFFICFINISHED
+        """
+        self.lg.info(string_write("On topic status"))
+        self.lg.debug(message.payload)
         #TODO
 
     def on_topic_reportwrite(self, message):
-        lg.info(string_write("On topic reportwrite"))
+        self.lg.info(string_write("On topic reportwrite"))
         data = extract_payload(message.payload)
         self.storage.insert_record(data)
 
     def on_topic_notification(self, message):
-        lg.info(string_write("On topic notification"))
+        """{'msgtype': 'RECV', 'host': 'feet.pluto', 'channel': 16, 'genid': '581776fa362ac737abefe32e', 'time': '2016-11-01 00:54:04.464784', 'msg': 'joingrp 6262441166221516', 'traffic_type': 'JOIN', 'node': '1132', 'nodes': ['1121', '1131', '1132', '1133', '1141', '1142', '1143', '1144'], 'gateway': '1144', 'clientid': 'inuithy/agent/feet.pluto-93b73a', 'panid': 6262441166221516}
+
+        """
+        self.lg.info(string_write("On topic notification"))
         data = extract_payload(message.payload)
+        self.lg.debug(string_write("NOTIFY:", data))
+        try:
+            if data[CFGKW_TRAFFIC_TYPE] == TrafficType.JOIN.name:
+                if None != self.__nwlayout_chk.get(data[CFGKW_PANID]):
+                    self.__nwlayout_chk[data[CFGKW_PANID]][data[CFGKW_NODE]] = True
+        except Exception as ex:
+            self.lg.error(string_write("Update nwlayout failed", ex))
         self.storage.insert_record(data)
 
     def __alive_notification(self):
         """Broadcast on new controller startup
         """
-        lg.info(string_write("New controller notification {}", self.clientid))
+        self.lg.info(string_write("New controller notification {}", self.clientid))
         data = {
-            CFGKW_CTRLCMD:  CtrlCmds.NEW_CONTROLLER.name,
+            CFGKW_CTRLCMD:  CtrlCmd.NEW_CONTROLLER.name,
             CFGKW_CLIENTID: self.clientid,
         }
         pub_ctrlcmd(self.__subscriber, self.tcfg.mqtt_qos, data)
 
 def start_controller(tcfg, trcfg):
-    controller = ManualController(tcfg, trcfg)
+    controller = ManualController(tcfg, trcfg, lg)
     controller.start()
 
 if __name__ == '__main__':

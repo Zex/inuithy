@@ -32,7 +32,8 @@ run_controller: inuithy/controller.py
 	$(ECHO) "" > $(LOGPATH)
 	$(PYTHON) $<
 
-run_tsh: inuithy/util/console.py
+run_tsh: inuithy/controller.py
+	$(ECHO) "" > $(LOGPATH)
 	$(PYTHON) $<
 
 run_agent: inuithy/agent.py

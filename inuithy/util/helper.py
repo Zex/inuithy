@@ -3,6 +3,12 @@
 #
 from inuithy.common.predef import *
 from inuithy.util.task_manager import *
+import subprocess as sp
+
+def runonremote(user, host, cmd):
+    fmt = 'ssh -f {}@{} {}'
+    cmd = string_write(fmt, user, host, cmd)
+    sp.call(cmd, shell=True)
 
 def getnwlayoutid(nwcfg_path, layout_name):
     return string_write(CFGKW_NWLAYOUT_ID_FMT, nwcfg_path, layout_name)

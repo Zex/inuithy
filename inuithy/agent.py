@@ -135,8 +135,8 @@ class Agent:
                 pub_status(self.__subscriber, self.tcfg.mqtt_qos, {CFGKW_MSG: msg})
                 self.unregister()
 #               self.__heartbeat.stop()
+                self.__sad.stop_nodes()
                 self.__subscriber.disconnect()
-                [node.stop_listener() for node in self.addr2node.values()]
         except Exception as ex:
             logger.error(string_write("Exception on teardown: {}", ex))
 
@@ -258,9 +258,10 @@ class Agent:
         """
         logger.info(string_write("Receive command [{}]", command))
         ctrlcmd = command.get(CFGKW_CTRLCMD)
+        logger.debug(command)
         try:
             if self.ctrlcmd_routes.get(ctrlcmd):
-                self.ctrlcmd_routes[ctrlcmd](command)#command[len(ctrlcmd)+1:])
+                self.ctrlcmd_routes[ctrlcmd](command)
             else:
                 logger.error(string_write('Invalid command [{}]', command))
         except Exception as ex:
@@ -274,6 +275,7 @@ class Agent:
         if not self.tcfg.enable_localdebug:
             [self.__addr2node.__setitem__(n.addr, n) for n in self.__sad.nodes]
             return
+
 #            [self.__addr2node.__setitem__(''.join([random.choice(string.hexdigits) for i in range(4)]), n) for n in self.__sad.nodes]
         samples = ['1111', '1112', '1113', '1114', '1121', '1122', '1123', '1124', '1131', '1132', '1133', '1134', '1141', '1142', '1143', '1144']
         [self.__addr2node.__setitem__(addr, n) for addr, n in zip(samples, self.__sad.nodes)]
@@ -323,11 +325,78 @@ class Agent:
         except Exception as ex:
             logger.error(string_write("Exception on updating config: {}", ex))
 
+    def on_traffic_join(self, data):
+        logger.info(string_write("Join request"))
+        naddr = data[CFGKW_NODE]
+        node = self.addr2node.get(naddr)
+        logger.debug(string_write("Found node: {}", node))
+        data[CFGKW_CLIENTID] = self.clientid
+        data[CFGKW_HOST] = self.host
+        if None != node:
+            node.join(data)
+        else: # DEBUG
+            logger.error(string_write("{}: Node [{}] not found", self.clientid, naddr)) 
+#                for addr, free_node in self.addr2node.items():
+#                    if 0 == len(free_node.addr):
+#                        free_node.setaddr(naddr, data)
+#                        logger.info(string_write("{}: Set node {}", self.clientid, str(free_node))) 
+#                        break
+    
+    def on_traffic_scmd(self, data):
+        logger.info(string_write("SCMD request"))
+        """
+        data = {
+             CFGKW_GENID:        tg.genid,
+             CFGKW_DURATION:     tg.duration,
+             CFGKW_TIMESLOT:     tg.timeslot,
+             CFGKW_SENDER:       tr.sender,
+             CFGKW_RECIPIENT:    tr.recipient,
+             CFGKW_PKGSIZE:      tr.pkgsize,
+             }
+        """
+        naddr = data[CFGKW_NODE]
+        node = self.addr2node.get(naddr)
+        logger.debug(string_write("Found node: {}", node))
+        if None != node:
+            data[CFGKW_CLIENTID] = self.clientid
+            data[CFGKW_HOST] = self.host
+            cmd = node.prot.traffic(data[RECIPIENT])
+            te = TrafficExecutor(node, cmd, data[CFGKW_TIMESLOT], data[CFGKW_DURATION], data)
+            self.__traffic_executors.append(te)
+        else:
+            logger.error(string_write("{}: Node [{}] not found", self.clientid, naddr)) 
+
+    def on_traffic_tsh(self, data):
+        logger.info(string_write("TSH request"))
+        """
+        data = {
+            CFGKW_TRAFFIC_TYPE: TrafficType.TSH.name,
+            CFGKW_HOST:         host,
+            CFGKW_NODE:       node,
+            CFGKW_CLIENTID:     self.__ctrl.host2aid[args[0]],
+            CFGKW_MSG:          ' '.join(args[1:])
+        }
+        """
+        naddr = data[CFGKW_NODE]
+        node = self.addr2node.get(naddr)
+        logger.debug(string_write("Found node: {}", node))
+        if None != node:
+            node.write(data[CFGKW_MSG])
+        else: # DEBUG
+            logger.error(string_write("{}: Node [{}] not found", self.clientid, naddr)) 
+
+    def on_traffic_start(self, data):
+        logger.info(string_write("Traffic start request"))
+        try:
+            [te.run() for te in self.__traffic_executors]
+        except Exception as ex:
+            logger.error(string_write("Exception on running traffic: {}", ex))
+
     def on_topic_traffic(self, message):
         logger.info(string_write("On topic traffic"))
         try:
             data = extract_payload(message.payload)
-    #        target = data[CFGKW_CLIENTID]
+#           target = data[CFGKW_CLIENTID]
             logger.debug(string_write("Traffic data: {}", data))
             if not self.is_msg_for_me([data[CFGKW_CLIENTID], data[CFGKW_HOST]]): return
             self.traffic_dispatch(data)
@@ -336,56 +405,16 @@ class Agent:
 
     def traffic_dispatch(self, data):
         logger.info(string_write("Dispatch traffic request: {}", data))
-        naddr = data[CFGKW_NODE]
-        node = self.addr2node.get(naddr)
-        logger.debug(string_write("Found node: {}", node))
         if data[CFGKW_TRAFFIC_TYPE] == TrafficType.JOIN.name:
-            logger.info(string_write("Join request"))
-            data[CFGKW_CLIENTID] = self.clientid
-            data[CFGKW_HOST] = self.host
-            if None != node:
-                node.join(data)
-            else: # DEBUG
-                logger.error(string_write("{}: Node [{}] not found", self.clientid, naddr)) 
-#                for addr, free_node in self.addr2node.items():
-#                    if 0 == len(free_node.addr):
-#                        free_node.setaddr(naddr, data)
-#                        logger.info(string_write("{}: Set node {}", self.clientid, str(free_node))) 
-#                        break
+            self.on_traffic_join(data)
         elif data[CFGKW_TRAFFIC_TYPE] == TrafficType.SCMD.name:
-            logger.info(string_write("SCMD request"))
-            """
-            data = {
-                 CFGKW_GENID:        tg.genid,
-                 CFGKW_DURATION:     tg.duration,
-                 CFGKW_TIMESLOT:     tg.timeslot,
-                 CFGKW_SENDER:       tr.sender,
-                 CFGKW_RECIPIENT:    tr.recipient,
-                 CFGKW_PKGSIZE:      tr.pkgsize,
-                 }
-            """
-            if None != node:
-                data[CFGKW_CLIENTID] = self.clientid
-                data[CFGKW_HOST] = self.host
-                cmd = node.prot.traffic(data[RECIPIENT])
-                te = TrafficExecutor(node, cmd, data[CFGKW_TIMESLOT], data[CFGKW_DURATION], data)
-                self.__traffic_executors.append(te)
-            else:
-                logger.error(string_write("{}: Node [{}] not found", self.clientid, naddr)) 
+            self.on_traffic_scmd(data)
         elif data[CFGKW_TRAFFIC_TYPE] == TrafficType.START.name:
-            logger.info(string_write("Traffic start request"))
-            self.start_traffic()
+            self.on_traffic_start(data)
+        elif data[CFGKW_TRAFFIC_TYPE] == TrafficType.TSH.name:
+            self.on_traffic_tsh(data)
         else:
             logger.error(string_write("{}: Unhandled traffic message [{}]", self.clientid, data)) 
-
-    def start_traffic(self):
-        try:
-            for te in self.__traffic_executors:
-                logger.info("Starting: " + str(te))
-                te.run()
-#            [te.run() for te in self.__traffic_executors]
-        except Exception as ex:
-            logger.error(string_write("Exception on running traffic: {}", ex))
 
     def on_new_controller(self, message):
         logger.info(string_write("New controller"))
@@ -393,8 +422,10 @@ class Agent:
 
     def on_agent_restart(self, message):
         logger.info(string_write("Restart agent"))
-        #TODO
-        pass
+        if self.is_msg_for_me([message[CFGKW_CLIENTID], message[CFGKW_HOST]]):
+            logger.info(string_write("Stop agent {}", self.clientid))
+            self.teardown()
+            #TODO
 
     def is_msg_for_me(self, targets): # FIXME
         for target in targets:
@@ -402,7 +433,7 @@ class Agent:
         return False
 
     def on_agent_stop(self, message):
-        if self.is_msg_for_me(message):
+        if self.is_msg_for_me([message[CFGKW_CLIENTID], message[CFGKW_HOST]]):
             logger.info(string_write("Stop agent {}", self.clientid))
             self.teardown()
 
