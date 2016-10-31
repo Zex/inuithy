@@ -10,6 +10,7 @@ from inuithy.util.config_manager import *
 #from inuithy.common.traffic import *
 from inuithy.common.agent_info import *
 from inuithy.util.traffic_state import *
+from inuithy.storage.storage import Storage
 
 lconf.fileConfig(INUITHY_LOGCONFIG)
 lg = logging.getLogger('InuithyAutoController')
@@ -97,6 +98,11 @@ class AutoController:
     def node2host(self, val): pass
 
     @property
+    def host2aid(self): return self.__host2aid
+    @host2aid.setter
+    def host2aid(self, val): pass
+
+    @property
     def initialized(): return AutoController.__initialized
     @initialized.setter
     def initialized(val):
@@ -120,25 +126,25 @@ class AutoController:
     def on_connect(client, userdata, rc):
         userdata.lg.info(string_write("MQ.Connection client:{} userdata:[{}] rc:{}", client, userdata, rc))
         if 0 != rc:
-            self.lg.info(string_write("MQ.Connection: connection error"))
+            userdata.lg.info(string_write("MQ.Connection: connection error"))
 
     @staticmethod
     def on_message(client, userdata, message):
-        userdata.lg.info(string_write("MQ.Message: userdata:[{}]", userdata))
-        userdata.lg.info(string_write("MQ.Message: message "+INUITHY_MQTTMSGFMT, 
-            message.dup, message.info, message.mid, message.payload, 
-            message.qos, message.retain, message.state, message.timestamp,
-            message.topic))
+#        userdata.lg.info(string_write("MQ.Message: userdata:[{}]", userdata))
+#        userdata.lg.info(string_write("MQ.Message: message "+INUITHY_MQTTMSGFMT, 
+#            message.dup, message.info, message.mid, message.payload, 
+#            message.qos, message.retain, message.state, message.timestamp,
+#            message.topic))
         try:
             userdata.topic_routes[message.topic](message)
         except Exception as ex:
-            self.lg.error(string_write("Exception on MQ message dispatching: {}", ex))
+            userdata.lg.error(string_write("Exception on MQ message dispatching: {}", ex))
 
     @staticmethod
     def on_disconnect(client, userdata, rc):
         userdata.lg.info(string_write("MQ.Disconnection: client:{} userdata:[{}] rc:{}", client, userdata, rc))
         if 0 != rc:
-            self.lg.info(string_write("MQ.Disconnection: disconnection error"))
+            userdata.lg.info(string_write("MQ.Disconnection: disconnection error"))
 
     @staticmethod
     def on_log(client, userdata, level, buf):
@@ -155,10 +161,28 @@ class AutoController:
     def teardown(self):
         try:
             if AutoController.initialized:
+                self.stop_agents()
                 AutoController.initialized = False
+                self.__traffic_timer.cancel()
+                self.storage.close()
                 self.__subscriber.disconnect()
         except Exception as ex:
             self.lg.error(string_write("Exception on teardown: {}", ex))
+
+    def launch_agents(self): 
+        self.lg.info("Launch agents") 
+        for agent in self.trcfg.target_agents:
+            #TODO
+            pass
+
+    def stop_agents(self):
+        self.lg.info("Stop agents") 
+        data = {
+            CFGKW_CTRLCMD:  CtrlCmd.AGENT_STOP.name,
+            CFGKW_CLIENTID: "*",
+        }
+        pub_ctrlcmd(self.__subscriber, self.tcfg.mqtt_qos, data)
+            
 
     def __del__(self): pass
 
@@ -237,8 +261,11 @@ class AutoController:
         return is_configured
 
     def load_storage(self):
-        self.lg.error(string_write("Load DB plugin:{}", self.tcfg.storagetype))
-        self.__storage = Storage(self.tcfg, lg)
+        self.lg.info(string_write("Load DB plugin:{}", self.tcfg.storagetype))
+        try:
+            self.__storage = Storage(self.tcfg, lg)
+        except Exception as ex:
+            self.lg.error(string_write("Failed to load plugin: {}", ex))
 
     def __init__(self, inuithy_cfgpath='config/inuithy.conf', traffic_cfgpath='config/traffics.conf', lgr=None, delay=4):
         """
@@ -248,11 +275,13 @@ class AutoController:
         else: self.lg = logging
         AutoController.__initialized = False
         self.__node2host = {}
+        self.__host2aid = {}
         self.__storage = None
         if self.load_configs(inuithy_cfgpath, traffic_cfgpath):
             self.__do_init()
-            self.__traffic_state = TrafficState(self, lg)
-            self.__traffic_timer = threading.Timer(delay, self.__traffic_state.start)
+            self.load_storage()
+            self.__traffic_state = TrafficState(self)#, lg)
+            self.__traffic_timer = thrd.Timer(delay, self.__traffic_state.start)
 #    def whohas(self, addr):
 #        """Find out which host has node with given address connected
 #        """
@@ -265,7 +294,6 @@ class AutoController:
         self.lg.info("Map node address to host")
         for agent in self.nwcfg.agents:
             [self.__node2host.__setitem__(node, agent[CFGKW_HOST]) for node in agent[CFGKW_NODES]]
-
 
     def start(self):
         if not AutoController.initialized:
@@ -285,8 +313,13 @@ class AutoController:
             self.lg.info(string_write("AutoController terminated"))
 
     def add_agent(self, agentid, host, nodes):
-        self.__available_agents[agentid] = AgentInfo(agentid, host, AgentStatus.ONLINE, nodes)
-        self.lg.info(string_write("Agent {} added", agentid))
+        if self.__available_agents.get(agentid) == None:
+            self.__available_agents[agentid] = AgentInfo(agentid, host, AgentStatus.ONLINE, nodes)
+            self.lg.info(string_write("Agent {} added", agentid))
+        else:
+            self.__available_agents[agentid].nodes = nodes
+            self.lg.info(string_write("Agent {} updated", agentid))
+        self.__host2aid.__setitem__(host, agentid)
 
     def del_agent(self, agentid):
         if self.__available_agents.get(agentid):
@@ -296,18 +329,28 @@ class AutoController:
     def is_network_layout_done(self):
         self.lg.info("Is network layout done")
         #TODO
+        if len(self.__available_agents) == 0:
+            raise ValueError("No agent available")
+        if self.tcfg.enable_localdebug:
+            return True
+
         return False
 
     def is_traffic_all_set(self):
         self.lg.info("Is traffic all set")
         #TODO
-        return True
+        if len(self.__available_agents) == 0:
+            raise ValueError("No agent available")
+        if self.tcfg.enable_localdebug:
+            return True
+        return False
 
     def is_agents_all_up(self):
-        self.lg.info("Is agent all up")
-        self.lg.debug(string_write("Expected Agents({}): {}", len(self.__expected_agents), self.__expected_agents))
+#        self.lg.info("Is agent all up")
+#        self.lg.debug(string_write("Expected Agents({}): {}", len(self.__expected_agents), self.__expected_agents))
 #        self.lg.debug(string_write("Available Agents({}): {}",
 #            len(self.__available_agents),
+#            [a for a in self.__available_agents.values()]))
 #            [str(a) for a in self.__available_agents.values()]))
         # TODO
         if len(self.__expected_agents) != len(self.__available_agents):
@@ -329,7 +372,7 @@ class AutoController:
     def on_topic_heartbeat(self, message):
         """Heartbeat message format:
         """
-        self.lg.info(string_write("On topic heartbeat"))
+#        self.lg.info(string_write("On topic heartbeat"))
         data = extract_payload(message.payload)
         agentid, host, nodes = data[CFGKW_CLIENTID], data[CFGKW_HOST], data[CFGKW_NODES]
         try:
@@ -344,7 +387,7 @@ class AutoController:
         """
         self.lg.info(string_write("On topic unregister"))
         data = extract_payload(message.payload)
-        agentid, host, nodes = data[CFGKW_CLIENTID], data[CFGKW_HOST], data[CFGKW_NODES]
+        agentid = data[CFGKW_CLIENTID]
         try:
             self.del_agent(agentid)
             self.lg.info(string_write("Available Agents({}): {}", len(self.__available_agents), self.__available_agents))
@@ -377,7 +420,7 @@ class AutoController:
         """
         self.lg.info(string_write("New controller notification {}", self.clientid))
         data = {
-            CFGKW_CTRLCMD:  CtrlCmds.NEW_CONTROLLER.name,
+            CFGKW_CTRLCMD:  CtrlCmd.NEW_CONTROLLER.name,
             CFGKW_CLIENTID: self.clientid,
         }
         pub_ctrlcmd(self.__subscriber, self.tcfg.mqtt_qos, data)

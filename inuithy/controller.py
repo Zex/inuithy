@@ -14,14 +14,14 @@ import inuithy.mode.monitor_mode as moni
 import inuithy.util.console as tsh
 
 def auto_mode_handler(tcfg, trcfg):
-    controller = auto.AutoController(tcfg, trcfg)#, lg)
+    controller = auto.AutoController(tcfg, trcfg)
     controller.start()
 
 def manual_mode_handler(tcfg, trcfg):
     tsh.start_console()
 
 def monitor_mode_handler(tcfg, trcfg):
-    controller = moni.MonitorController(tcfg, trcfg)#, logger)
+    controller = moni.MonitorController(tcfg, trcfg)
     controller.start()
 
 mode_route = {
@@ -46,7 +46,14 @@ def start_controller(tcfg, trcfg):
     if None == mode_route.get(cfg.workmode):
         logger.error("Unknown work mode")
         return
-    mode_route[cfg.workmode](tcfg, trcfg)
+    try:
+        mode_route[cfg.workmode](tcfg, trcfg)
+    except KeyboardInterrupt:
+        logger.info(string_write("AutoController received keyboard interrupt"))
+    except Exception as ex:
+        self.lg.error(string_write("Exception on AutoController: {}", ex))
+    finally:
+        return
 
 if __name__ == '__main__':
     lg.info(string_write(INUITHY_TITLE, INUITHY_VERSION, "Controller"))
