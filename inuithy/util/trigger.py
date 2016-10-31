@@ -50,6 +50,7 @@ class TrafficTrigger(threading.Thread):
 
     def _stop_trigger(self):
         self.__running = False
+        self.__stop_timer.cancel()
 
     def __del__(self):
         self._stop_trigger()

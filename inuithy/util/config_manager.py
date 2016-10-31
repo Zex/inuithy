@@ -94,7 +94,6 @@ class InuithyConfig(Config):
     @property
     def mqtt(self):
         return self.config[CFGKW_MQTT][CFGKW_HOST], self.config[CFGKW_MQTT][CFGKW_PORT]
-
     @mqtt.setter
     def mqtt(self, val):
         pass
@@ -102,7 +101,6 @@ class InuithyConfig(Config):
     @property
     def mqtt_qos(self):
         return self.config[CFGKW_MQTT][CFGKW_QOS]
-      
     @mqtt_qos.setter
     def mqtt_qos(self):
         pass
@@ -110,7 +108,6 @@ class InuithyConfig(Config):
     @property
     def workmode(self):
         return self.config[CFGKW_WORKMODE]
-
     @workmode.setter
     def workmode(self, val):
         pass
@@ -130,7 +127,6 @@ class InuithyConfig(Config):
     @enable_localdebug.setter
     def enable_localdebug(self, val):
         pass
-
     @property
     def enable_mqdebug(self):
         return self.config[CFGKW_ENABLE_MQDEBUG]
@@ -142,11 +138,16 @@ class InuithyConfig(Config):
     @property
     def tsh_hist(self):
         return self.config[CFGKW_TSH][CFGKW_HISTORY]
-
     @tsh_hist.setter
     def tsh_hist(self, val):
         pass
 
+    @property
+    def genid_path(self):
+        return self.config[CFGKW_GENID][CFGKW_PATH]
+    @genid_path.setter
+    def genid_path(self, val):
+        pass
     @property
     def storagetype(self):
         return (self.config[CFGKW_TRAFFIC_STORAGE][CFGKW_TYPE].split(':'))
@@ -156,7 +157,7 @@ class InuithyConfig(Config):
 
     def create_sample(self):
         self.config[CFGKW_MQTT] = {
-            CFGKW_HOST: '127.0.0.1',
+            CFGKW_HOST: '192.168.100.131',
             CFGKW_PORT: 1883,
             CFGKW_QOS:  0
         }
@@ -166,7 +167,7 @@ class InuithyConfig(Config):
         # - WorkMode.MONITOR
         self.config[CFGKW_WORKMODE] = WorkMode.AUTO.name
         self.config[CFGKW_CONTROLLER] = {
-            CFGKW_HOST:'127.0.0.1',
+            CFGKW_HOST:'192.168.100.131',
         }
         self.config[CFGKW_ENABLE_LDEBUG] = True
         self.config[CFGKW_ENABLE_MQDEBUG] = False
@@ -179,7 +180,7 @@ class InuithyConfig(Config):
             # Path to traffic database
             # - For database storage, the path is host and port combination formated as <host>:<port>
             # - For local file storage, the path is absolute or relative path to storage file on local machine
-            CFGKW_PATH:     '127.0.0.1:19713',
+            CFGKW_PATH:     '192.168.100.131:19713',
             # Authentication for storage access if required
             CFGKW_USER:     '',
             CFGKW_PASSWD:   '',
@@ -187,6 +188,9 @@ class InuithyConfig(Config):
         # Inuithy shell config
         self.config[CFGKW_TSH]  = {
             CFGKW_HISTORY: '.inuithy.cache',
+        }
+        self.config[CFGKW_GENID]  = {
+            CFGKW_PATH: '.inuithy.genid',
         }
 
 class NetworkConfig(Config):
@@ -246,25 +250,25 @@ class NetworkConfig(Config):
         # Expected agent list
         self.config[CFGKW_AGENTS] = {
         'agent_0': {
-            CFGKW_HOST:     '127.0.0.1',
+            CFGKW_HOST:     '192.168.100.131',
             CFGKW_NODES:    [
                 '1111', '1112', '1113', '1114',
             ],
         },
         'agent_1': {
-            CFGKW_HOST:     '127.0.0.2',
+            CFGKW_HOST:     '192.168.100.132',
             CFGKW_NODES:    [
                 '1121', '1122', '1123', '1124',
             ],
         },
         'agent_2': {
-            CFGKW_HOST:     '127.0.0.3',
+            CFGKW_HOST:     '192.168.100.133',
             CFGKW_NODES:    [
                 '1131', '1132', '1133', '1134',
                 ],
         },
         'agent_3': {
-            CFGKW_HOST:     '127.0.0.4',
+            CFGKW_HOST:     '192.168.100.134',
             CFGKW_NODES:    [
                 '1141', '1142', '1143', '1144',
             ],

@@ -18,25 +18,25 @@ def extract_payload(jdata):
 #            enable heartbeat
 # Agent <------------------------ Controller
 def pub_enable_hb(publisher, qos, clientid="*"):
-    payload = string_write("{} {}", CtrlCmds.AGENT_ENABLE_HEARTBEAT.name, clientid)
+    payload = string_write("{} {}", CtrlCmd.AGENT_ENABLE_HEARTBEAT.name, clientid)
     publisher.publish(INUITHY_TOPIC_COMMAND, payload, qos, False)
 
 #            disable heartbeat
 # Agent <------------------------ Controller
 def pub_disable_hb(publisher, qos, clientid="*"):
-    payload = string_write("{} {}", CtrlCmds.AGENT_DISABLE_HEARTBEAT.name, clientid)
+    payload = string_write("{} {}", CtrlCmd.AGENT_DISABLE_HEARTBEAT.name, clientid)
     publisher.publish(INUITHY_TOPIC_COMMAND, payload, qos, False)
 
 #            restart agent
 # Agent <------------------------ Controller
 def pub_restart_agent(publisher, qos, clientid="*"):
-    payload = string_write("{} {}", CtrlCmds.AGENT_RESTART.name, clientid)
+    payload = string_write("{} {}", CtrlCmd.AGENT_RESTART.name, clientid)
     publisher.publish(INUITHY_TOPIC_COMMAND, payload, qos, False)
 
 #            stop agent
 # Agent <------------------------ Controller
 def pub_stop_agent(publisher, qos, clientid="*"):
-    payload = string_write("{} {}", CtrlCmds.AGENT_STOP.name, clientid)
+    payload = string_write("{} {}", CtrlCmd.AGENT_STOP.name, clientid)
     publisher.publish(INUITHY_TOPIC_COMMAND, payload, qos, False)
 
 #            traffic
@@ -49,7 +49,7 @@ def pub_traffic(publisher, qos=0, data={}):
 # Agent <------------------------ Controller
 def pub_config(publisher, qos, config={}, clientid="*"):
     # TODO
-    payload = string_write("{} {}", CtrlCmds.TRAFFIC.name, clientid)
+    payload = string_write("{} {}", CtrlCmd.TRAFFIC.name, clientid)
     publisher.publish(INUITHY_TOPIC_COMMAND, payload, qos, False)
 
 #           register
@@ -68,7 +68,7 @@ def pub_register(publisher, qos=0, data={}):
 #           unregister
 # Agent ------------------> Controller
 def pub_unregister(publisher, qos=0, clientid=''):
-    payload = string_write("{}", clientid)
+    payload = json.dumps({ CFGKW_CLIENTID : clientid })
     publisher.publish(INUITHY_TOPIC_UNREGISTER, payload, qos, False)
 
 #           status
