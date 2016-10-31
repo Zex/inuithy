@@ -89,6 +89,7 @@ CFGKW_NWLAYOUT_ID_FMT   = '{}:{}'
 CFGKW_TRAFFICS          = 'traffics'
 CFGKW_PANID             = 'panid'
 CFGKW_CHANNEL           = 'channel'
+CFGKW_GENID             = 'genid'
 
 CFGKW_CLIENTID          = 'clientid'
 CFGKW_TRAFFIC_TYPE      = 'traffic_type'
@@ -96,7 +97,10 @@ CFGKW_NODE              = 'node'
 CFGKW_ADDR              = 'addr'
 CFGKW_CTRLCMD           = 'ctrlcmd'
 CFGKW_MSG               = 'msg'
-CFGKW_MESSAGE_TYPE      = "msgtype"
+CFGKW_MSG_TYPE          = 'msgtype'
+CFGKW_TIMESLOT          = 'timeslot'
+CFGKW_TIME              = 'time'
+CFGKW_RECORDS           = 'records'
 
 TrafficStatus = Enum("TrafficStatus", [
     "STOP",             # Initial status, traffic not yet launched
@@ -133,9 +137,15 @@ def mqlog_map(logger, level, msg):
         #logger.debug(INUITHY_MQLOG_FMT.format(msg))
         pass
 
+TrafExecState = Enum("TrafExecState", [
+    "TRAFFIC_FIRING",
+    "TRAFFIC_FINISHED",
+])
+
 AgentStatus = Enum("AgentStatus", [
     "OFFLINE",
     "ONLINE",
+    "TRAFFIC_COMPLETED",
     "UNKNOWN",
     ])
 
@@ -162,7 +172,7 @@ StorageType = Enum("StorageType", [
     "CSV",
 ])
 
-CtrlCmds = Enum("CtrlCmds", [
+CtrlCmd = Enum("CtrlCmd", [
     "NEW_CONTROLLER",
     "AGENT_RESTART",
     "AGENT_STOP",

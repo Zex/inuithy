@@ -21,3 +21,12 @@ class BleProtocol(Protocol):
         raddr = arg[0]
         return string_write("lighton {}", raddr)
 
+    @staticmethod
+    def lighton(*arg, **kwargs):
+        raddr = arg[0]
+        return string_write("lighton {}", raddr)
+
+    @staticmethod
+    def lightoff(*arg, **kwargs):
+        raddr = arg[0]
+        return string_write("lightoff {}", raddr)

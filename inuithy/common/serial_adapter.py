@@ -55,7 +55,7 @@ class SerialAdapter:
     def scan_nodes(self):
         self.__nodes = []
         # TODO DEV_TTYS => DEV_TTYUSB
-        ports = enumerate(name for name in glob.glob(DEV_TTYS.format('*')))
+        ports = enumerate(name for name in glob.glob(DEV_TTYS.format('2*')))
         mng = ThrTaskManager()
         mng.create_task_foreach(self.create_node, ports)
         mng.waitall()

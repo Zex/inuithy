@@ -73,9 +73,9 @@ class TrafficGenerator:
         return self.__genid
     @genid.setter
     def genid(self, val):
-        pass
+        self.__genid = val
 
-    def __init__(self, trcfg, nwcfg, trname):
+    def __init__(self, trcfg, nwcfg, trname, genid=None):
         self.traffic_name = trname
         self.cur_trcfg = trcfg.config[trname]
         self.pkgrate  = self.cur_trcfg[CFGKW_PKGRATE]
@@ -85,7 +85,7 @@ class TrafficGenerator:
         self.traffics = []
         self.nwlayoutid = getnwlayoutid(trcfg.config[CFGKW_NWCONFIG_PATH], self.cur_trcfg[CFGKW_NWLAYOUT])
         self.create_traffic(trcfg, nwcfg)
-        self.__genid = string_write("[{}]{}:{}", time.clock_gettime(time.CLOCK_REALTIME), self.nwlayoutid, trname)
+        self.__genid = genid != None and genid or string_write("[{}]{}:{}", time.clock_gettime(time.CLOCK_REALTIME), self.nwlayoutid, trname)
 
     def __str__(self):
         return string_write("layout:{},traffic:{},rate:{}/s,dur:{}s,", self.nwlayoutid, self.traffic_name, self.pkgrate, self.duration)
@@ -155,11 +155,13 @@ class TrafficExecutor(TrafficTrigger):
     @timeslot   Traffic trigger interval, in second
     @duration   Stop traffic after given duration, in second
     """
-    def __init__(self, node, command, timeslot, duration):
+    def __init__(self, node, command, timeslot, duration, data=None):
+        TrafficTrigger.__init__(self, timeslot, duration)
         self.timeslot = timeslot
         self.duration = duration
         self.node = node
         self.command = command
+        self.data = data
 
     def run(self):
 
@@ -168,7 +170,7 @@ class TrafficExecutor(TrafficTrigger):
 
         while self.__running:
             if TrafficTrigger.__mutex.acquire():
-                self.node.write(self.command)
+                self.node.write(self.command, self.data)
                 TrafficTrigger.__mutex.release()
             time.sleep(self.__interval)
 
