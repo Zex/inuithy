@@ -27,6 +27,7 @@ $(VERSION_PATH):
 	$(ECHO) "## AUTO GENERATED ON `date`" > $@
 	$(ECHO) "" >> $@
 	$(ECHO) "INUITHY_VERSION = \""$(VERSION)"\"" >> $@
+	$(ECHO) "INUITHY_ROOT = \""$(PROJECT_PATH)/inuithy"\"" >> $@
 	$(ECHO) "" >> $@
 
 
