@@ -8,6 +8,7 @@ import threading as thrd
 from inuithy.util.cmd_helper import *
 from inuithy.util.config_manager import *
 from inuithy.common.serial_adapter import *
+from inuithy.common.traffic import TrafficExecutor 
 
 lconf.fileConfig(INUITHY_LOGCONFIG)
 logger = logging.getLogger('InuithyAgent')
@@ -36,36 +37,19 @@ class Agent:
     __mutex_msg = thrd.Lock()
 
     @property
-    def clientid(self):
-        return self.__clientid
-    
+    def clientid(self): return self.__clientid
     @clientid.setter
-    def clientid(self, val):
-        pass
+    def clientid(self, val): pass
     
     @property
-    def host(self):
-        return self.__host
-
+    def host(self): return self.__host
     @host.setter
-    def host(self, val):
-        pass
+    def host(self, val): pass
 
     @property
-    def traffic(self):
-        return self.__traffic
-
-    @traffic.setter
-    def traffic(self, val):
-        pass
-
-    @property
-    def tcfg(self):
-        return self.__inuithy_cfg
-
+    def tcfg(self): return self.__inuithy_cfg
     @tcfg.setter
-    def tcfg(self, val):
-        pass
+    def tcfg(self, val): pass
     
 #    @property
 #    def enable_heartbeat(self):
@@ -78,7 +62,6 @@ class Agent:
     @property
     def initialized(self):
         return self.__initialized
-
     @initialized.setter
     def initialized(self, val):
         if Agent.__mutex.acquire_lock():
@@ -87,12 +70,9 @@ class Agent:
             Agent.__mutex.release()
 
     @property
-    def addr2node(self):
-        return self.__addr2node
-
+    def addr2node(self): return self.__addr2node
     @addr2node.setter
-    def addr2node(self, val):
-        pass
+    def addr2node(self, val): pass
 
     @staticmethod
     def on_connect(client, userdata, rc):
@@ -146,8 +126,8 @@ class Agent:
     def __str__(self):
         return string_write("clientid:[{}] host:[{}]", self.clientid, self.host)
    
-    def heartbeat_route(self):
-        logger.info(string_write("Heartbeat route")) 
+    def heartbeat_routine(self):
+        logger.info(string_write("Heartbeat routine")) 
         try:
             data = {
                 CFGKW_CLIENTID: self.clientid,
@@ -162,9 +142,9 @@ class Agent:
         """Register an agent to controller
         """
         logger.info(string_write("Registering {}", self.clientid))
-#        self.__heartbeat = Heartbeat(target=self.heartbeat_route, name="AgnetHeartbeat")
+#        self.__heartbeat = Heartbeat(target=self.heartbeat_routine, name="AgnetHeartbeat")
 #        self.__heartbeat.run()
-        self.heartbeat_route()
+        self.heartbeat_routine()
 
     def unregister(self):
         """Unregister an agent from controller
@@ -185,9 +165,9 @@ class Agent:
         self.__subscriber.on_connect    = Agent.on_connect
         self.__subscriber.on_message    = Agent.on_message
         self.__subscriber.on_disconnect = Agent.on_disconnect
-        self.__subscriber.on_log        = Agent.on_log
+#        self.__subscriber.on_log        = Agent.on_log
 #        self.__subscriber.on_publish    = Agent.on_publish
-        self.__subscriber.on_subscribe  = Agent.on_subscribe
+#        self.__subscriber.on_subscribe  = Agent.on_subscribe
         self.__subscriber.connect(host, port)
         self.__subscriber.subscribe([
             (INUITHY_TOPIC_COMMAND, self.tcfg.mqtt_qos),
@@ -214,10 +194,12 @@ class Agent:
             self.__host = getpredefaddr()
         except Exception as ex:
             logger.error(string_write("Failed to get predefined static address: {}", ex))
-            try:
+        
+        try: #FIXME
+            if self.__host == None or len(self.__host) == 0:
                 self.__host = socket.gethostname() #socket.gethostbyname(socket.gethostname())
-            except Exception as ex:
-                logger.error(string_write("Failed to get host by name: {}", ex))
+        except Exception as ex:
+            logger.error(string_write("Failed to get host by name: {}", ex))
 
     def __do_init(self):
         """
@@ -265,10 +247,7 @@ class Agent:
             else:
                 logger.error(string_write('Invalid command [{}]', command))
         except Exception as ex:
-                logger.error(string_write('Exception on handling command [{}]:{}', command, ex))
-#        if Agent.__mutex_msg.acquire():
-#            # TODO
-#            Agent.__mutex_msg.release()
+                logger.error(string_write('Exception on handling command [{}]:{}', command, str(ex)))
 
     def addr_to_node(self):
         logger.info("Map address to node")
@@ -336,11 +315,6 @@ class Agent:
             node.join(data)
         else: # DEBUG
             logger.error(string_write("{}: Node [{}] not found", self.clientid, naddr)) 
-#                for addr, free_node in self.addr2node.items():
-#                    if 0 == len(free_node.addr):
-#                        free_node.setaddr(naddr, data)
-#                        logger.info(string_write("{}: Set node {}", self.clientid, str(free_node))) 
-#                        break
     
     def on_traffic_scmd(self, data):
         logger.info(string_write("SCMD request"))
@@ -354,15 +328,20 @@ class Agent:
              CFGKW_PKGSIZE:      tr.pkgsize,
              }
         """
-        naddr = data[CFGKW_NODE]
+        naddr = data.get(CFGKW_NODE)
         node = self.addr2node.get(naddr)
-        logger.debug(string_write("Found node: {}", node))
         if None != node:
+            logger.debug(string_write("Found node: {}", node))
             data[CFGKW_CLIENTID] = self.clientid
             data[CFGKW_HOST] = self.host
-            cmd = node.prot.traffic(data[RECIPIENT])
+            cmd = node.prot.traffic(data[CFGKW_RECIPIENT])
             te = TrafficExecutor(node, cmd, data[CFGKW_TIMESLOT], data[CFGKW_DURATION], data)
             self.__traffic_executors.append(te)
+            pub_status(self.__subscriber, self.tcfg.mqtt_qos, {
+                CFGKW_TRAFFIC_STATUS:   TrafficStatus.REGISTERED.name,
+                CFGKW_CLIENTID:         self.clientid,
+                CFGKW_TID:              data.get(CFGKW_TID),
+            })
         else:
             logger.error(string_write("{}: Node [{}] not found", self.clientid, naddr)) 
 
@@ -372,15 +351,15 @@ class Agent:
         data = {
             CFGKW_TRAFFIC_TYPE: TrafficType.TSH.name,
             CFGKW_HOST:         host,
-            CFGKW_NODE:       node,
+            CFGKW_NODE:         node,
             CFGKW_CLIENTID:     self.__ctrl.host2aid[args[0]],
             CFGKW_MSG:          ' '.join(args[1:])
         }
         """
         naddr = data[CFGKW_NODE]
         node = self.addr2node.get(naddr)
-        logger.debug(string_write("Found node: {}", node))
         if None != node:
+            logger.debug(string_write("Found node: {}", node))
             node.write(data[CFGKW_MSG])
         else: # DEBUG
             logger.error(string_write("{}: Node [{}] not found", self.clientid, naddr)) 
@@ -389,6 +368,11 @@ class Agent:
         logger.info(string_write("Traffic start request"))
         try:
             [te.run() for te in self.__traffic_executors]
+            self.__traffic_executors = []
+            pub_status(self.__subscriber, self.tcfg.mqtt_qos, {
+                CFGKW_TRAFFIC_STATUS: TrafficStatus.FINISHED.name,
+                CFGKW_CLIENTID:       self.clientid,
+            })
         except Exception as ex:
             logger.error(string_write("Exception on running traffic: {}", ex))
 
@@ -398,7 +382,7 @@ class Agent:
             data = extract_payload(message.payload)
 #           target = data[CFGKW_CLIENTID]
             logger.debug(string_write("Traffic data: {}", data))
-            if not self.is_msg_for_me([data[CFGKW_CLIENTID], data[CFGKW_HOST]]): return
+            if not self.is_msg_for_me([data.get(CFGKW_CLIENTID), data.get(CFGKW_HOST)]): return
             self.traffic_dispatch(data)
         except Exception as ex:
             logger.error(string_write("Failed on handling traffic request: {}", ex))
@@ -422,7 +406,7 @@ class Agent:
 
     def on_agent_restart(self, message):
         logger.info(string_write("Restart agent"))
-        if self.is_msg_for_me([message[CFGKW_CLIENTID], message[CFGKW_HOST]]):
+        if self.is_msg_for_me([message.get(CFGKW_CLIENTID), message.get(CFGKW_HOST)]):
             logger.info(string_write("Stop agent {}", self.clientid))
             self.teardown()
             #TODO
@@ -433,7 +417,8 @@ class Agent:
         return False
 
     def on_agent_stop(self, message):
-        if self.is_msg_for_me([message[CFGKW_CLIENTID], message[CFGKW_HOST]]):
+        logger.info(string_write("On agent stop {}", message))
+        if self.is_msg_for_me([message.get(CFGKW_CLIENTID)]):
             logger.info(string_write("Stop agent {}", self.clientid))
             self.teardown()
 
