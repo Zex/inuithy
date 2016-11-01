@@ -28,9 +28,9 @@ class TrafficTrigger(threading.Thread):
 
     def __init__(self, interval=0, duration=0, target=None, name="Trigger", daemon=True, *args, **kwargs):
         threading.Thread.__init__(self, target=target, name=name, args=args, kwargs=kwargs, daemon=daemon)
-        self.__stop_timer = threading.Timer(duration, self._stop_trigger)
+        self.stop_timer = threading.Timer(duration, self._stop_trigger)
         self.__interval = interval    
-        self.__running = False
+        self.running = False
         self.__args = args
         self.__kwargs = kwargs
         self._target = target
@@ -38,19 +38,19 @@ class TrafficTrigger(threading.Thread):
     def run(self):
         if None == self._target:
             return
-        self.__running = True
-        self.__stop_timer.start()
+        self.running = True
+        self.stop_timer.start()
 
 #       with Duration() as dur:
-        while self.__running:
+        while self.running:
             if TrafficTrigger.__mutex.acquire():
                 self._target(self.__args, self.__kwargs)
                 TrafficTrigger.__mutex.release()
             time.sleep(self.__interval)
 
     def _stop_trigger(self):
-        self.__running = False
-        self.__stop_timer.cancel()
+        self.running = False
+        self.stop_timer.cancel()
 
     def __del__(self):
         self._stop_trigger()

@@ -4,10 +4,12 @@
 from inuithy.common.predef import *
 from inuithy.util.task_manager import *
 import subprocess as sp
+import os
 
 def runonremote(user, host, cmd):
-    fmt = 'ssh -f {}@{} {}'
+    fmt = 'ssh -f {}@{} {} &>> /tmp/inuithy.nohup'
     cmd = string_write(fmt, user, host, cmd)
+    print(cmd)
     sp.call(cmd, shell=True)
 
 def getnwlayoutid(nwcfg_path, layout_name):
@@ -18,7 +20,8 @@ def getnwlayoutname(nwlayoutid):
 
 def getpredefaddr():
     ret = ''
-    with open('/etc/network/interfaces', 'r') as fd:
+    if not os.path.exists(IFACEPATH): return ret
+    with open(IFACEPATH, 'r') as fd:
          while True:
              line = fd.readline()
              if line == None or len(line) == 0: break
@@ -27,6 +30,7 @@ def getpredefaddr():
              if line.find('address') >= 0:
                  ret = line.split()[1]
                  break
+    return ret
 
 def is_number(s):
     try: int(s)

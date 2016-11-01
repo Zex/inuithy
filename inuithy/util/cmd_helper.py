@@ -1,7 +1,6 @@
 ## Command helper
 # Author: Zex Li <top_zlynch@yahoo.com>
 #
-#from inuithy.util.helper import *
 from inuithy.util.trigger import *
 import json
 
@@ -27,17 +26,6 @@ def pub_disable_hb(publisher, qos, clientid="*"):
     payload = string_write("{} {}", CtrlCmd.AGENT_DISABLE_HEARTBEAT.name, clientid)
     publisher.publish(INUITHY_TOPIC_COMMAND, payload, qos, False)
 
-#            restart agent
-# Agent <------------------------ Controller
-def pub_restart_agent(publisher, qos, clientid="*"):
-    payload = string_write("{} {}", CtrlCmd.AGENT_RESTART.name, clientid)
-    publisher.publish(INUITHY_TOPIC_COMMAND, payload, qos, False)
-
-#            stop agent
-# Agent <------------------------ Controller
-def pub_stop_agent(publisher, qos, clientid="*"):
-    payload = string_write("{} {}", CtrlCmd.AGENT_STOP.name, clientid)
-    publisher.publish(INUITHY_TOPIC_COMMAND, payload, qos, False)
 
 #            traffic
 # Agent <------------------------ Controller
@@ -49,21 +37,8 @@ def pub_traffic(publisher, qos=0, data={}):
 # Agent <------------------------ Controller
 def pub_config(publisher, qos, config={}, clientid="*"):
     # TODO
-    payload = string_write("{} {}", CtrlCmd.TRAFFIC.name, clientid)
+    payload = json.dumps(config)
     publisher.publish(INUITHY_TOPIC_COMMAND, payload, qos, False)
-
-#           register
-# Agent ------------------> Controller
-def pub_register(publisher, qos=0, data={}):
-    """
-        data = {
-            CFGKW_CLIENTID: self.clientid,
-            CFGKW_HOST:     self.host,
-            CFGKW_NODES:    [str(node) for node in self.__sad.nodes]
-        }
-    """
-    payload = json.dumps(data)
-    publisher.publish(INUITHY_TOPIC_REGISTER, payload, qos, False)
 
 #           unregister
 # Agent ------------------> Controller
@@ -88,10 +63,6 @@ def pub_notification(publisher, qos=0, data={}):
 def pub_reportwrite(publisher, qos=0, data={}):
     payload = json.dumps(data)
     publisher.publish(INUITHY_TOPIC_REPORTWRITE, payload, qos, False)
-
-#def extract_reportwrite(jpack):
-#    s = json.loads(jpack)
-#    return s[CFGKW_CLIENTID], s[CFGKW_HOST], s[CFGKW_NODES]
 
 #           heartbeat
 # Agent ------------------> Controller
@@ -127,4 +98,15 @@ class Heartbeat(threading.Thread):
 
     def __del__(self):
         self.stop()
+
+def start_agents(agents):
+    cmd = string_write('"pushd {};nohup python3 {}/agent.py"', PROJECT_PATH, INUITHY_ROOT)
+    [runonremote('root', host, cmd) for host in agents]
+
+def stop_agents(publisher, qos=0, clientid="*"):
+    data = {
+        CFGKW_CTRLCMD:  CtrlCmd.AGENT_STOP.name,
+        CFGKW_CLIENTID: clientid,
+    }
+    pub_ctrlcmd(publisher, qos, data)
 

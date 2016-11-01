@@ -109,7 +109,7 @@ class Console(threading.Thread):
             TSH_CMD_EXCLAM:     self.on_cmd_sys,
         }
         self.__cmd_agent_routes = {
-            TSH_CMD_RESTART:    self.on_cmd_agent_restart,
+            TSH_CMD_START:    self.on_cmd_agent_start,
             TSH_CMD_STOP:       self.on_cmd_agent_stop,
             TSH_CMD_LIST:       self.on_cmd_agent_list,
         }
@@ -139,16 +139,10 @@ class Console(threading.Thread):
             target=self.__ctrl.start, name="Ctrl@InuithyShell")
         self.__ctrl_proc.daemon = True
 
-    def on_cmd_agent_restart(self, *args, **kwargs):
-        if args == None or len(args) == 0 or len(args[0]) == 0:
-            console_write(TSH_ERR_INVALID_PARAM, args, 'help agent')
-            return
-        clientid = args[0].strip('\t ')
-        if len(clientid) == 0:
-            console_write(TSH_ERR_INVALID_PARAM, args, 'help agent')
-            return
-            
-        pub_restart_agent(self.__ctrl.subscriber, self.__ctrl.tcfg.mqtt_qos, clientid)
+    def on_cmd_agent_start(self, *args, **kwargs):
+        print(args)
+        agents = list(args)
+        start_agents(agents)
 
     def on_cmd_agent_stop(self, *args, **kwargs):
         if args == None or len(args) < 1: return
