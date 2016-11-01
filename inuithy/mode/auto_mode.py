@@ -93,6 +93,11 @@ class AutoController:
     def available_agents(self, val): pass
 
     @property
+    def expected_agents(self): return self.__expected_agents
+    @expected_agents.setter
+    def expected_agents(self, val): pass
+
+    @property
     def node2host(self): return self.__node2host
     @node2host.setter
     def node2host(self, val): pass
@@ -161,28 +166,15 @@ class AutoController:
     def teardown(self):
         try:
             if AutoController.initialized:
-                self.stop_agents()
+                self.lg.info("Stop agents") 
+                stop_agents(self.__subscriber, self.tcfg.mqtt_qos)
                 AutoController.initialized = False
                 self.__traffic_timer.cancel()
+                self.__traffic_state.running = False
                 self.storage.close()
                 self.__subscriber.disconnect()
         except Exception as ex:
             self.lg.error(string_write("Exception on teardown: {}", ex))
-
-    def start_agents(self):
-        self.lg.info("Start agents") 
-        cmd = 'pushd /opt/inuithy;nohup python3 inuithy/agent.py'
-        for host in self.__expected_agents:
-            runonremote('root', host, cmd)
-
-    def stop_agents(self):
-        self.lg.info("Stop agents") 
-        data = {
-            CFGKW_CTRLCMD:  CtrlCmd.AGENT_STOP.name,
-            CFGKW_CLIENTID: "*",
-        }
-        pub_ctrlcmd(self.__subscriber, self.tcfg.mqtt_qos, data)
-            
 
     def __del__(self): pass
 
@@ -193,13 +185,12 @@ class AutoController:
         self.__subscriber.on_connect    = AutoController.on_connect
         self.__subscriber.on_message    = AutoController.on_message
         self.__subscriber.on_disconnect = AutoController.on_disconnect
-        self.__subscriber.on_log        = AutoController.on_log
+#        self.__subscriber.on_log        = AutoController.on_log
 #       self.__subscriber.on_publish    = AutoController.on_publish
 #       self.__subscriber.on_subscribe  = AutoController.on_subscribe
         self.__subscriber.connect(host, port)
         self.__subscriber.subscribe([
             (INUITHY_TOPIC_HEARTBEAT,     self.tcfg.mqtt_qos),
-#            (INUITHY_TOPIC_REGISTER,      self.tcfg.mqtt_qos),
             (INUITHY_TOPIC_UNREGISTER,    self.tcfg.mqtt_qos),
             (INUITHY_TOPIC_STATUS,        self.tcfg.mqtt_qos),
             (INUITHY_TOPIC_REPORTWRITE,   self.tcfg.mqtt_qos),
@@ -268,32 +259,28 @@ class AutoController:
         except Exception as ex:
             self.lg.error(string_write("Failed to load plugin: {}", ex))
 
-    def __init__(self, inuithy_cfgpath='config/inuithy.conf', traffic_cfgpath='config/traffics.conf', lgr=None, delay=4):
+    def __init__(self, inuithy_cfgpath='config/inuithy.conf',
+        traffic_cfgpath='config/traffics.conf', lgr=None, delay=4):
         """
         @delay Start traffic after @delay seconds
         """
         if lgr != None: self.lg = lgr
         else: self.lg = logging
         AutoController.__initialized = False
-        self.__expected_agents = []
+        self.__expected_agents  = []
         self.__available_agents = {}
-        self.__node2host = {}
-        self.__host2aid = {}
-        self.__nwlayout_chk = {}
-        self.__storage = None
+        self.__node2host        = {}
+        self.__host2aid         = {}
+        self.__storage          = None
+        self.__nwlayout_chk     = {}
+        self.traffire_chk       = {}
+        self.traffic_set_chk    = {}
         if self.load_configs(inuithy_cfgpath, traffic_cfgpath):
             self.__do_init()
             self.load_storage()
             self.__traffic_state = TrafficState(self)#, lg)
             self.__traffic_timer = thrd.Timer(delay, self.__traffic_state.start)
-#    def whohas(self, addr):
-#        """Find out which host has node with given address connected
-#        """
-#        for aid, ainfo in self.available_agents.items():
-#            if ainfo.has_node(addr) != None:
-#                self.lg.info(string_write("{} has node {}", aid, addr))
-#                return aid
-#        return None
+
     def node_to_host(self):
         self.lg.info("Map node address to host")
         for agent in self.nwcfg.agents:
@@ -330,47 +317,50 @@ class AutoController:
             del self.__available_agents[agentid]
             self.lg.info(string_write("Agent {} removed", agentid))
 
-    def update_nwlayout_chk(self, nwid, nodes):
+    def create_nwlayout_chk(self, nwid, nodes):
         if None == nodes or nwid == None: return
         self.__nwlayout_chk[nwid] = {node:False for node in nodes}
+
+    def create_traffire_chk(self):
+        [self.traffire_chk.__setitem__(agentid, False) for agentid in self.available_agents.keys()]
+
+    def is_traffic_finished(self):
+        print(self.traffire_chk) 
+        if len([chk for chk in self.traffire_chk.values() if chk == False]) == 0:
+            return True
+        return False
 
     def is_network_layout_done(self):
         self.lg.info("Is network layout done")
         if len(self.__available_agents) == 0:
             raise ValueError("No agent available")
         for nw in self.__nwlayout_chk.values():
-            if len([chk for chk in nw if chk == True]) != len(nw):
-                return False
-        if self.tcfg.enable_localdebug:
-            return True
-
-        return False
+            chks = [chk for chk in nw.values() if chk == True]
+            if len(chks) != len(nw): return False
+#        if self.tcfg.enable_localdebug:
+#            return True
+        return True
 
     def is_traffic_all_set(self):
         self.lg.info("Is traffic all set")
         #TODO
         if len(self.__available_agents) == 0:
             raise ValueError("No agent available")
-        if self.tcfg.enable_localdebug:
+        if len([chk for chk in self.traffic_set_chk.values() if chk == False]) == 0:
             return True
         return False
 
     def is_agents_all_up(self):
-#        self.lg.info("Is agent all up")
-#        self.lg.debug(string_write("Expected Agents({}): {}", len(self.__expected_agents), self.__expected_agents))
-#        self.lg.debug(string_write("Available Agents({}): {}",
-#            len(self.__available_agents),
-#            [a for a in self.__available_agents.values()]))
-#            [str(a) for a in self.__available_agents.values()]))
+        self.lg.info("Is agent all up")
         # TODO
         if len(self.__expected_agents) != len(self.__available_agents):
             return False
 
-        avails = []
         for ai in self.__available_agents.values():
             if ai.host not in self.__expected_agents: return False
-        if self.tcfg.enable_localdebug:
-            return True
+
+        if len(self.host2aid) == 0:
+            return False
 
         return True
 
@@ -400,18 +390,19 @@ class AutoController:
             self.lg.error(string_write("Exception on unregistering agent {}: {}", agentid, ex))
 
     def on_topic_status(self, message):
-        """
-        NODEJOINED
-        AGENTSTARTED
-        AGENTSTOPPED
-        TRAFFICFINISHED
-        """
         self.lg.info(string_write("On topic status"))
-        self.lg.debug(message.payload)
-        #TODO
+        data = extract_payload(message.payload)
+        if data.get(CFGKW_TRAFFIC_STATUS) == TrafficStatus.FINISHED.name:
+            self.lg.info(string_write("Traffic finished on {}", data.get(CFGKW_CLIENTID)))
+            self.traffire_chk[data.get(CFGKW_CLIENTID)] = True
+        elif data.get(CFGKW_TRAFFIC_STATUS) == TrafficStatus.REGISTERED.name:
+            self.lg.info(string_write("Traffic {} registered on {}", data.get(CFGKW_TID), data.get(CFGKW_CLIENTID)))
+            self.traffic_set_chk[data.get(CFGKW_TID)] = True
+        else:
+            self.lg.debug(string_write("Unhandled status message {}", data))
 
     def on_topic_reportwrite(self, message):
-        self.lg.info(string_write("On topic reportwrite"))
+#        self.lg.info(string_write("On topic reportwrite"))
         data = extract_payload(message.payload)
         self.storage.insert_record(data)
 
@@ -426,10 +417,13 @@ class AutoController:
             if data[CFGKW_TRAFFIC_TYPE] == TrafficType.JOIN.name:
                 if None != self.__nwlayout_chk.get(data[CFGKW_PANID]):
                     self.__nwlayout_chk[data[CFGKW_PANID]][data[CFGKW_NODE]] = True
-                self.lg.debug(string_write("LAYOUT:{}", self.__nwlayout_chk))
+#                self.lg.debug(string_write("LAYOUT:{}", self.__nwlayout_chk))
+            elif data[CFGKW_TRAFFIC_TYPE] == TrafficType.SCMD.name:
+                pass
+            self.lg.debug("NOTIFY: {}", data)
+            self.storage.insert_record(data)
         except Exception as ex:
             self.lg.error(string_write("Update nwlayout failed", ex))
-        self.storage.insert_record(data)
 
     def __alive_notification(self):
         """Broadcast on new controller startup

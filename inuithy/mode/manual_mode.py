@@ -193,13 +193,12 @@ class ManualController:
         self.__subscriber.on_connect    = ManualController.on_connect
         self.__subscriber.on_message    = ManualController.on_message
         self.__subscriber.on_disconnect = ManualController.on_disconnect
-        self.__subscriber.on_log        = ManualController.on_log
-        #self.__subscriber.on_publish    = ManualController.on_publish
-        self.__subscriber.on_subscribe  = ManualController.on_subscribe
+#        self.__subscriber.on_log        = ManualController.on_log
+#       self.__subscriber.on_publish    = ManualController.on_publish
+#       self.__subscriber.on_subscribe  = ManualController.on_subscribe
         self.__subscriber.connect(host, port)
         self.__subscriber.subscribe([
             (INUITHY_TOPIC_HEARTBEAT,     self.tcfg.mqtt_qos),
-#            (INUITHY_TOPIC_REGISTER,      self.tcfg.mqtt_qos),
             (INUITHY_TOPIC_UNREGISTER,    self.tcfg.mqtt_qos),
             (INUITHY_TOPIC_STATUS,        self.tcfg.mqtt_qos),
             (INUITHY_TOPIC_REPORTWRITE,   self.tcfg.mqtt_qos),
