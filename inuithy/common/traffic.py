@@ -164,11 +164,11 @@ class TrafficExecutor(TrafficTrigger):
         self.data = data
 
     def run(self):
+        print("Started, traffic ends in {}s".format(self.duration))
+        self.running = True
+        self.stop_timer.start()
 
-        self.__running = True
-        self.__stop_timer.start()
-
-        while self.__running:
+        while self.running:
             if TrafficTrigger.__mutex.acquire():
                 self.node.write(self.command, self.data)
                 TrafficTrigger.__mutex.release()

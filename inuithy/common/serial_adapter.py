@@ -8,12 +8,9 @@ from inuithy.util.task_manager import *
 class SerialAdapter:
    
     @property
-    def nodes(self):
-        return self.__nodes
-
+    def nodes(self): return self.__nodes
     @nodes.setter
-    def nodes(self, val):
-        pass
+    def nodes(self, val): pass
 
     def __init__(self, reporter=None):
         self.__nodes = []
@@ -47,6 +44,7 @@ class SerialAdapter:
                 node = NodeZigbee(port, reporter=self.reporter)
             if node != None:
                 self.__nodes.append(node)
+                node.start_listener(report)
         except Exception as ex:
             logging.error(string_write("Exception on creating node: {}", ex))
             

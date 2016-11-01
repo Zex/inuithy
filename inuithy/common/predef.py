@@ -14,8 +14,6 @@ INUITHY_TOPIC_CONFIG       = "inuithy/topic/config"
 # Traffc data to send via serial port on agent
 INUITHY_TOPIC_TRAFFIC      = "inuithy/topic/traffic"
 # Agents => Controller
-# Register agent with connected nodes
-INUITHY_TOPIC_REGISTER     = "inuithy/topic/register"
 # Unregister agent
 INUITHY_TOPIC_UNREGISTER   = "inuithy/topic/unregister"
 # Status of agent/nodes
@@ -52,6 +50,8 @@ INUITHY_TITLE         = "Inuithy version {} {}"
 
 DEV_TTYUSB          = '/dev/ttyUSB{}'
 DEV_TTYS            = '/dev/ttyS{}'
+
+IFACEPATH           = '/etc/network/interfaces'
 
 # Configure keywords
 CFGKW_WORKMODE          = 'workmode'
@@ -100,6 +100,8 @@ CFGKW_MSG_TYPE          = 'msgtype'
 CFGKW_TIMESLOT          = 'timeslot'
 CFGKW_TIME              = 'time'
 CFGKW_RECORDS           = 'records'
+CFGKW_TRAFFIC_STATUS    = 'traffic_status'
+CFGKW_TID               = 'tid'
 
 TrafficStatus = Enum("TrafficStatus", [
     "STOP",             # Initial status, traffic not yet launched

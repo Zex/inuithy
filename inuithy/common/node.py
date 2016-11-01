@@ -32,30 +32,34 @@ class SerialNode:
         self.run_listener = False
 
     def read(self, rdbyte=0, report=None):
-        self.lg.debug(string_write("SerialNode#R: rdbyte:{}", rdbyte))
+#        self.lg.debug(string_write("SerialNode#R: rdbyte:{}", rdbyte))
         rdbuf = ""
         if self.__serial != None and self.__serial.isOpen():
             if 0 < self.__serial.inWaiting(): 
                 rdbuf = self.__serial.readall()
+        #TODO -->
         if report != None:
-            #TODO DEBUG
+            #TODO parse rdbuf
 #            report[CFGKW_MSG] = rdbuf
+#            report[CFGKW_TYPE] = TrafficType.SCMD.name
             self.report_read(report)
         return rdbuf
 
     def write(self, data="", report=None):
-        self.lg.debug(string_write("SerialNode#W: data:[{}], len:{}", data, len(data)))
+#        self.lg.debug(string_write("SerialNode#W: data:[{}], len:{}", data, len(data)))
         written = 0
         if self.__serial != None and self.__serial.isOpen():
             written = self.__serial.write(data)
+        #TODO -->
         if report != None:
             report[CFGKW_MSG] = data
             self.report_write(report)
 
-    def start_listener(self):
+    def start_listener(self, report=None):
         if self.run_listener == False:
             self.run_listener = True
-            if self.__listener != None and self.__serial != None: self.__listener.start()
+            # TODO if self.__listener != None and self.__serial != None: self.__listener.start()
+            if self.__listener != None: self.__listener.start()
 
     def __listener_routine(self):
         while self.run_listener:
@@ -102,8 +106,8 @@ class NodeBLE(SerialNode):
         self.port = port
         self.prot = BleProt
         self.report = None
-        if port != None and len(port) > 0:
-            self.start_listener()
+#        if port != None and len(port) > 0:
+#            self.start_listener()
 
     def __str__(self):
         return json.dumps({
