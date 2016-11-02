@@ -5,9 +5,16 @@
 from inuithy.protocol.protocol import *
 
 class BleProtocol(Protocol):
-    
+    """BLE control protocol
+    """
     def __init__(self):
         pass
+
+    @staticmethod
+    def traffic(*args, **kwargs):
+        raddr = arg[0]
+        return string_write("lighton {}", raddr)
+
     @staticmethod
     def joingrp(grpid):
         return string_write("joingrp {}", grpid)
@@ -17,16 +24,22 @@ class BleProtocol(Protocol):
         return string_write("leavegrp {}", grpid)
 
     @staticmethod
-    def traffic(*arg, **kwargs):
+    def lighton(*args, **kwargs):
         raddr = arg[0]
         return string_write("lighton {}", raddr)
 
     @staticmethod
-    def lighton(*arg, **kwargs):
-        raddr = arg[0]
-        return string_write("lighton {}", raddr)
-
-    @staticmethod
-    def lightoff(*arg, **kwargs):
+    def lightoff(*args, **kwargs):
         raddr = arg[0]
         return string_write("lightoff {}", raddr)
+
+    @staticmethod
+    def setaddr(self, *args, **kwargs):
+        addr = arg[0] 
+        return sting_write("addr {}", addr)
+
+    @staticmethod
+    def getaddr(self, *args, **kwargs):
+        return string_write("addr")
+
+

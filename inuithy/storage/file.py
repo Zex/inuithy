@@ -1,7 +1,7 @@
-## Local file storage
-# Author: Zex Li <top_zlynch@yahoo.com>
-#
-from inuithy.storage.storage import *
+""" Local file storage
+ @author: Zex Li <top_zlynch@yahoo.com>
+"""
 
 
-
+if __name__ == '__main__':
+    pass

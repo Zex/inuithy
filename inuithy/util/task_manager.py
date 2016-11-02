@@ -1,31 +1,31 @@
-## Task manager
-# Author: Zex Li <top_zlynch@yahoo.com>
-#
-
-import os, multiprocessing, logging, threading
+""" Task manager
+ @author: Zex Li <top_zlynch@yahoo.com>
+"""
+from inuithy.common.predef import string_write, INUITHY_LOGCONFIG
 import logging.config as lconf
-from inuithy.util.helper import *
+import os, multiprocessing, logging, threading
 
 lconf.fileConfig(INUITHY_LOGCONFIG)
 logger = logging.getLogger('TaskManager')
 
-class ProcTaskManager:
-
+class ProcTaskManager(object):
+    """Process task manager
+    """
     def __init__(self):
         self.__tasks = []
 
     def waitall(self):
         logger.info(string_write('[{}] tasks running', len(self.__tasks)))
         try:
-            [os.waitpid(t.pid, 0) for p in self.__tasks if t.is_alive()]
+            [os.waitpid(t.pid, 0) for t in self.__tasks if t.is_alive()]
             logger.info('[{}] tasks finished'.format(len(self.__tasks)))
         except Exception as ex:
             logger.error(string_write("Exception on to waiting all: {}", ex))
 
     def create_task(self, proc, args=()):
         try:
-            p = multiprocessing.Process(target=proc, args=args)
-            self.__tasks.append(p)
+            t = multiprocessing.Process(target=proc, args=args)
+            self.__tasks.append(t)
             t.start()
             logger.info(string_write('[{}]/{} running', t.pid, len(self.__tasks)))
         except Exception as ex:
@@ -36,8 +36,9 @@ class ProcTaskManager:
         [self.create_task(proc, (o,)) for o in objs]
         logger.info("Tasks creation end")
 
-class ThrTaskManager:
-
+class ThrTaskManager(object):
+    """Thread task manager
+    """
     def __init__(self):
         self.__tasks = []
 
@@ -69,10 +70,10 @@ def dummy_task(port):
 
 if __name__ == '__main__':
 
+#    from inuithy.common.node import *
     import glob, time
-    from inuithy.common.node import *
     DEV_TTYS = '/dev/ttyS1{}'
-    ports = enumerate(name for name in glob.glob(DEV_TTYUSB.format('*')))
+    ports = enumerate(name for name in glob.glob(DEV_TTYS.format('*')))
     mng = TaskManager()
     mng.create_task_foreach(dummy_task, ports)
     mng.waitall()

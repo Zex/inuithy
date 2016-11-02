@@ -1,10 +1,9 @@
-## BLE protocol definition
-# Author: Zex Li <top_zlynch@yahoo.com>
-#
-from inuithy.util.helper import *
-
-class Protocol:
-    
+""" High-level protocol definition
+ @author: Zex Li <top_zlynch@yahoo.com>
+"""
+class Protocol(object):
+    """High-level protocol definition
+    """
     def __init__(self):
         pass
 

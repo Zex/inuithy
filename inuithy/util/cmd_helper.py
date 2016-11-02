@@ -1,41 +1,64 @@
-## Command helper
-# Author: Zex Li <top_zlynch@yahoo.com>
-#
-from inuithy.util.trigger import *
-import json
+""" Command helper
+ @author: Zex Li <top_zlynch@yahoo.com>
+"""
+from inuithy.common.predef import T_CLIENTID, INUITHY_TOPIC_COMMAND,\
+T_CTRLCMD, CtrlCmd, INUITHY_TOPIC_UNREGISTER, INUITHY_TOPIC_STATUS,\
+INUITHY_TOPIC_NOTIFICATION, INUITHY_TOPIC_REPORTWRITE, INUITHY_TOPIC_HEARTBEAT,\
+INUITHY_TOPIC_TRAFFIC, INUITHY_NOHUP_OUTPUT
+from inuithy.common.version import INUITHY_ROOT, PROJECT_PATH
+import json, threading
 
 #            newctrl
 # Agent <------------------------ Controller
 def pub_ctrlcmd(publisher, qos, data):
+    """Publish control command
+    """
     payload = json.dumps(data)
     publisher.publish(INUITHY_TOPIC_COMMAND, payload, qos, False)
 
 def extract_payload(jdata):
-    if isinstance(jdata, bytes): jdata = jdata.decode()
+    """Extract data from payload
+    """
+    if isinstance(jdata, bytes):
+        jdata = jdata.decode()
     return json.loads(jdata)
 
 #            enable heartbeat
 # Agent <------------------------ Controller
-def pub_enable_hb(publisher, qos, clientid="*"):
-    payload = string_write("{} {}", CtrlCmd.AGENT_ENABLE_HEARTBEAT.name, clientid)
-    publisher.publish(INUITHY_TOPIC_COMMAND, payload, qos, False)
+def pub_enable_hb(publisher, qos=0, clientid="*"):
+    """Publish disable heartbeat command
+    """
+    data = {
+        T_CTRLCMD:  CtrlCmd.AGENT_ENABLE_HEARTBEAT.name,
+        T_CLIENTID: clientid,
+    }
+    pub_ctrlcmd(publisher, qos, data)
 
 #            disable heartbeat
 # Agent <------------------------ Controller
-def pub_disable_hb(publisher, qos, clientid="*"):
-    payload = string_write("{} {}", CtrlCmd.AGENT_DISABLE_HEARTBEAT.name, clientid)
-    publisher.publish(INUITHY_TOPIC_COMMAND, payload, qos, False)
+def pub_disable_hb(publisher, qos=0, clientid="*"):
+    """Publish disable heartbeat command
+    """
+    data = {
+        T_CTRLCMD:  CtrlCmd.AGENT_DISABLE_HEARTBEAT.name,
+        T_CLIENTID: clientid,
+    }
+    pub_ctrlcmd(publisher, qos, data)
 
 
 #            traffic
 # Agent <------------------------ Controller
-def pub_traffic(publisher, qos=0, data={}):
+def pub_traffic(publisher, qos=0, data=None):
+    """Publish traffic message
+    """
     payload = json.dumps(data)
     publisher.publish(INUITHY_TOPIC_TRAFFIC, payload, qos, False)
 
 #            config
 # Agent <------------------------ Controller
-def pub_config(publisher, qos, config={}, clientid="*"):
+def pub_config(publisher, qos, config=None, clientid="*"):
+    """Publish configure message
+    """
     # TODO
     payload = json.dumps(config)
     publisher.publish(INUITHY_TOPIC_COMMAND, payload, qos, False)
@@ -43,30 +66,40 @@ def pub_config(publisher, qos, config={}, clientid="*"):
 #           unregister
 # Agent ------------------> Controller
 def pub_unregister(publisher, qos=0, clientid=''):
-    payload = json.dumps({ CFGKW_CLIENTID : clientid })
+    """
+    """
+    payload = json.dumps({T_CLIENTID : clientid})
     publisher.publish(INUITHY_TOPIC_UNREGISTER, payload, qos, False)
 
 #           status
 # Agent ------------------> Controller
-def pub_status(publisher, qos=0, data={}):
+def pub_status(publisher, qos=0, data=None):
+    """Publish status message
+    """
     payload = json.dumps(data)
     publisher.publish(INUITHY_TOPIC_STATUS, payload, qos, False)
 
 #           notification
 # Agent ------------------> Controller
-def pub_notification(publisher, qos=0, data={}):
+def pub_notification(publisher, qos=0, data=None):
+    """Publish notification message
+    """
     payload = json.dumps(data)
     publisher.publish(INUITHY_TOPIC_NOTIFICATION, payload, qos, False)
 
 #           response
 # Agent ------------------> Controller
-def pub_reportwrite(publisher, qos=0, data={}):
+def pub_reportwrite(publisher, qos=0, data=None):
+    """Publish report message written message
+    """
     payload = json.dumps(data)
     publisher.publish(INUITHY_TOPIC_REPORTWRITE, payload, qos, False)
 
 #           heartbeat
 # Agent ------------------> Controller
-def pub_heartbeat(publisher, qos=0, data={}):
+def pub_heartbeat(publisher, qos=0, data=None):
+    """Publish heartbeat message
+    """
     payload = json.dumps(data)
     publisher.publish(INUITHY_TOPIC_HEARTBEAT, payload, qos, False)
 
@@ -75,16 +108,18 @@ class Heartbeat(threading.Thread):
     """
     __mutex = threading.Lock()
 
-    def __init__(self, interval=2, target=None, name="Heartbeat", daemon=True, *args, **kwargs):
-        threading.Thread.__init__(self, target=None, name=name, args=args, kwargs=kwargs, daemon=daemon)
-        self.__interval = interval    
+    def __init__(self, interval=2, target=None, name="Heartbeat",\
+        daemon=True, *args, **kwargs):
+        threading.Thread.__init__(self, target=None, name=name,\
+        args=args, kwargs=kwargs, daemon=daemon)
+        self.__interval = interval
         self.__running = False
         self.__args = args
         self.__kwargs = kwargs
         self.__target = target
 
     def run(self):
-        if self.__target == None: return # or self.__sender == None: return
+        if self.__target is None: return # or self.__sender is None: return
         self.__running = True
 
         while self.__running:
@@ -100,13 +135,18 @@ class Heartbeat(threading.Thread):
         self.stop()
 
 def start_agents(agents):
-    cmd = string_write('"pushd {};nohup python3 {}/agent.py"', PROJECT_PATH, INUITHY_ROOT)
+    """Start agent remotely
+    """
+    cmd = string_write('"pushd {};nohup python3 {}/agent.py &>> {}"',\
+        PROJECT_PATH, INUITHY_ROOT, INUITHY_NOHUP_OUTPUT)
     [runonremote('root', host, cmd) for host in agents]
 
 def stop_agents(publisher, qos=0, clientid="*"):
+    """Stop agent remotely
+    """
     data = {
-        CFGKW_CTRLCMD:  CtrlCmd.AGENT_STOP.name,
-        CFGKW_CLIENTID: clientid,
+        T_CTRLCMD:  CtrlCmd.AGENT_STOP.name,
+        T_CLIENTID: clientid,
     }
     pub_ctrlcmd(publisher, qos, data)
 

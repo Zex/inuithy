@@ -1,12 +1,11 @@
-## Trigger
-# Author: Zex Li <top_zlynch@yahoo.com>
-#
-
+""" Trigger
+ @author: Zex Li <top_zlynch@yahoo.com>
+"""
+from inuithy.common.predef import console_write
 import logging, threading, time
 import logging.config as lconf
-from inuithy.util.helper import *
 
-class Duration:
+class Duration(object):
     """Duration indicator
     """
     def __init__(self):
@@ -26,17 +25,19 @@ class TrafficTrigger(threading.Thread):
     """
     __mutex = threading.Lock()
 
-    def __init__(self, interval=0, duration=0, target=None, name="Trigger", daemon=True, *args, **kwargs):
-        threading.Thread.__init__(self, target=target, name=name, args=args, kwargs=kwargs, daemon=daemon)
+    def __init__(self, interval=0, duration=0, target=None,\
+        name="Trigger", daemon=False, *args, **kwargs):
+        threading.Thread.__init__(self, target=target,
+            name=name, args=args, kwargs=kwargs, daemon=daemon)
         self.stop_timer = threading.Timer(duration, self._stop_trigger)
-        self.__interval = interval    
+        self.__interval = interval
         self.running = False
         self.__args = args
         self.__kwargs = kwargs
         self._target = target
 
     def run(self):
-        if None == self._target:
+        if self._target is None:
             return
         self.running = True
         self.stop_timer.start()
@@ -49,6 +50,7 @@ class TrafficTrigger(threading.Thread):
             time.sleep(self.__interval)
 
     def _stop_trigger(self):
+        print("========Stopping trgger============")
         self.running = False
         self.stop_timer.cancel()
 

@@ -1,15 +1,15 @@
-## Agent info definition
-# Author: Zex Li <top_zlynch@yahoo.com>
-#
-from inuithy.common.predef import *
-from inuithy.common.node import *
+""" Agent info definition
+ @author: Zex Li <top_zlynch@yahoo.com>
+"""
+from inuithy.common.predef import T_TYPE, AgentStatus, T_ADDR
+from inuithy.common.node import NodeBLE, NodeZigbee, NodeType
 
-class AgentInfo:
-    def __init__(self, agentid="", host="", status=AgentStatus.OFFLINE, nodes=[]):
-        self.agentid    = agentid
-        self.status     = status
-        self.host       = host
-        self.nodes      = []
+class AgentInfo(object):
+    def __init__(self, agentid ="", host ="", status =AgentStatus.OFFLINE, nodes =[]):
+        self.agentid = agentid
+        self.status = status
+        self.host = host
+        self.nodes = []
         self.rebuild_node(nodes)
 
     def rebuild_node(self, nodes):
@@ -17,10 +17,10 @@ class AgentInfo:
         """
         for n in nodes:
             n = json.loads(n)
-            if n[CFGKW_TYPE] == NodeType.BLE.name:
-                self.nodes.append(NodeBLE(addr=n[CFGKW_ADDR]))
-            elif n[CFGKW_TYPE] == NodeType.Zigbee.name:
-                self.nodes.append(NodeZigbee(addr=n[CFGKW_ADDR]))
+            if n[T_TYPE] == NodeType.BLE.name:
+                self.nodes.append(NodeBLE(addr =n[T_ADDR]))
+            elif n[T_TYPE] == NodeType.Zigbee.name:
+                self.nodes.append(NodeZigbee(addr =n[T_ADDR]))
             else:
                 pass
 

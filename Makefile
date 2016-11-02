@@ -61,5 +61,6 @@ sfood: $(BUILD_DOCS)
 	$(RM) $(BUILD_DOCS)/inuithy.dot $(BUILD_DOCS)/inuithy.ps
 
 install: $(LOGPATH)
+	
 
 	

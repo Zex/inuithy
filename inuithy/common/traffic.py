@@ -1,14 +1,19 @@
-## Traffic generator based on configuration
-# Author: Zex Li <top_zlynch@yahoo.com>
-#
-from inuithy.util.trigger import *
-from queue import Queue
+""" Traffic generator based on configuration
+ @author: Zex Li <top_zlynch@yahoo.com>
+"""
+from inuithy.common.predef import T_PKGRATE, T_DURATION,\
+T_NWCONFIG_PATH, T_NWLAYOUT, T_SENDERS, T_RECIPIENTS,\
+T_TARGET_TRAFFICS, TRAFFIC_CONFIG_PATH, NETWORK_CONFIG_PATH,\
+console_write
+from inuithy.util.helper import getnwlayoutid, is_number
+from inuithy.util.trigger import TrafficTrigger
+import time
 
 TRAFFIC_ERR_NOSUBNET = "No subnet named [{}] in network [{}]"
 TRAFFIC_BROADCAST_ADDRESS = '0xFFFF'
 
-class Traffic:
-
+class Traffic(object):
+    """Traffic information"""
     @property
     def pkgsize(self):
         """Package size
@@ -17,20 +22,41 @@ class Traffic:
 
     @pkgsize.setter
     def pkgsize(self, val):
-        if not isinstance(val, int): raise TypeError("Integer expected")
+        if not isinstance(val, int):
+            raise TypeError("Integer expected")
         self.__pkgsize = val
 
+    @property
+    def sender(self):
+        """Sender address
+        """
+        return self.__sender
+
+    @sender.setter
+    def sender(self, val):
+        self.__sender = val
+
+    @property
+    def recipient(self):
+        """Recipient address
+        """
+        return self.__recipient
+
+    @recipient.setter
+    def recipient(self, val):
+        self.__recipient = val
+
     def __init__(self, psize=1, sender=None, recv=None):
-        self.pkgsize    = psize
-        self.sender     = sender
-        self.recipient  = recv
+        self.__pkgsize = psize
+        self.__sender = sender
+        self.__recipient = recv
 
     def __str__(self):
         return string_write(
-        "[{}]============P({})===========>[{}]",\
-         self.sender, self.pkgsize, self.recipient)
+            "[{}]============P({}) ===========>[{}]",
+            self.sender, self.pkgsize, self.recipient)
 
-class TrafficGenerator:
+class TrafficGenerator(object):
     """Parse senders/recipients, define network traffics
     """
     @property
@@ -78,17 +104,21 @@ class TrafficGenerator:
     def __init__(self, trcfg, nwcfg, trname, genid=None):
         self.traffic_name = trname
         self.cur_trcfg = trcfg.config[trname]
-        self.pkgrate  = self.cur_trcfg[CFGKW_PKGRATE]
-        self.duration = self.cur_trcfg[CFGKW_DURATION]
+        self.__nwconfig_file = ''
+        self.__nwconfig_name = ''
+        self.__pkgrate = self.cur_trcfg[T_PKGRATE]
+        self.__duration = self.cur_trcfg[T_DURATION]
         # In second
         self.timeslot = 1/self.pkgrate
         self.traffics = []
-        self.nwlayoutid = getnwlayoutid(trcfg.config[CFGKW_NWCONFIG_PATH], self.cur_trcfg[CFGKW_NWLAYOUT])
+        self.nwlayoutid = getnwlayoutid(trcfg.config[T_NWCONFIG_PATH], self.cur_trcfg[T_NWLAYOUT])
         self.create_traffic(trcfg, nwcfg)
-        self.__genid = genid != None and genid or string_write("[{}]{}:{}", time.clock_gettime(time.CLOCK_REALTIME), self.nwlayoutid, trname)
+        self.__genid = genid != None and genid or string_write("[{}]{}:{}",
+            time.clock_gettime(time.CLOCK_REALTIME), self.nwlayoutid, trname)
 
     def __str__(self):
-        return string_write("layout:{},traffic:{},rate:{}/s,dur:{}s,", self.nwlayoutid, self.traffic_name, self.pkgrate, self.duration)
+        return string_write("layout:{},traffic:{},rate:{}/s,dur:{}s,",
+            self.nwlayoutid, self.traffic_name, self.pkgrate, self.duration)
 
     @staticmethod
     def parse_senders(tr, nwcfg):
@@ -97,20 +127,20 @@ class TrafficGenerator:
         @param[in] nwcfg Network layout definition
         @return Expected senders
         """
-        nw = tr[CFGKW_NWLAYOUT]
+        nw = tr[T_NWLAYOUT]
         nodes = []
-        for s in tr[CFGKW_SENDERS]:
+        for s in tr[T_SENDERS]:
             if s == '*': 
                 for sname in nw.keys():
                     sub = nwcfg.subnet(nw, sub)
-                    if sub == None: raise ValueError(string_write(TRAFFIC_ERR_NOSUBNET, sub , nw))
-                    [nodes.append(node) for node in sub[CFGKW_NODES]]
+                    if sub is None: raise ValueError(string_write(TRAFFIC_ERR_NOSUBNET, sub, nw))
+                    [nodes.append(node) for node in sub[T_NODES]]
             elif is_number(s):
                 nodes.append(s)
             else:
                 sub = nwcfg.subnet(nw, s)
-                if sub == None: raise ValueError(string_write(TRAFFIC_ERR_NOSUBNET, sub , nw))
-                [nodes.append(node) for node in sub[CFGKW_NODES]]
+                if sub is None: raise ValueError(string_write(TRAFFIC_ERR_NOSUBNET, sub, nw))
+                [nodes.append(node) for node in sub[T_NODES]]
         return nodes
 
     @staticmethod
@@ -120,17 +150,18 @@ class TrafficGenerator:
         @param[in] nwcfg Network layout definition
         @return Expected recipients
         """
-        nw = tr[CFGKW_NWLAYOUT]
+        nw = tr[T_NWLAYOUT]
         nodes = []
-        for s in tr[CFGKW_RECIPIENTS]:
+        for s in tr[T_RECIPIENTS]:
             if s == '*':
                 nodes.append(TRAFFIC_BROADCAST_ADDRESS)
             elif is_number(s):
                 nodes.append(s)
             else:
                 sub = nwcfg.subnet(nw, s)
-                if sub == None: raise ValueError(string_write(TRAFFIC_ERR_NOSUBNET, sub , nw))
-                [nodes.append(node) for node in sub[CFGKW_NODES]]
+                if sub is None:
+                    raise ValueError(string_write(TRAFFIC_ERR_NOSUBNET, sub, nw))
+                [nodes.append(node) for node in sub[T_NODES]]
         return nodes
 
     def create_traffic(self, trcfg, nwcfg):
@@ -140,7 +171,7 @@ class TrafficGenerator:
         recipients = TrafficGenerator.parse_recipients(self.cur_trcfg, nwcfg)
         for s in senders:
             for r in recipients:
-                tr = Traffic(self.cur_trcfg[CFGKW_PKGSIZE], s, r)
+                tr = Traffic(self.cur_trcfg[T_PKGSIZE], s, r)
                 self.traffics.append(tr)
         return self
 
@@ -182,13 +213,13 @@ def create_traffics(trcfg, nwcfg):
     """
     cfg = trcfg.config
     trs = [] 
-    for trname in trcfg.config[CFGKW_TARGET_TRAFFICS]:
+    for trname in trcfg.config[T_TARGET_TRAFFICS]:
         gentor = TrafficGenerator(trcfg, nwcfg, trname)
         trs.append(gentor)
     return trs
 
 if __name__ == '__main__':
-    from inuithy.util.config_manager import *
+    from inuithy.util.config_manager import TrafficConfig
     trcfg = TrafficConfig(TRAFFIC_CONFIG_PATH)
     trcfg.load()
     nwcfg = TrafficConfig(NETWORK_CONFIG_PATH)
