@@ -1,8 +1,8 @@
-## Zigbee protocol definition
-# Author: Zex Li <top_zlynch@yahoo.com>
-# Reference: Zigbee_Control_Protocol.pdf
-#
-from inuithy.protocol.protocol import *
+""" Zigbee protocol definition
+ @author: Zex Li <top_zlynch@yahoo.com>
+"""
+from inuithy.common.predef import string_write
+from inuithy.protocol.protocol import Protocol
 
 class ZigbeeProtocol(Protocol):
     
