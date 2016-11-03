@@ -4,19 +4,22 @@
 from inuithy.common.predef import string_write, INUITHY_TITLE,\
 INUITHY_VERSION, INUITHY_CONFIG_PATH, CtrlCmd, INUITHY_TOPIC_TRAFFIC,\
 INUITHY_TOPIC_CONFIG, INUITHYAGENT_CLIENT_ID, T_ADDR, T_HOST, T_NODE,\
-T_CLIENTID, T_TID, T_TIMESLOT, T_DURATION, T_TRAFFIC_STATUS,\
-T_MSG, T_RECIPIENT, INUITHY_LOGCONFIG
-from inuithy.util.cmd_helper import pub_status, pub_heartbeat, pub_unregister
+T_CLIENTID, T_TID, T_TIMESLOT, T_DURATION, T_NODES, T_RECIPIENT,\
+T_TRAFFIC_STATUS, T_MSG, T_CTRLCMD, TrafficStatus, T_TRAFFIC_TYPE,\
+INUITHY_LOGCONFIG, INUITHY_TOPIC_COMMAND, TrafficType
+from inuithy.util.helper import getpredefaddr
+from inuithy.util.cmd_helper import pub_status, pub_heartbeat, pub_unregister, extract_payload
 from inuithy.util.config_manager import create_inuithy_cfg
 from inuithy.common.serial_adapter import SerialAdapter
 from inuithy.common.traffic import TrafficExecutor
 import paho.mqtt.client as mqtt
 import logging.config as lconf
-import socket, logging, string, random
 import threading as thrd
+import socket
+import logging
+import sys
 
 lconf.fileConfig(INUITHY_LOGCONFIG)
-lgr = logging.getLogger("InuithyAgent")
 
 class Agent(object):
     """
@@ -43,6 +46,7 @@ class Agent(object):
 
     @property
     def clientid(self):
+        """Message queue identifier for agent"""
         return self.__clientid
     @clientid.setter
     def clientid(self, val):
@@ -50,6 +54,7 @@ class Agent(object):
 
     @property
     def host(self):
+        """Host that agent running on"""
         return self.__host
     @host.setter
     def host(self, val):
@@ -57,6 +62,7 @@ class Agent(object):
 
     @property
     def tcfg(self):
+        """Inuithy configure"""
         return self.__inuithy_cfg
     @tcfg.setter
     def tcfg(self, val):
@@ -64,13 +70,23 @@ class Agent(object):
 
     @property
     def enable_heartbeat(self):
+        """Indicate heartbeat enabled or disabled"""
         return self.__enable_heartbeat
     @enable_heartbeat.setter
     def enable_heartbeat(self):
         pass
 
     @property
+    def addr2node(self):
+        """Map node address to SerialNode"""
+        return self.__addr2node
+    @addr2node.setter
+    def addr2node(self, val):
+        pass
+
+    @property
     def initialized(self):
+        """Agent initialization state"""
         return self.__initialized
     @initialized.setter
     def initialized(self, val):
@@ -79,19 +95,16 @@ class Agent(object):
                 self.__initialized = True
             Agent.__mutex.release()
 
-    @property
-    def addr2node(self): return self.__addr2node
-    @addr2node.setter
-    def addr2node(self, val): pass
-
     @staticmethod
     def on_connect(client, userdata, rc):
+        """MQ connect event handler"""
         lgr.info(string_write(
             "MQ.Connection client:{} userdata:[{}] rc:{}",
             client, userdata, rc))
 
     @staticmethod
     def on_message(client, userdata, message):
+        """MQ message event handler"""
 #        lgr.info(string_write("MQ.Message: userdata:[{}]", userdata))
 #        lgr.info(string_write("MQ.Message: message "+INUITHY_MQTTMSGFMT,
 #            message.dup, message.info, message.mid, message.payload,
@@ -107,22 +120,26 @@ class Agent(object):
 
     @staticmethod
     def on_disconnect(client, userdata, rc):
+        """MQ disconnect event handler"""
         lgr.info(string_write(
             "MQ.Disconnection: client:{} userdata:[{}] rc:{}",
             client, userdata, rc))
 
     @staticmethod
     def on_log(client, userdata, level, buf):
+        """MQ log event handler"""
         mqlog_map(lgr, level, buf)
 
     @staticmethod
     def on_publish(client, userdata, mid):
+        """MQ publish event handler"""
         lgr.info(string_write(
             "MQ.Publish: client:{} userdata:[{}], mid:{}",
             client, userdata, mid))
 
     @staticmethod
     def on_subscribe(client, userdata, mid, granted_qos):
+        """MQ subscribe event handler"""
         lgr.info(string_write(
             "MQ.Subscribe: client:{} userdata:[{}], mid:{}, grated_qos:{}",
             client, userdata, mid, granted_qos))
@@ -132,9 +149,11 @@ class Agent(object):
             if self.initialized:
                 pub_status(self.__subscriber, self.tcfg.mqtt_qos, {T_MSG: msg})
                 self.unregister()
-                self.__heartbeat.stop()
+                if self.__heartbeat is not None:
+                    self.__heartbeat.stop()
                 self.__sad.stop_nodes()
                 self.__subscriber.disconnect()
+                sys.exit()
         except Exception as ex:
             self.lgr.error(string_write("Exception on teardown: {}", ex))
 
@@ -171,7 +190,8 @@ class Agent(object):
         except Exception as ex:
             self.lgr.error(string_write("Unregister failed: {}", ex))
 
-    def create_subscriber(self, host, port):
+    def create_mqtt_subscriber(self, host, port):
+        """Create MQTT subscriber"""
         self.topic_routes = {
             INUITHY_TOPIC_COMMAND:  self.on_topic_command,
             INUITHY_TOPIC_CONFIG:   self.on_topic_config,
@@ -199,6 +219,7 @@ class Agent(object):
         }
 
     def get_clientid(self):
+        """Generate client ID"""
         rd = ''
         if self.tcfg.enable_localdebug:
             from random import randint
@@ -206,6 +227,7 @@ class Agent(object):
         return string_write(INUITHYAGENT_CLIENT_ID, self.host+rd)
 
     def set_host(self):
+        """Set agent host"""
         try:
             self.__host = getpredefaddr()
         except Exception as ex:
@@ -213,7 +235,7 @@ class Agent(object):
 
         try: #FIXME
             if self.__host is None or len(self.__host) == 0:
-                self.__host = socket.gethostname() #socket.gethostbyname(socket.gethostname())
+                self.__host = '127.0.0.1'#socket.gethostname() #socket.gethostbyname(socket.gethostname())
         except Exception as ex:
             self.lgr.error(string_write("Failed to get host by name: {}", ex))
 
@@ -224,23 +246,29 @@ class Agent(object):
         """
         self.lgr.info(string_write("Do initialization"))
         try:
-            self.set_host()
             self.__clientid = self.get_clientid()
-            self.create_subscriber(*self.tcfg.mqtt)
-            self.__traffic_executors = []
+            self.create_mqtt_subscriber(*self.tcfg.mqtt)
             self.__sad = SerialAdapter(self.__subscriber)
             self.initialized = True
         except Exception as ex:
             self.lgr.error(string_write("Failed to initialize: {}", ex))
 
     def __init__(self, cfgpath='config/inuithy.conf', lgr=None):
+        if lgr is not None:
+            self.lgr = lgr
+        else:
+            self.lgr = logging
         self.__initialized = False
         self.__enable_heartbeat = False
+        self.__heartbeat = None
+        self.__subscriber = None
+        self.topic_routes = {}
+        self.ctrlcmd_routes = {}
+        self.__traffic_executors = []
         self.__inuithy_cfg = create_inuithy_cfg(cfgpath)
+        self.set_host()
         self.__addr2node = {}
-        if lgr is not None: self.lgr = lgr
-        else: self.lgr = logging
-        if False == self.__inuithy_cfg.load():
+        if self.__inuithy_cfg.load() is False:
             self.lgr.error(string_write("Failed to load configure"))
         else:
             self.__do_init()
@@ -260,20 +288,22 @@ class Agent(object):
             if self.ctrlcmd_routes.get(ctrlcmd):
                 self.ctrlcmd_routes[ctrlcmd](command)
             else:
-                self.lgr.error(string_write(
+                self.lgr.error(string_write(\
                 'Invalid command [{}]', command))
         except Exception as ex:
-                self.lgr.error(string_write(
+            self.lgr.error(string_write(\
                 'Exception on handling command [{}]:{}',
                 command, str(ex)))
 
     def addr_to_node(self):
+        """Map node address to SerialNode"""
         self.lgr.info("Map address to node")
         if not self.tcfg.enable_localdebug:
             [self.__addr2node.__setitem__(n.addr, n) for n in self.__sad.nodes]
             return
-
-#            [self.__addr2node.__setitem__(''.join([random.choice(string.hexdigits) for i in range(4)]), n) for n in self.__sad.nodes]
+#       import random, string
+#       [self.__addr2node.__setitem__(''.join([random.choice(string.hexdigits)\
+#           for i in range(4)]), n) for n in self.__sad.nodes]
         samples = ['1111', '1112', '1113', '1114',
                    '1121', '1122', '1123', '1124',
                    '1131', '1132', '1133', '1134',
@@ -283,6 +313,7 @@ class Agent(object):
         [str(n) for n in self.__sad.nodes]
 
     def start(self):
+        """Start Agent routine"""
         if not self.initialized:
             self.lgr.error(string_write("Agent not initialized"))
             return
@@ -297,6 +328,8 @@ class Agent(object):
         except KeyboardInterrupt:
             status_msg = string_write("Agent received keyboard interrupt")
             self.lgr.error(status_msg)
+        except NameError as ex:
+            self.lgr.error(string_write("ERR: {}", ex))
         except Exception as ex:
             status_msg = string_write("Exception on Agent: {}", ex)
             self.lgr.error(status_msg)
@@ -305,8 +338,7 @@ class Agent(object):
             self.lgr.info(string_write("Agent terminated"))
 
     def on_topic_command(self, message):
-        """Command message format:
-        """
+        """Topic command handler"""
         self.lgr.info(string_write("On topic command"))
         msg = extract_payload(message.payload)
         try:
@@ -315,9 +347,7 @@ class Agent(object):
             self.lgr.error(string_write("Exception on dispating control command: {}", ex))
 
     def on_topic_config(self, message):
-        """Config message format:
-        <key> <value>
-        """
+        """Topic config handler"""
         self.lgr.info(string_write("On topic config"))
         try:
             # TODO
@@ -326,19 +356,19 @@ class Agent(object):
             self.lgr.error(string_write("Exception on updating config: {}", ex))
 
     def on_traffic_join(self, data):
+        """Traffic join command handler"""
         self.lgr.info(string_write("Join request"))
         naddr = data[T_NODE]
         node = self.addr2node.get(naddr)
         self.lgr.debug(string_write("Found node: {}", node))
         data[T_CLIENTID] = self.clientid
         data[T_HOST] = self.host
-        if None != node:
+        if node is not None:
             node.join(data)
         else: # DEBUG
             self.lgr.error(string_write("{}: Node [{}] not found", self.clientid, naddr))
 
     def on_traffic_scmd(self, data):
-        self.lgr.info(string_write("SCMD request"))
         """
         data = {
              T_GENID:        tg.genid,
@@ -349,6 +379,7 @@ class Agent(object):
              T_PKGSIZE:      tr.pkgsize,
              }
         """
+        self.lgr.info(string_write("SCMD request"))
         naddr = data.get(T_NODE)
         node = self.addr2node.get(naddr)
         if None != node:
@@ -364,10 +395,9 @@ class Agent(object):
                 T_TID:              data.get(T_TID),
             })
         else:
-            self.lgr.error(string_write("{}: Node [{}] not found", self.clientid, naddr)) 
+            self.lgr.error(string_write("{}: Node [{}] not found", self.clientid, naddr))
 
     def on_traffic_tsh(self, data):
-        self.lgr.info(string_write("TSH request"))
         """
         data = {
             T_TRAFFIC_TYPE: TrafficType.TSH.name,
@@ -377,19 +407,23 @@ class Agent(object):
             T_MSG:          ' '.join(args[1:])
         }
         """
+        self.lgr.info(string_write("TSH request"))
         naddr = data[T_NODE]
         node = self.addr2node.get(naddr)
-        if None != node:
+        if node is not None:
             self.lgr.debug(string_write("Found node: {}", node))
             node.write(data[T_MSG])
         else: # DEBUG
             self.lgr.error(string_write("{}: Node [{}] not found", self.clientid, naddr))
 
     def on_traffic_start(self, data):
+        """Traffic start command handler"""
         self.lgr.info(string_write("Traffic start request"))
         try:
-            [te.run() for te in self.__traffic_executors]
-            self.__traffic_executors = []
+            for te in self.__traffic_executors:
+                self.lgr.debug(string_write("agent:{}, te:{}", self.clientid, te))
+                te.run()
+#            [te.run() for te in self.__traffic_executors]
             pub_status(self.__subscriber, self.tcfg.mqtt_qos, {
                 T_TRAFFIC_STATUS: TrafficStatus.FINISHED.name,
                 T_CLIENTID:       self.clientid,
@@ -398,17 +432,20 @@ class Agent(object):
             self.lgr.error(string_write("Exception on running traffic: {}", ex))
 
     def on_topic_traffic(self, message):
+        """Traffic topic handler"""
         self.lgr.info(string_write("On topic traffic"))
         try:
             data = extract_payload(message.payload)
 #           target = data[T_CLIENTID]
             self.lgr.debug(string_write("Traffic data: {}", data))
-            if not self.is_msg_for_me([data.get(T_CLIENTID), data.get(T_HOST)]): return
+            if not self.is_msg_for_me([data.get(T_CLIENTID), data.get(T_HOST)]):
+                return
             self.traffic_dispatch(data)
         except Exception as ex:
             self.lgr.error(string_write("Failed on handling traffic request: {}", ex))
 
     def traffic_dispatch(self, data):
+        """Dispatch traffic topic handlers"""
         self.lgr.info(string_write("Dispatch traffic request: {}", data))
         if data[T_TRAFFIC_TYPE] == TrafficType.JOIN.name:
             self.on_traffic_join(data)
@@ -419,13 +456,15 @@ class Agent(object):
         elif data[T_TRAFFIC_TYPE] == TrafficType.TSH.name:
             self.on_traffic_tsh(data)
         else:
-            self.lgr.error(string_write("{}: Unhandled traffic message [{}]", self.clientid, data)) 
+            self.lgr.error(string_write("{}: Unhandled traffic message [{}]", self.clientid, data))
 
     def on_new_controller(self, message):
+        """New controller command handler"""
         self.lgr.info(string_write("New controller"))
         self.register()
 
     def on_agent_restart(self, message):
+        """Agent restart command handler"""
         self.lgr.info(string_write("Restart agent"))
         if self.is_msg_for_me([message.get(T_CLIENTID), message.get(T_HOST)]):
             self.lgr.info(string_write("Stop agent {}", self.clientid))
@@ -433,32 +472,38 @@ class Agent(object):
             #TODO
 
     def is_msg_for_me(self, targets): # FIXME
+        """Determine message is for me"""
         for target in targets:
             if target in ['*', self.__host, self.__clientid]: return True
         return False
 
     def on_agent_stop(self, message):
+        """Agent stop command handler"""
         self.lgr.info(string_write("On agent stop {}", message))
         if self.is_msg_for_me([message.get(T_CLIENTID)]):
             self.lgr.info(string_write("Stop agent {}", self.clientid))
             self.teardown()
 
     def on_agent_enable_heartbeat(self, message):
+        """Heartbeat enable command handler"""
         self.lgr.info(string_write("Enable heartbeat"))
         self.__enable_heartbeat = True
         self.__heartbeat = Heartbeat(target=self.heartbeat_routine, name="AgnetHeartbeat")
         self.__heartbeat.run()
 
     def on_agent_disable_heartbeat(self, message):
+        """Heartbeat disable command handler"""
         self.lgr.info(string_write("Disable heartbeat"))
         self.__enable_heartbeat = False
         self.__heartbeat.exit()
 
 def start_agent(cfgpath, lgr=None):
+    """Shortcut to start an Agent"""
     agent = Agent(cfgpath, lgr)
     agent.start()
 
 if __name__ == '__main__':
+    lgr = logging.getLogger("InuithyAgent")
     lgr.info(string_write(INUITHY_TITLE, INUITHY_VERSION, "Agent"))
     start_agent(INUITHY_CONFIG_PATH, lgr)
 
