@@ -2,7 +2,8 @@
  @uthor: Zex Li <top_zlynch@yahoo.com>
 """
 from inuithy.common.predef import MessageType, T_HOST, StorageType,\
-T_RECORDS, T_MSG_TYPE
+T_RECORDS, T_MSG_TYPE, string_write, T_TIME, T_GENID, T_CLIENTID,\
+T_SENDER, T_RECIPIENT, T_PKGSIZE
 from pymongo import MongoClient
 from bson.objectid import ObjectId
 from datetime import datetime as dt
