@@ -5,6 +5,6 @@ mqtt: {host: 127.0.0.1, port: 1883, qos: 0}
 inuithy_shell: {history: .inuithy.cache}
 genid: {path: .inuithy.genid}
 traffic_storage: {passwd: '', path: '127.0.0.1:19713', type: 'DB:MongoDB', user: ''}
-#workmode: AUTO
+workmode: AUTO
 #workmode: MORNITOR
-workmode: MANUAL
+#workmode: MANUAL
