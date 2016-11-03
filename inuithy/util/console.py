@@ -3,7 +3,7 @@
 """
 from inuithy.common.version import INUITHY_ROOT, INUITHY_VERSION
 from inuithy.common.predef import INUITHY_LOGCONFIG, INUITHY_TITLE,\
-INUITHY_CONFIG_PATH, TRAFFIC_CONFIG_PATH, console_write
+INUITHY_CONFIG_PATH, TRAFFIC_CONFIG_PATH, console_write, string_write
 from inuithy.agent import Agent
 from inuithy.mode.manual_mode import ManualController 
 from inuithy.common.command import TSH_ERR_GENERAL, TSH_ERR_HANDLING_CMD
@@ -61,7 +61,7 @@ class Console(threading.Thread):
         try:
             self.__banner_path = os.path.abspath(INUITHY_ROOT+'/banner/*')
             banners = glob.glob(self.__banner_path)
-            if banners == None or len(banners) == 0:
+            if banners is None or len(banners) == 0:
                 return
             self.__banner_path = banners[randint(0, len(banners)-1)]
             with open(self.__banner_path, 'r') as fd:
@@ -144,7 +144,8 @@ class Console(threading.Thread):
         start_agents(agents)
 
     def on_cmd_agent_stop(self, *args, **kwargs):
-        if args == None or len(args) < 1: return
+        if args is None or len(args) < 1:
+            return
         clientid = args[0]
         data = {
             T_CTRLCMD:  CtrlCmd.AGENT_STOP.name,
@@ -157,29 +158,17 @@ class Console(threading.Thread):
         [console_write("AGENT[{}]:{}", k, str(v)) for k,v in self.__ctrl.available_agents.items()] 
 
     def on_cmd_agent(self, *args, **kwargs):
-        """
-        """
-        if args == None or len(args) == 0:  return
+        """Operation on agent"""
+        if args is None or len(args) == 0:  return
         params = args[1:]
         if self.__cmd_agent_routes.get(args[0]):
             self.__cmd_agent_routes[args[0]](*(params))
         else:
             console_write(self.usages['usage_agent'])
 
-    def on_cmd_ctrl_start(self, *args, **kwargs):
-        pass
-        
-    def on_cmd_ctrl_stop(self, *args, **kwargs):
-        pass
-
-    def on_cmd_ctrl(self, *args, **kwargs):
-        pass
-
-    def on_cmd_ctrl_whohas(self, *args, **kwargs):
-        pass
-
     def on_cmd_traffic(self, *args, **kwargs):
-        if args == None or len(args) == 0: return
+        if args is None or len(args) == 0:
+            return
         params = args[1:]
         if self.__cmd_traffic_routes.get(args[0]):
             self.__cmd_traffic_routes[args[0]](*(params))
@@ -210,26 +199,29 @@ class Console(threading.Thread):
 
     def on_cmd_traffic_deploy(self, *args, **kwargs):
         print(args)
-        if args == None or len(args) < 2: return
+        if args is None or len(args) < 2:
+            return
         self.__ctrl.traffic_state.start()
         self.__ctrl.traffic_state.wait_agent()
         self.__ctrl.traffic_state.deploy()
         console_write("Deploying network layout")
 
     def on_cmd_traffic_regtraf(self, *args, **kwargs):
-        if args == None or len(args) < 2: return
+        if args is None or len(args) < 2:
+            return
         self.__ctrl.traffic_state.wait_nwlayout()
         self.__ctrl.traffic_state.register()
         console_write("Traffic registerd")
         
     def on_cmd_traffic_run(self, *args, **kwargs):
-        if args == None or len(args) < 2: return
+        if args is None or len(args) < 2:
+            return
         self.__ctrl.traffic_state.wait_traffic()
         self.__ctrl.traffic_state.fire()
         console_write("Traffic fired")
 
     def on_cmd_help(self, *args, **kwargs):
-        if args == None or len(args) == 0 or len(args[0]) == 0:
+        if args is None or len(args) == 0 or len(args[0]) == 0:
             console_write(self.usages['usage'])
             return
         command = args[0].strip()
@@ -257,13 +249,14 @@ class Console(threading.Thread):
         """FORMAT: @ <host> <system command>
         """
         print(args)
-        if args == None or len(args) < 2: return
+        if args is None or len(args) < 2:
+            return
         runonremote('root', args[0], ' '.join(args[1:]))
 
     def on_cmd_sys(self, *args, **kwargs):
         """FORMAT: ! <system command>
         """
-        if args == None or len(args) == 0:
+        if args is None or len(args) == 0:
             return
         os.system(args[0])
 
@@ -286,7 +279,8 @@ class Console(threading.Thread):
                     self.on_cmd_quit()
 
     def dispatch(self, command):
-        if command == None or len(command) == 0: return
+        if command is None or len(command) == 0:
+            return
         cmds = valid_cmds(command)
         if len(cmds) == 0 or len(cmds[0]) == 0:
             console_write(TSH_ERR_INVALID_CMD, command, 'help')

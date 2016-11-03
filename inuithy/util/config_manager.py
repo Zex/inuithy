@@ -158,6 +158,7 @@ class InuithyConfig(Config):
 
     @property
     def tsh_hist(self):
+        """Inuithy shell console cache path"""
         return self.config[T_TSH][T_HISTORY]
     @tsh_hist.setter
     def tsh_hist(self, val):
@@ -474,6 +475,8 @@ class TrafficConfig(Config):
         self.config[T_TARGET_AGENTS] = [
             "agent_0", "agent_1",
         ]
+        # Delay befor finish one traffic, in second
+        self.config[T_TRAFFIC_FINISH_DELAY] = 30
 
 def create_inuithy_cfg(cfgpath):
     """Create inuithy config object and load configure from given path

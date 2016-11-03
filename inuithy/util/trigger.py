@@ -23,7 +23,6 @@ class TrafficTrigger(threading.Thread):
     @interval   Fire each @interval seconds
     @duration   Stop after @duration seconds
     """
-    __mutex = threading.Lock()
 
     def __init__(self, interval=0, duration=0, target=None,\
         name="Trigger", daemon=False, *args, **kwargs):
@@ -44,13 +43,11 @@ class TrafficTrigger(threading.Thread):
 
 #       with Duration() as dur:
         while self.running:
-            if TrafficTrigger.__mutex.acquire():
-                self._target(self.__args, self.__kwargs)
-                TrafficTrigger.__mutex.release()
+            self._target(self.__args, self.__kwargs)
             time.sleep(self.__interval)
 
     def _stop_trigger(self):
-        print("========Stopping trgger============")
+        console_write("{}: ========Stopping trgger============", self)
         self.running = False
         self.stop_timer.cancel()
 
