@@ -1,8 +1,9 @@
 """ Agent info definition
  @author: Zex Li <top_zlynch@yahoo.com>
 """
-from inuithy.common.predef import T_TYPE, AgentStatus, T_ADDR
+from inuithy.common.predef import T_TYPE, AgentStatus, T_ADDR, string_write
 from inuithy.common.node import NodeBLE, NodeZigbee, NodeType
+import json
 
 class AgentInfo(object):
     def __init__(self, agentid ="", host ="", status =AgentStatus.OFFLINE, nodes =[]):

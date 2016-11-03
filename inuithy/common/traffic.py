@@ -4,7 +4,7 @@
 from inuithy.common.predef import T_PKGRATE, T_DURATION,\
 T_NWCONFIG_PATH, T_NWLAYOUT, T_SENDERS, T_RECIPIENTS,\
 T_TARGET_TRAFFICS, TRAFFIC_CONFIG_PATH, NETWORK_CONFIG_PATH,\
-console_write
+T_PKGSIZE, T_NODES, console_write, string_write
 from inuithy.util.helper import getnwlayoutid, is_number
 from inuithy.util.trigger import TrafficTrigger
 import time
@@ -16,8 +16,7 @@ class Traffic(object):
     """Traffic information"""
     @property
     def pkgsize(self):
-        """Package size
-        """
+        """Package size"""
         return self.__pkgsize
 
     @pkgsize.setter
@@ -28,8 +27,7 @@ class Traffic(object):
 
     @property
     def sender(self):
-        """Sender address
-        """
+        """Sender address"""
         return self.__sender
 
     @sender.setter
@@ -38,8 +36,7 @@ class Traffic(object):
 
     @property
     def recipient(self):
-        """Recipient address
-        """
+        """Recipient address"""
         return self.__recipient
 
     @recipient.setter
@@ -61,13 +58,13 @@ class TrafficGenerator(object):
     """
     @property
     def duration(self):
-        """Duration in second
-        """
+        """Duration in second"""
         return self.__duration
 
     @duration.setter
     def duration(self, val):
-        if not isinstance(val, int): raise TypeError("Integer expected")
+        if not isinstance(val, int):
+            raise TypeError("Integer expected")
         self.__duration = val
 
     @property
@@ -78,7 +75,8 @@ class TrafficGenerator(object):
 
     @nwconfig.setter
     def nwconfig(self, val):
-        if not isinstance(val, tuple): raise TypeError("Tuple expected")
+        if not isinstance(val, tuple):
+            raise TypeError("Tuple expected")
         self.__nwconfig_file, self.__nwconfig_name = val
 
     @property
@@ -89,13 +87,13 @@ class TrafficGenerator(object):
 
     @pkgrate.setter
     def pkgrate(self, val):
-        if not isinstance(val, float): raise TypeError("Float expected")
+        if not isinstance(val, float):
+            raise TypeError("Float expected")
         self.__pkgrate = val
 
     @property
     def genid(self):
-        """Generator ID
-        """
+        """Generator ID"""
         return self.__genid
     @genid.setter
     def genid(self, val):
@@ -113,11 +111,11 @@ class TrafficGenerator(object):
         self.traffics = []
         self.nwlayoutid = getnwlayoutid(trcfg.config[T_NWCONFIG_PATH], self.cur_trcfg[T_NWLAYOUT])
         self.create_traffic(trcfg, nwcfg)
-        self.__genid = genid != None and genid or string_write("[{}]{}:{}",
+        self.__genid = genid != None and genid or string_write("[{}]{}:{}",\
             time.clock_gettime(time.CLOCK_REALTIME), self.nwlayoutid, trname)
 
     def __str__(self):
-        return string_write("layout:{},traffic:{},rate:{}/s,dur:{}s,",
+        return string_write("layout:{},traffic:{},rate:{}/s,dur:{}s,",\
             self.nwlayoutid, self.traffic_name, self.pkgrate, self.duration)
 
     @staticmethod
@@ -130,9 +128,9 @@ class TrafficGenerator(object):
         nw = tr[T_NWLAYOUT]
         nodes = []
         for s in tr[T_SENDERS]:
-            if s == '*': 
+            if s == '*':
                 for sname in nw.keys():
-                    sub = nwcfg.subnet(nw, sub)
+                    sub = nwcfg.subnet(nw, sname)
                     if sub is None: raise ValueError(string_write(TRAFFIC_ERR_NOSUBNET, sub, nw))
                     [nodes.append(node) for node in sub[T_NODES]]
             elif is_number(s):
@@ -194,25 +192,23 @@ class TrafficExecutor(TrafficTrigger):
         self.command = command
         self.data = data
 
-    def run(self):
-        print("Started, traffic ends in {}s".format(self.duration))
+    def run(self): #TODO remove print
         self.running = True
         self.stop_timer.start()
 
-        while self.running:
-            if TrafficTrigger.__mutex.acquire():
-                self.node.write(self.command, self.data)
-                TrafficTrigger.__mutex.release()
-            time.sleep(self.__interval)
+        while self.running: # TODO debug check
+            console_write(self.command, self.data)
+#            self.node.write(self.command, self.data)
+            time.sleep(self.timeslot)
 
     def __str__(self):
-        return string_write("TE: ts:{}, dur:{}, node:[{}], cmd:{} ", self.timeslot, self.duration, str(self.node), self.command)
+        return string_write("TE: ts:{}, dur:{}, node:[{}], cmd:{} ",\
+            self.timeslot, self.duration, str(self.node), self.command)
 
 def create_traffics(trcfg, nwcfg):
     """Create traffic generators for targe traffics
     """
-    cfg = trcfg.config
-    trs = [] 
+    trs = []
     for trname in trcfg.config[T_TARGET_TRAFFICS]:
         gentor = TrafficGenerator(trcfg, nwcfg, trname)
         trs.append(gentor)
@@ -229,4 +225,6 @@ if __name__ == '__main__':
         console_write("---------------------------------------------")
         console_write(str(tg))
         console_write('\n'.join([str(traffic) for traffic in tg.traffics]))
-
+    te = TrafficExecutor("BLE", 'shield on', 1/0.9, 3, {"account":88888})
+    te.run()
+    print("===========end==============")

@@ -1,7 +1,7 @@
 """ Serial port adapter
  @author: Zex Li <top_zlynch@yahoo.com>
 """
-from inuithy.common.predef import DEV_TTYUSB, DEV_TTYS
+from inuithy.common.predef import DEV_TTYUSB, DEV_TTYS, string_write
 from inuithy.common.node import NodeBLE, NodeZigbee, NodeType
 from inuithy.util.task_manager import ThrTaskManager
 import glob, logging
@@ -37,7 +37,7 @@ class SerialAdapter(object):
     def create_node(self, port):
         if isinstance(port, tuple):
             port = port[1]
-        if not isinstance(port, str) or port == None or len(port) == 0:
+        if not isinstance(port, str) or port is None or len(port) == 0:
             return
         port = port.strip()
         node = None
@@ -47,9 +47,9 @@ class SerialAdapter(object):
                 node = NodeBLE(port, reporter=self.reporter)
             elif ptype is NodeType.Zigbee:
                 node = NodeZigbee(port, reporter=self.reporter)
-            if node != None:
+            if node is not None:
                 self.__nodes.append(node)
-                node.start_listener(report)
+                node.start_listener()
         except Exception as ex:
             logging.error(string_write("Exception on creating node: {}", ex))
 

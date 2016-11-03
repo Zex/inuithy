@@ -104,6 +104,7 @@ T_TIME = 'time'
 T_RECORDS = 'records'
 T_TRAFFIC_STATUS = 'traffic_status'
 T_TID = 'tid'
+T_TRAFFIC_FINISH_DELAY = 'traffin_delay'
 
 TrafficStatus = Enum("TrafficStatus", [
     "STOP",             # Initial status, traffic not yet launched

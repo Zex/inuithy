@@ -1,16 +1,20 @@
 """ General node definition
  @author: Zex Li <top_zlynch@yahoo.com>
 """
-from inuithy.common.predef import TrafficType, T_TYPE, T_MSG, INUITHY_LOGCONFIG,\
-T_MSG_TYPE, MessageType, string_write, T_ADDR, T_PORT, T_PANID
+from inuithy.common.predef import TrafficType, T_TRAFFIC_TYPE, T_MSG,\
+INUITHY_LOGCONFIG, T_MSG_TYPE, MessageType, string_write, T_TYPE,\
+T_ADDR, T_PORT, T_PANID
+from inuithy.util.cmd_helper import pub_reportwrite, pub_notification
 from inuithy.protocol.ble_protocol import BleProtocol as BleProt
 from inuithy.protocol.zigbee_protocol import ZigbeeProtocol
 import logging.config as lconf
-import logging
-import serial, json, time
+import threading as thrd
 from copy import deepcopy
 from enum import Enum
-import threading as thrd
+import logging
+import serial
+import json
+import time
 
 lconf.fileConfig(INUITHY_LOGCONFIG)
 
@@ -39,33 +43,35 @@ class SerialNode(object):
     def read(self, rdbyte=0, report=None):
 #        self.lgr.debug(string_write("SerialNode#R: rdbyte:{}", rdbyte))
         rdbuf = ""
-        if self.__serial != None and self.__serial.isOpen():
+        if self.__serial is not None and self.__serial.isOpen():
             if 0 < self.__serial.inWaiting():
                 rdbuf = self.__serial.readall()
         #TODO
-        if report != None:
+        if report is not None:
             #TODO parse rdbuf
 #            report[T_MSG] = rdbuf
-            traftype = random.randint(TrafficType.JOIN, TrafficType.SCMD)
-            report[T_TYPE] = traftype.name
+            import random
+            traftype = random.randint(TrafficType.JOIN.value, TrafficType.SCMD.value)
+            report[T_TRAFFIC_TYPE] = traftype == TrafficType.JOIN.value and TrafficType.JOIN.name or TrafficType.SCMD.name
             self.report_read(report)
         return rdbuf
 
     def write(self, data="", report=None):
 #        self.lgr.debug(string_write("SerialNode#W: data:[{}], len:{}", data, len(data)))
         written = 0
-        if self.__serial != None and self.__serial.isOpen():
+        if self.__serial is not None and self.__serial.isOpen():
             written = self.__serial.write(data)
         #TODO -->
-        if report != None:
+        if report is not None:
             report[T_MSG] = data
             self.report_write(report)
 
-    def start_listener(self, report=None):
-        if self.run_listener == False and self.port != None and len(self.port) > 0:
+    def start_listener(self):
+        if self.run_listener is False and self.port is not None and len(self.port) > 0:
             self.run_listener = True
-            # TODO if self.__listener != None and self.__serial != None: self.__listener.start()
-            if self.__listener != None: self.__listener.start()
+            # TODO if self.__listener is not None and self.__serial is not None: self.__listener.start()
+            if self.__listener is not None:
+                self.__listener.start()
 
     def __listener_routine(self):
         while self.run_listener:
@@ -82,12 +88,12 @@ class SerialNode(object):
 
     def report_write(self, data):
         data.__setitem__(T_MSG_TYPE, MessageType.SENT.name)
-        if self.reporter != None:
+        if self.reporter is not None:
             pub_reportwrite(self.reporter, data=data)
 
     def report_read(self, data):
         data.__setitem__(T_MSG_TYPE, MessageType.RECV.name)
-        if self.reporter != None:
+        if self.reporter is not None:
             pub_notification(self.reporter, data=data)
 
     def __str__(self):
@@ -113,7 +119,7 @@ class NodeBLE(SerialNode):
         self.port = port
         self.prot = BleProt
         self.report = None
-#        if port != None and len(port) > 0:
+#        if port is not None and len(port) > 0:
 #            self.start_listener()
 
     def __str__(self):
