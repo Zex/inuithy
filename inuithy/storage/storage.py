@@ -91,7 +91,7 @@ class Storage(object):
         try:
             return self.__dbplugin.insert_config(data)
         except Exception as ex:
-            self.lgr.error(string_write("Insert record failed: {}", ex))
+            self.lgr.error(string_write("Insert config failed: {}", ex))
             return None
 
     def close(self):
