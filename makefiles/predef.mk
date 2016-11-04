@@ -16,6 +16,7 @@ PS2PDF		:= ps2pdf
 
 BUILD		     := build
 BUILD_DOCS		 := $(BUILD)/docs
+THIRDPARTY		 := thirdparty
 VERSION_PATH     := inuithy/common/version.py
 PROJECT_PATH	 := /opt/inuithy
 LOGBASE			 := /var/log/inuithy/
