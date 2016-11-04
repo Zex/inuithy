@@ -13,6 +13,11 @@ def runonremote(user, host, cmd):
     cmd = string_write(fmt, user, host, cmd)
     sp.call(cmd, shell=True)
 
+def delimstr(delim, *args):
+    if delim is None or not isinstance(delim, str):
+        delim = ''
+    return delim.join(list(args))
+
 def getnwlayoutid(nwcfg_path, layout_name):
     return string_write(T_NWLAYOUT_ID_FMT, nwcfg_path, layout_name)
 

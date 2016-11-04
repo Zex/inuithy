@@ -136,19 +136,21 @@ class Heartbeat(threading.Thread):
     def __del__(self):
         self.stop()
 
-def start_agents(agents):
-    """Start agent remotely
-    """
+def start_agents(hosts):
+    """Start agent remotely"""
     cmd = string_write('"pushd {};nohup python3 {}/agent.py &>> {}"',\
         PROJECT_PATH, INUITHY_ROOT, INUITHY_NOHUP_OUTPUT)
-    [runonremote('root', host, cmd) for host in agents]
+    [runonremote('root', host, cmd) for host in hosts]
 
 def stop_agents(publisher, qos=0, clientid="*"):
-    """Stop agent remotely
-    """
+    """Stop agent remotely"""
     data = {
         T_CTRLCMD:  CtrlCmd.AGENT_STOP.name,
         T_CLIENTID: clientid,
     }
     pub_ctrlcmd(publisher, qos, data)
 
+def force_stop_agents(hosts):
+    """Force agent stop remotely"""
+    cmd = string_write('"killall python3"')
+    [runonremote('root', host, cmd) for host in hosts]

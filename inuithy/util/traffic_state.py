@@ -115,6 +115,7 @@ class TrafficState:
     @lgr         For log handling
 
     STOP,             # Initial status, traffic not yet launched
+    CREATED,          # Initialize traffic based on configure
     STARTED,          # Traffic routine started
     NWCONFIGED,       # Network layout configured
     REGISTERED,       # Traffics already been registered to agents
@@ -122,6 +123,7 @@ class TrafficState:
     FINISHED,         # Traffics finished
     """
     stopped = State(initial=True)
+    created = State()
     started = State()
     nwconfigured = State()
     registered = State()
@@ -132,9 +134,10 @@ class TrafficState:
     waitfor_nwlayout_done = State()
     waitfor_traffic_all_set = State()
 
-    start = Event(from_states=(stopped), to_state=started)
-    wait_agent = Event(from_states=(started), to_state=waitfor_agent_all_up)
-    deploy = Event(from_states=(waitfor_agent_all_up, started, traffic_finished),\
+    create = Event(from_states=(stopped), to_state=created)
+    start = Event(from_states=(created), to_state=started)
+    wait_agent = Event(from_states=(started, created), to_state=waitfor_agent_all_up)
+    deploy = Event(from_states=(created, waitfor_agent_all_up, started, traffic_finished),\
                 to_state=waitfor_nwlayout_done)
     wait_nwlayout = Event(from_states=(waitfor_nwlayout_done), to_state=nwconfigured)
     register = Event(from_states=(nwconfigured), to_state=waitfor_traffic_all_set)
@@ -142,7 +145,7 @@ class TrafficState:
     fire = Event(from_states=(registered), to_state=running)
     traffic_finish = Event(from_states=(running), to_state=traffic_finished)
     finish = Event(from_states=(
-        stopped, started, nwconfigured, registered, running,
+        stopped, started, created, nwconfigured, registered, running,
         traffic_finished, waitfor_agent_all_up,
         waitfor_nwlayout_done, waitfor_traffic_all_set,
     ), to_state=(finished))
@@ -191,32 +194,51 @@ class TrafficState:
         while self.running and not self.ctrl.chk.is_traffic_all_set():
             time.sleep(2)
 
+    @before('create')
+    def do_create(self):
+        self.lgr.info(string_write("Create traffic from configure: {}", str(self.current_state)))
+        self.trgens = create_traffics(self.ctrl.trcfg, self.ctrl.nwcfg)
+        self.next_tgs = self.yield_traffic()
+        self.lgr.info(string_write("Total generator: [{}]", len(self.trgens)))
+
     @after('start')
     def do_start(self):
         """Start traffic deployment"""
         self.lgr.info(string_write("Start traffic sm: {}", str(self.current_state)))
         try:
-            self.trgens = create_traffics(self.ctrl.trcfg, self.ctrl.nwcfg)
-            self.lgr.info(string_write("Total generator: [{}]", len(self.trgens)))
+            self.create()
             start_agents(self.ctrl.chk.expected_agents)
             self.wait_agent()
-            [self.start_one(tg) for tg in self.trgens]
+            try:
+                self.next()
+                self.start_one()
+            except StopIteration:
+                self.lgr.info("All traffic generator done")
+#            [self.start_one() for tg in self.next_tgs]
         except Exception as rex:
             self.lgr.error(string_write("Traffic runtime error: {}", rex))
-        finally:
-            self.finish()
+        self.finish()
 
-    def start_one(self, tg):
+    def yield_traffic(self):
+        """Yield traffic generator"""
+        for tg in self.trgens:
+            yield tg
+
+    def next(self):
+        """Next traffic generator"""
+        self.current_tg = next(self.next_tgs)
+        nwlayoutname = getnwlayoutname(self.current_tg.nwlayoutid)
+        cfg = {
+            T_NWLAYOUT: deepcopy(self.ctrl.nwcfg.config.get(nwlayoutname))
+        }
+        self.current_tg.genid = self.ctrl.storage.insert_config(cfg)
+        self.record_genid(self.current_tg.genid)
+        return self.current_tg
+
+    def start_one(self):
         """Start one traffic"""
         try:
             self.lgr.info(string_write("Deploy network begin"))
-            self.current_tg = tg
-            nwlayoutname = getnwlayoutname(tg.nwlayoutid)
-            cfg = {
-                T_NWLAYOUT: deepcopy(self.ctrl.nwcfg.config.get(nwlayoutname))
-            }
-            tg.genid = self.ctrl.storage.insert_config(cfg)
-            self.record_genid(tg.genid)
             self.deploy()
             self.wait_nwlayout()
             self.register()
@@ -243,7 +265,7 @@ class TrafficState:
                 data[T_TRAFFIC_TYPE] = TrafficType.JOIN.name
                 pub_traffic(self.ctrl.subscriber, self.ctrl.tcfg.mqtt_qos, data)
 
-    @before('deploy')
+    @after('deploy')
     def do_deploy(self, tg=None):
         """Deploy network layout based on configure"""
         self.lgr.info(string_write("Deploy network layout: {}", str(self.current_state)))

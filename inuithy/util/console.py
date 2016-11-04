@@ -5,13 +5,16 @@ from inuithy.common.version import INUITHY_ROOT, INUITHY_VERSION
 from inuithy.common.predef import INUITHY_LOGCONFIG, INUITHY_TITLE,\
 INUITHY_CONFIG_PATH, TRAFFIC_CONFIG_PATH, console_write, string_write
 from inuithy.agent import Agent
-from inuithy.mode.manual_mode import ManualController 
-from inuithy.common.command import TSH_ERR_GENERAL, TSH_ERR_HANDLING_CMD
-from inuithy.util.helper import valid_cmds, runonremote
+from inuithy.mode.manual_mode import ManualController
+from inuithy.common.command import TSH_ERR_GENERAL, TSH_ERR_HANDLING_CMD,\
+Command, Usage, TSH_ERR_INVALID_CMD
+from inuithy.util.helper import valid_cmds, runonremote, delimstr
+from inuithy.util.cmd_helper import start_agents, stop_agents
 import multiprocessing as mp
 import socket, threading, logging, signal, sys, glob, os, os.path
 import logging.config as lconf
 from random import randint
+import copy
 
 DEFAULT_PROMPT = "inuithy@{}>"
 # Inuithy shell commands
@@ -27,7 +30,9 @@ TSH_CMD_AT = "@"
 TSH_CMD_RESTART = "restart"
 TSH_CMD_START = "start"
 TSH_CMD_STOP = "stop"
+TSH_CMD_FORCE_STOP = "fstop"
 TSH_CMD_LIST = "list"
+TSH_CMD_LIST_LESS = "ll"
 TSH_CMD_HOST = "host"
 TSH_CMD_DEPLOY = "deploy"
 TSH_CMD_RUN = "run"
@@ -70,38 +75,56 @@ class Console(threading.Thread):
             console_write("Setup banner failed: {}", ex)
 
     def __register_routes(self):
-        # TODO
+        # TODO command routes
         self.usages = {
-            "usage": self.__title + "\n"\
-            "Usage:\n"\
-            "  help                  Print inuithy shell usage\n"\
-            "  help <command>        Print usage for <command>\n"\
-            "  quit                  Leave me\n"\
-            "  agent                 Operations on agents\n"\
-            #"  config                Configure items\n"\
-            "  ! <system command>    Execute shell command\n"\
-            "  @ <host> <system command> Execute shell command on remote host\n",
-            "usage_agent":  self.__title + "\n"\
-            "  agent list            Print available agents\n"\
-            "  agent restart <host>  Restart agent on <host>\n"\
-            "                        '*' for all connected hosts\n"\
-            "  agent stop <host>     Stop agent on <host>\n"\
-            "                        '*' for all connected hosts\n",
-            "usage_traffic": self.__title + "\n"\
-            "  traffic host <host>:<node addr> <serial command>\n"\
-            "                        Send serial command to agent on <host>\n"\
-            "                        '*' for all connected hosts\n"\
-            "  traffic deploy <traffic name>\n"\
-            "                       Deploy network layout based on given traffic configure\n"\
-            "  traffic regtraf      Register preconfigred traffic to agents\n"\
-            "  traffic run          Run registed traffic\n",
-            "usage_config": self.__title + "\n"\
-"  config nw <network_config_file>\n"\
-"                        Create network layout based on <network_config_file>\n",
-            "usage_quit":   self.__title + "\n"\
-            "  quit                  Leave me\n",
-            "usage_help":   self.__title + "\n"\
-            "  help                  Print inuithy shell usage\n",
+            "usage": Usage(self.__title, [
+    Command(TSH_CMD_HELP, desc="Print inuithy shell usage"),
+    Command(TSH_CMD_HELP, "<command>", desc="Print usage for <command>"),
+    Command(TSH_CMD_QUIT, desc="Leave me"),
+#    Command(TSH_CMD_CONFIG, desc="Configure items"),
+    Command(TSH_CMD_AGENT, desc="Operations on agents"),
+    Command(TSH_CMD_EXCLAM, "<system command>", desc="Execute shell command"),
+    Command(TSH_CMD_AT, "<host> <system command>",\
+        desc="Execute shell command on remote host"),
+    ]),
+            "usage_agent": Usage(self.__title, [
+    Command(delimstr(' ', TSH_CMD_AGENT, TSH_CMD_LIST), desc="Print available agents"),
+    Command(delimstr(' ', TSH_CMD_AGENT, TSH_CMD_LIST_LESS),\
+        desc="Print available agents with less details"),
+    Command(delimstr(' ', TSH_CMD_AGENT, TSH_CMD_START),
+        desc="Start agent on <host>\n"\
+    "'*' for all targetted hosts"),
+    Command(delimstr(' ', TSH_CMD_AGENT, TSH_CMD_STOP),\
+        desc="Stop agent on <host>\n"\
+    "'*' for all targetted hosts"),
+    Command(delimstr(' ', TSH_CMD_AGENT, TSH_CMD_FORCE_STOP),\
+        desc="Force stop agent on <host>\n"\
+    "'*' for all targetted hosts"),
+    ]),
+            "usage_traffic": Usage(self.__title, [
+    Command(delimstr(' ', TSH_CMD_TRAFFIC, TSH_CMD_HOST),\
+    "<host>:<node addr> <serial command>",
+    "Send serial command to agent on <host>"),
+    Command(delimstr(' ', TSH_CMD_TRAFFIC, TSH_CMD_DEPLOY),\
+        desc="Deploy predefined network layout"),
+    Command(delimstr(' ', TSH_CMD_TRAFFIC, TSH_CMD_REGTRAF),\
+        desc="Register predefined traffic to agents"),
+    Command(delimstr(' ', TSH_CMD_TRAFFIC, TSH_CMD_RUN),\
+        desc="Run registed traffic"),]),
+#            "usage_config": Usage(self.__title, [
+#    Command(delimstr(' ', TSH_CMD_CONFIG, 'nw'),\
+#        "<network_config_file>",\
+#        "Create network layout based on <network_config_file>"),]),
+        "usage_quit": Usage(self.__title, [
+    Command(TSH_CMD_QUIT, desc="Leave me")]),
+        "usage_help": Usage(self.__title, [
+    Command(TSH_CMD_HELP, desc="Print inuithy shell usage")]),
+        "usage_!": Usage(self.__title, [
+    Command(TSH_CMD_EXCLAM, "<system command>",\
+        desc="Execute shell command"),]),
+        "usage_@": Usage(self.__title, [
+    Command(TSH_CMD_AT, "<host> <system command>",\
+        desc="Execute shell command on remote host"),]),
         }
         self.__cmd_routes = {
             TSH_CMD_AGENT:      self.on_cmd_agent,
@@ -113,9 +136,11 @@ class Console(threading.Thread):
             TSH_CMD_AT:         self.on_cmd_rsys,
         }
         self.__cmd_agent_routes = {
-            TSH_CMD_START:    self.on_cmd_agent_start,
-            TSH_CMD_STOP:       self.on_cmd_agent_stop,
-            TSH_CMD_LIST:       self.on_cmd_agent_list,
+            TSH_CMD_START: self.on_cmd_agent_start,
+            TSH_CMD_STOP: self.on_cmd_agent_stop,
+            TSH_CMD_FORCE_STOP: self.on_cmd_agent_stop_force,
+            TSH_CMD_LIST: self.on_cmd_agent_list,
+            TSH_CMD_LIST_LESS: self.on_cmd_agent_list_less,
         }
         self.__cmd_traffic_routes = {
             TSH_CMD_HOST:       self.on_cmd_traffic_host,
@@ -134,28 +159,50 @@ class Console(threading.Thread):
         self.create_controller()
 
     def create_controller(self):
+        """Run a Controller in manual mode"""
         self.__ctrl = ManualController(INUITHY_CONFIG_PATH, TRAFFIC_CONFIG_PATH)
         self.__ctrl_proc = threading.Thread(target =self.__ctrl.start, name ="Ctrl@InuithyShell")
         self.__ctrl_proc.daemon = False
 
     def on_cmd_agent_start(self, *args, **kwargs):
-        print(args)
-        agents = list(args)
+        """Agent start command handler"""
+        if args is None or len(args) < 1:
+            return
+        hosts = args[0]
+        if hosts == '*':
+            self.__ctrl.expected_agents
+            agents = copy.deepcopy(self.__ctrl.expected_agents)
+        else:
+            agents = [hosts]
         start_agents(agents)
 
     def on_cmd_agent_stop(self, *args, **kwargs):
+        """Agent stop command handler"""
         if args is None or len(args) < 1:
             return
         clientid = args[0]
-        data = {
-            T_CTRLCMD:  CtrlCmd.AGENT_STOP.name,
-            T_CLIENTID: clientid,
-            T_HOST:     clientid,
-        }
-        pub_ctrlcmd(self.__ctrl.subscriber, self.__ctrl.tcfg.mqtt_qos, data)
+        stop_agents(self.__ctrl.subscriber, clientid=clientid)
+
+    def on_cmd_agent_stop_force(self, *args, **kwargs):
+        """Agent force stop command handler"""
+        if args is None or len(args) < 1:
+            return
+        hosts = args[0]
+        if hosts == '*':
+            self.__ctrl.expected_agents
+            agents = copy.deepcopy(self.__ctrl.expected_agents)
+        else:
+            agents = [hosts]
+        force_stop_agents(agents)
+
+
+    def on_cmd_agent_list_less(self, *args, **kwargs):
+        """List available agnents with less details"""
+        [console_write("{}", k) for k in self.__ctrl.available_agents.keys()]
 
     def on_cmd_agent_list(self, *args, **kwargs):
-        [console_write("AGENT[{}]:{}", k, str(v)) for k,v in self.__ctrl.available_agents.items()] 
+        """List available agnents"""
+        [console_write("AGENT[{}]:{}", k, str(v)) for k,v in self.__ctrl.available_agents.items()]
 
     def on_cmd_agent(self, *args, **kwargs):
         """Operation on agent"""
@@ -164,25 +211,26 @@ class Console(threading.Thread):
         if self.__cmd_agent_routes.get(args[0]):
             self.__cmd_agent_routes[args[0]](*(params))
         else:
-            console_write(self.usages['usage_agent'])
+            console_write(str(self.usages['usage_agent']))
 
     def on_cmd_traffic(self, *args, **kwargs):
+        """Traffic command handler"""
         if args is None or len(args) == 0:
             return
         params = args[1:]
         if self.__cmd_traffic_routes.get(args[0]):
             self.__cmd_traffic_routes[args[0]](*(params))
         else:
-            console_write(self.usages['usage_traffic'])
-            
+            console_write(str(self.usages['usage_traffic']))
+
     def on_cmd_traffic_host(self, *args, **kwargs):
-        """
+        """Run serial command on specific host
         traffic host 127.0.0.1:1111 lighton 1112
         ['traffic', 'host', '127.0.0.1', 'lighton', '1112']
         ('127.0.0.1', 'lighton', '1112')
         """
         if len(args) < 3:
-            console_write(self.usages['usage_traffic'])
+            console_write(str(self.usages['usage_traffic']))
             return
         if len(self.__ctrl.host2aid) == 0:
             console_write("No available agent")
@@ -198,69 +246,70 @@ class Console(threading.Thread):
         pub_traffic(self.__ctrl.subscriber, self.__ctrl.tcfg.mqtt_qos, data)
 
     def on_cmd_traffic_deploy(self, *args, **kwargs):
-        print(args)
-        if args is None or len(args) < 2:
-            return
-        self.__ctrl.traffic_state.start()
+        """Traffic deploy command handler"""
+        console_write("Initialize traffic configure")
+        self.__ctrl.traffic_state.create()
+        self.__ctrl.traffic_state.next()
+        console_write("Waiting for agents to get ready")
         self.__ctrl.traffic_state.wait_agent()
+        console_write("Start deploying network layout")
         self.__ctrl.traffic_state.deploy()
-        console_write("Deploying network layout")
+        self.__ctrl.traffic_state.wait_nwlayout()
+        console_write("Netowrk deployment finished")
 
     def on_cmd_traffic_regtraf(self, *args, **kwargs):
-        if args is None or len(args) < 2:
-            return
-        self.__ctrl.traffic_state.wait_nwlayout()
+        """Register traffic command handler"""
+        console_write("Start registering traffic")
         self.__ctrl.traffic_state.register()
-        console_write("Traffic registerd")
-        
-    def on_cmd_traffic_run(self, *args, **kwargs):
-        if args is None or len(args) < 2:
-            return
         self.__ctrl.traffic_state.wait_traffic()
+        console_write("Traffic registerd")
+
+    def on_cmd_traffic_run(self, *args, **kwargs):
+        """Run traffic command handler"""
+        console_write("Start firing")
         self.__ctrl.traffic_state.fire()
-        console_write("Traffic fired")
+        self.__ctrl.traffic_state.traffic_finish()
+        console_write("One traffic fired")
 
     def on_cmd_help(self, *args, **kwargs):
+        """Help command handler"""
         if args is None or len(args) == 0 or len(args[0]) == 0:
-            console_write(self.usages['usage'])
+            console_write(str(self.usages['usage']))
             return
         command = args[0].strip()
         cmds = valid_cmds(command)
         if len(cmds) == 0:
-            console_write(self.usages['usage'])
+            console_write(str(self.usages['usage']))
             return
         subhelp = 'usage_{}'.format(cmds[0])
         if self.usages.get(subhelp):
-            console_write(self.usages[subhelp])
+            console_write(str(self.usages[subhelp]))
             return
         console_write(TSH_ERR_INVALID_CMD, command, 'help')
 
     def on_cmd_quit(self, *args, **kwargs):
-        """FORMAT: quit
-        """
+        """Quit command handler"""
         try:
-            self.__ctrl.subscriber.disconnect()
+            self.running = False
+            self.__ctrl.teardown()
             self.__ctrl_proc.join()
         except Exception as ex:
             pass
-        self.running = False
 
     def on_cmd_rsys(self, *args, **kwargs):
-        """FORMAT: @ <host> <system command>
-        """
-        print(args)
+        """Remote system command handler"""
         if args is None or len(args) < 2:
             return
         runonremote('root', args[0], ' '.join(args[1:]))
 
     def on_cmd_sys(self, *args, **kwargs):
-        """FORMAT: ! <system command>
-        """
+        """System command handler"""
         if args is None or len(args) == 0:
             return
         os.system(args[0])
 
-    def start(self): 
+    def start(self):
+        """Start inuithy shell"""
         console_write(self.__title)
         console_write(self.__banner)
         self.__ctrl_proc.start()
@@ -270,7 +319,8 @@ class Console(threading.Thread):
                 try:
                     command = console_reader(DEFAULT_PROMPT.format(self.__host))
                     command = command.strip()
-                    if len(command) == 0: continue
+                    if len(command) == 0:
+                        continue
                     tshhist.write(str(command)+'\n')
                     self.dispatch(command)
                 except Exception as ex:
@@ -294,6 +344,7 @@ class Console(threading.Thread):
             console_write(TSH_ERR_HANDLING_CMD, command, ex)
 
 def start_console(logger=None):
+    """Shortcut to start a inuithy shell"""
     term = Console()
     term.start()
     console_write("\nBye~\n")
