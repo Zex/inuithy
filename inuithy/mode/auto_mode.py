@@ -76,13 +76,14 @@ class AutoController(ControllerBase):
         """Cleanup"""
         try:
             if AutoController.initialized:
+                AutoController.initialized = False
                 self.lgr.info("Stop agents")
                 stop_agents(self._subscriber, self.tcfg.mqtt_qos)
                 time.sleep(5)
-                AutoController.initialized = False
+                if self._traffic_state is not None:
+                    self._traffic_state.running = False
                 if self._traffic_timer is not None:
                     self._traffic_timer.cancel()
-                self._traffic_state.running = False
                 self.storage.close()
                 self._subscriber.disconnect()
         except Exception as ex:

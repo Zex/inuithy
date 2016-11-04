@@ -59,6 +59,7 @@ class MonitorController(ControllerBase):
             self.lgr.info(string_write("Expected Agents({}): {}",\
                 len(self.chk.expected_agents), self.chk.expected_agents))
             self._alive_notification()
+            pub_enable_hb(self.subscriber)
 #            if self._traffic_timer is not None:
 #                self._traffic_timer.start()
             self._subscriber.loop_forever()
@@ -73,12 +74,14 @@ class MonitorController(ControllerBase):
         """Cleanup"""
         try:
             if MonitorController.initialized:
+                MonitorController.initialized = False
                 self.lgr.info("Stop agents")
                 stop_agents(self._subscriber, self.tcfg.mqtt_qos)
-                MonitorController.initialized = False
+                pub_disable_hb(self.subscriber)
+                if self._traffic_state is not None:
+                    self._traffic_state.running = False
                 if self._traffic_timer is not None:
                     self._traffic_timer.cancel()
-                self._traffic_state.running = False
                 self.storage.close()
                 self._subscriber.disconnect()
         except Exception as ex:
@@ -87,7 +90,7 @@ class MonitorController(ControllerBase):
     def on_topic_heartbeat(self, message):
         """Heartbeat message format:
         """
-#        self.lgr.info(string_write("On topic heartbeat"))
+        self.lgr.info(string_write("On topic heartbeat"))
         data = extract_payload(message.payload)
         agentid, host, nodes = data[T_CLIENTID], data[T_HOST], data[T_NODES]
         try:
@@ -126,13 +129,13 @@ class MonitorController(ControllerBase):
 
     def on_topic_reportwrite(self, message):
         """Report-written topic handler"""
-#        self.lgr.info(string_write("On topic reportwrite"))
+        self.lgr.info(string_write("On topic reportwrite"))
         data = extract_payload(message.payload)
         self.storage.insert_record(data)
 
     def on_topic_notification(self, message):
         """Report-read topic handler"""
-#       self.lgr.info(string_write("On topic notification"))
+        self.lgr.info(string_write("On topic notification"))
         data = extract_payload(message.payload)
         try:
             if data[T_TRAFFIC_TYPE] == TrafficType.JOIN.name:
@@ -140,7 +143,7 @@ class MonitorController(ControllerBase):
                     self.chk.nwlayout[data[T_PANID]][data[T_NODE]] = True
             elif data[T_TRAFFIC_TYPE] == TrafficType.SCMD.name:
                 pass
-            self.lgr.debug("NOTIFY: {}", data)
+            self.lgr.debug(string_write("NOTIFY: {}", data))
             self.storage.insert_record(data)
         except Exception as ex:
             self.lgr.error(string_write("Update nwlayout failed", ex))

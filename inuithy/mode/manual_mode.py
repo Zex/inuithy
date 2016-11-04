@@ -73,12 +73,13 @@ class ManualController(ControllerBase):
         """Cleanup"""
         try:
             if ManualController.initialized:
-                self.lgr.info("Stop agents")
-                stop_agents(self._subscriber, self.tcfg.mqtt_qos)
                 ManualController.initialized = False
-                if self._traffic_timer is not None:
-                    self._traffic_timer.cancel()
-                self._traffic_state.running = False
+#                self.lgr.info("Stop agents")
+#                stop_agents(self._subscriber, self.tcfg.mqtt_qos)
+#                if self._traffic_timer is not None:
+#                    self._traffic_timer.cancel()
+                if self._traffic_state is not None:
+                    self._traffic_state.running = False
                 self.storage.close()
                 self._subscriber.disconnect()
         except Exception as ex:
@@ -140,7 +141,7 @@ class ManualController(ControllerBase):
                     self.chk.nwlayout[data[T_PANID]][data[T_NODE]] = True
             elif data[T_TRAFFIC_TYPE] == TrafficType.SCMD.name:
                 pass
-            self.lgr.debug("NOTIFY: {}", data)
+            self.lgr.debug(string_write("NOTIFY: {}", data))
             self.storage.insert_record(data)
         except Exception as ex:
             self.lgr.error(string_write("Update nwlayout failed", ex))

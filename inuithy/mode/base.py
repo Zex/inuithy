@@ -189,7 +189,8 @@ class ControllerBase(object):
 #            message.qos, message.retain, message.state, message.timestamp,
 #            message.topic))
         try:
-            userdata.topic_routes[message.topic](message)
+#            userdata.topic_routes[message.topic](message)
+            thrd.Thread(target=userdata.topic_routes[message.topic], args=(message,)).start()
         except Exception as ex:
             userdata.lgr.error(string_write("Exception on MQ message dispatching: {}", ex))
 
