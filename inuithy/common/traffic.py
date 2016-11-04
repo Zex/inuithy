@@ -111,7 +111,7 @@ class TrafficGenerator(object):
         self.traffics = []
         self.nwlayoutid = getnwlayoutid(trcfg.config[T_NWCONFIG_PATH], self.cur_trcfg[T_NWLAYOUT])
         self.create_traffic(trcfg, nwcfg)
-        self.__genid = genid != None and genid or string_write("[{}]{}:{}",\
+        self.__genid = genid is not None and genid or string_write("[{}]{}:{}",\
             time.clock_gettime(time.CLOCK_REALTIME), self.nwlayoutid, trname)
 
     def __str__(self):
