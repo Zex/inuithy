@@ -62,5 +62,14 @@ sfood: $(BUILD_DOCS)
 
 install: $(LOGPATH)
 	
+run_logstash:
+	$(THIRDPARTY)/logstash/bin/logstash -f inuithy/config/logstash.yml
 
+run_elasticsearch:
+	$(THIRDPARTY)/elasticsearch/bin/elasticsearch
 	
+run_kibana:
+	$(THIRDPARTY)/kibana/bin/kibana
+
+run_elk: run_logstash run_elasticsearch run_kibana
+
