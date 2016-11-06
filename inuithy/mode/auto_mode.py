@@ -80,12 +80,14 @@ class AutoController(ControllerBase):
                 self.lgr.info("Stop agents")
                 stop_agents(self._subscriber, self.tcfg.mqtt_qos)
                 time.sleep(5)
-                if self._traffic_state is not None:
+                if self._traffic_state:
                     self._traffic_state.running = False
-                if self._traffic_timer is not None:
+                if self._traffic_timer:
                     self._traffic_timer.cancel()
-                self.storage.close()
-                self._subscriber.disconnect()
+                if self.storage:
+                    self.storage.close()
+                if self.subscriber:
+                    self._subscriber.disconnect()
         except Exception as ex:
             self.lgr.error(string_write("Exception on teardown: {}", ex))
 

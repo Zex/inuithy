@@ -32,24 +32,25 @@ class Command(object):
                 
     def __str__(self):
 
-        ret = string_write('{:>5} ', self.name)
-        desc_fmt = '{:>65}'
+        ret = string_write('{:<15} ', self.name)
+        desc_fmt = ' {}'
 
-        if len(self.args) > 0:
-            ret += string_write('{:<20}', self.args)
-        if len(self.args) > 20:
-            desc_fmt = '{:>100}'
-            ret += '\n'
-        else:
-            desc_fmt = '{:>65}'
+        if len(self.args) >= 30:
+            ret += string_write('{:<30}\n', self.args)
+            ret += string_write(' ' * 46)
+        elif len(self.args) > 0 and len(self.args) < 30:
+            ret += string_write('{:<30}', self.args)
+        elif len(self.args) == 0:
+            ret += string_write(' ' * 30)
 
         descs = self.desc.split('\n')
 
-        ret += string_write('{}', descs[0])
+        ret += string_write(desc_fmt, descs[0])
+
         if len(descs) > 1:
+            ret += string_write('\n' + ' ' * 46)
             for line in descs[1:]:
                 ret += string_write(desc_fmt, line)
-                ret += '\n'
         ret = ret.strip('\n')
         return ret
 

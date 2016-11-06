@@ -83,6 +83,7 @@ class Console(threading.Thread):
     Command(TSH_CMD_QUIT, desc="Leave me"),
 #    Command(TSH_CMD_CONFIG, desc="Configure items"),
     Command(TSH_CMD_AGENT, desc="Operations on agents"),
+    Command(TSH_CMD_TRAFFIC, desc="Run traffic"),
     Command(TSH_CMD_EXCLAM, "<system command>", desc="Execute shell command"),
     Command(TSH_CMD_AT, "<host> <system command>",\
         desc="Execute shell command on remote host"),
@@ -206,7 +207,9 @@ class Console(threading.Thread):
 
     def on_cmd_agent(self, *args, **kwargs):
         """Operation on agent"""
-        if args is None or len(args) == 0:  return
+        if args is None or len(args) == 0:
+            console_write(str(self.usages['usage_agent']))
+            return
         params = args[1:]
         if self.__cmd_agent_routes.get(args[0]):
             self.__cmd_agent_routes[args[0]](*(params))
@@ -216,6 +219,7 @@ class Console(threading.Thread):
     def on_cmd_traffic(self, *args, **kwargs):
         """Traffic command handler"""
         if args is None or len(args) == 0:
+            console_write(str(self.usages['usage_traffic']))
             return
         params = args[1:]
         if self.__cmd_traffic_routes.get(args[0]):
@@ -291,10 +295,12 @@ class Console(threading.Thread):
         """Quit command handler"""
         try:
             self.running = False
-            self.__ctrl.teardown()
-            self.__ctrl_proc.join()
+            if self.__ctrl:
+                self.__ctrl.teardown()
+            if self.__ctrl_proc and self.__ctrl_proc.is_alive():
+                self.__ctrl_proc.join()
         except Exception as ex:
-            pass
+            console_write("Exception on quit", ex)
 
     def on_cmd_rsys(self, *args, **kwargs):
         """Remote system command handler"""
@@ -308,6 +314,22 @@ class Console(threading.Thread):
             return
         os.system(args[0])
 
+    def console_loop(self, tshhist=None):
+        """Console main loop"""
+        while self.running:
+            try:
+                command = console_reader(DEFAULT_PROMPT.format(self.__host))
+                command = command.strip()
+                if len(command) == 0:
+                    continue
+                if tshhist:
+                    tshhist.write(str(command)+'\n')
+                self.dispatch(command)
+            except Exception as ex:
+                console_write(TSH_ERR_GENERAL, ex)
+            except KeyboardInterrupt:
+                self.on_cmd_quit()
+
     def start(self):
         """Start inuithy shell"""
         console_write(self.__title)
@@ -315,18 +337,7 @@ class Console(threading.Thread):
         self.__ctrl_proc.start()
         mod = os.path.exists(self.__ctrl.tcfg.tsh_hist) and 'a+' or 'w+'
         with open(self.__ctrl.tcfg.tsh_hist, mod) as tshhist:
-            while self.running:
-                try:
-                    command = console_reader(DEFAULT_PROMPT.format(self.__host))
-                    command = command.strip()
-                    if len(command) == 0:
-                        continue
-                    tshhist.write(str(command)+'\n')
-                    self.dispatch(command)
-                except Exception as ex:
-                    console_write(TSH_ERR_GENERAL, ex)
-                except KeyboardInterrupt:
-                    self.on_cmd_quit()
+            self.console_loop(tshhist)
 
     def dispatch(self, command):
         if command is None or len(command) == 0:
