@@ -197,8 +197,8 @@ class TrafficExecutor(TrafficTrigger):
         self.stop_timer.start()
 
         while self.running: # TODO debug check
-            console_write(self.command, self.data)
-#            self.node.write(self.command, self.data)
+#            console_write(self.command, self.data)
+            self.node.write(self.command, self.data)
             time.sleep(self.timeslot)
 
     def __str__(self):

@@ -91,6 +91,7 @@ T_TRAFFICS = 'traffics'
 T_PANID = 'panid'
 T_CHANNEL = 'channel'
 T_GENID = 'genid'
+T_REPORTDIR = 'reportdir'
 
 T_CLIENTID = 'clientid'
 T_TRAFFIC_TYPE = 'traffic_type'

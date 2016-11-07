@@ -3,12 +3,13 @@
 """
 from inuithy.common.predef import TrafficType, T_TRAFFIC_TYPE, T_MSG,\
 INUITHY_LOGCONFIG, T_MSG_TYPE, MessageType, string_write, T_TYPE,\
-T_ADDR, T_PORT, T_PANID
+T_ADDR, T_PORT, T_PANID, T_TIME, T_NODE
 from inuithy.util.cmd_helper import pub_reportwrite, pub_notification
 from inuithy.protocol.ble_protocol import BleProtocol as BleProt
 from inuithy.protocol.zigbee_protocol import ZigbeeProtocol
 import logging.config as lconf
 import threading as thrd
+from datetime import datetime as dt
 from copy import deepcopy
 from enum import Enum
 import logging
@@ -33,6 +34,7 @@ class SerialNode(object):
         else:
             self.lgr = lgr
         self.port = port
+        self.addr = None
         self.ntype = ntype
         self.reporter = reporter
         # TODO: create serial object
@@ -50,9 +52,14 @@ class SerialNode(object):
         if report is not None:
             #TODO parse rdbuf
 #            report[T_MSG] = rdbuf
+            report[T_NODE] = self.addr
+#            if rdbuf.split(' ')[0] == 'joingrp':
+#                report[T_TRAFFIC_TYPE] = TrafficType.JOIN.name
             import random
             traftype = random.randint(TrafficType.JOIN.value, TrafficType.SCMD.value)
             report[T_TRAFFIC_TYPE] = traftype == TrafficType.JOIN.value and TrafficType.JOIN.name or TrafficType.SCMD.name
+
+            report[T_TIME] = str(dt.now())
             self.report_read(report)
         return rdbuf
 
@@ -63,6 +70,8 @@ class SerialNode(object):
             written = self.__serial.write(data)
         #TODO -->
         if report is not None:
+            self.report = deepcopy(report)
+            report[T_TIME] = str(dt.now())
             report[T_MSG] = data
             self.report_write(report)
 
