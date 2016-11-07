@@ -3,7 +3,7 @@
 """
 from inuithy.common.version import INUITHY_VERSION
 from inuithy.common.predef import T_CLIENTID, T_TRAFFIC_TYPE, T_PANID,\
-T_NODE, T_HOST, T_NODES, INUITHY_TOPIC_HEARTBEAT, T_TID,\
+T_NODE, T_HOST, T_NODES, INUITHY_TOPIC_HEARTBEAT, T_TID, T_MSG,\
 T_TRAFFIC_STATUS, TrafficStatus, TrafficType, string_write,\
 TRAFFIC_CONFIG_PATH, INUITHY_CONFIG_PATH, INUITHY_TITLE,\
 INUITHY_TOPIC_UNREGISTER, INUITHY_LOGCONFIG,\
@@ -128,6 +128,8 @@ class AutoController(ControllerBase):
             self.lgr.info(string_write("Traffic {} registered on {}",\
                 data.get(T_TID), data.get(T_CLIENTID)))
             self.chk.traffic_set[data.get(T_TID)] = True
+        elif data.get(T_MSG):
+            self.lgr.info(data.get(T_MSG))
         else:
             self.lgr.debug(string_write("Unhandled status message {}", data))
 
@@ -142,15 +144,15 @@ class AutoController(ControllerBase):
 #       self.lgr.info(string_write("On topic notification"))
         data = extract_payload(message.payload)
         try:
+            self.lgr.debug(string_write("NOTIFY: {}", data))
             if data[T_TRAFFIC_TYPE] == TrafficType.JOIN.name:
-                if self.chk.nwlayout.get(data[T_PANID]) is not None:
-                    self.chk.nwlayout[data[T_PANID]][data[T_NODE]] = True
+                if self.chk.nwlayout.get(data.get(T_PANID)) is not None:
+                    self.chk.nwlayout[data.get(T_PANID)][data.get(T_NODE)] = True
             elif data[T_TRAFFIC_TYPE] == TrafficType.SCMD.name:
                 pass
-            self.lgr.debug(string_write("NOTIFY: {}", data))
             self.storage.insert_record(data)
         except Exception as ex:
-            self.lgr.error(string_write("Update nwlayout failed", ex))
+            self.lgr.error(string_write("Update nwlayout failed: {}", ex))
 
 def start_controller(tcfg, trcfg, lgr=None):
     """Shortcut to start controller"""
