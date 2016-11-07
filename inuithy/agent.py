@@ -6,7 +6,7 @@ INUITHY_VERSION, INUITHY_CONFIG_PATH, CtrlCmd, INUITHY_TOPIC_TRAFFIC,\
 INUITHY_TOPIC_CONFIG, INUITHYAGENT_CLIENT_ID, T_ADDR, T_HOST, T_NODE,\
 T_CLIENTID, T_TID, T_TIMESLOT, T_DURATION, T_NODES, T_RECIPIENT,\
 T_TRAFFIC_STATUS, T_MSG, T_CTRLCMD, TrafficStatus, T_TRAFFIC_TYPE,\
-INUITHY_LOGCONFIG, INUITHY_TOPIC_COMMAND, TrafficType
+INUITHY_LOGCONFIG, INUITHY_TOPIC_COMMAND, TrafficType, T_MSG
 from inuithy.util.helper import getpredefaddr
 from inuithy.util.cmd_helper import pub_status, pub_heartbeat, pub_unregister, extract_payload
 from inuithy.util.config_manager import create_inuithy_cfg
@@ -144,9 +144,10 @@ class Agent(object):
             "MQ.Subscribe: client:{} userdata:[{}], mid:{}, grated_qos:{}",
             client, userdata, mid, granted_qos))
 
-    def teardown(self, msg=''):
+    def teardown(self, msg='Teardown'):
         try:
             if self.initialized:
+                msg = string_write("{}:{}", self.clientid, msg)
                 pub_status(self.__subscriber, self.tcfg.mqtt_qos, {T_MSG: msg})
                 self.unregister()
                 if self.__heartbeat is not None:
