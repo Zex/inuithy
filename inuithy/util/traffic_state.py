@@ -4,10 +4,12 @@
 from inuithy.common.predef import T_TID, T_GENID, T_TRAFFIC_TYPE,\
 T_CLIENTID, T_NODE, T_HOST, T_DURATION, T_TIMESLOT, T_SENDER,\
 T_RECIPIENT, T_PKGSIZE, T_NODES, T_PATH, T_NWLAYOUT, T_PANID,\
-console_write, string_write, TrafficType, T_TRAFFIC_FINISH_DELAY
+console_write, string_write, TrafficType, T_TRAFFIC_FINISH_DELAY,\
+TrafficStorage, StorageType
 from inuithy.util.helper import getnwlayoutname
 from inuithy.util.cmd_helper import pub_traffic, start_agents
 from inuithy.common.traffic import create_traffics
+from inuithy.analysis.pandas_plugin import PandasAnalyzer
 from state_machine import State, Event, acts_as_state_machine,\
 after, before, InvalidStateTransition
 from datetime import datetime as dt
@@ -133,9 +135,10 @@ class TrafficState:
     waitfor_agent_all_up = State()
     waitfor_nwlayout_done = State()
     waitfor_traffic_all_set = State()
+    reportgened = State()
 
-    create = Event(from_states=(stopped), to_state=created)
-    start = Event(from_states=(created), to_state=started)
+    create = Event(from_states=(stopped, started), to_state=created)
+    start = Event(from_states=(stopped, created), to_state=started)
     wait_agent = Event(from_states=(started, created), to_state=waitfor_agent_all_up)
     deploy = Event(from_states=(created, waitfor_agent_all_up, started, traffic_finished),\
                 to_state=waitfor_nwlayout_done)
@@ -147,8 +150,9 @@ class TrafficState:
     finish = Event(from_states=(
         stopped, started, created, nwconfigured, registered, running,
         traffic_finished, waitfor_agent_all_up,
-        waitfor_nwlayout_done, waitfor_traffic_all_set,
+        waitfor_nwlayout_done, waitfor_traffic_all_set, reportgened,
     ), to_state=(finished))
+    analyze = Event(from_states=traffic_finished, to_state=reportgened)
 
     def __init__(self, controller, lgr=None, trdelay=1):
         """
@@ -162,12 +166,14 @@ class TrafficState:
         else:
             self.lgr = lgr
         self.current_tg = None
+        self.current_genid = None
         self.traffic_delay = trdelay
         self.running = True
 
     def record_genid(self, genid):
         """Record running generator ID"""
         try:
+            self.current_genid = genid
             with open(self.ctrl.tcfg.config[T_GENID][T_PATH], 'a') as fd:
                 fd.write(string_write("{},{}\n", genid, str(dt.now())))
         except Exception as ex:
@@ -245,6 +251,7 @@ class TrafficState:
             self.wait_traffic()
             self.fire()
             self.traffic_finish()
+            self.analyze()
         except Exception as ex:
             self.lgr.error(string_write("Traffic state transition failed: {}", str(ex)))
 
@@ -252,7 +259,8 @@ class TrafficState:
         """Configure network by given network layout"""
         self.lgr.info(string_write("Config network: [{}]", nwlayoutname))
         for subnet in self.ctrl.nwcfg.config.get(nwlayoutname).values():
-            data = subnet
+            data = deepcopy(subnet)
+            del data[T_NODES]
             self.ctrl.chk.create_nwlayout(subnet.get(T_PANID), subnet.get(T_NODES))
             for node in subnet.get(T_NODES):
                 target_host = self.ctrl.node2host.get(node)
@@ -327,6 +335,15 @@ class TrafficState:
         while self.running and not self.ctrl.chk.is_traffic_finished():
             time.sleep(2)
         self.ctrl.chk.traffire = {}
+
+    @after('analyze')
+    def do_analyze(self):
+        """Analyze collected data"""
+        self.lgr.info(string_write("Try analysing: {}", str(self.current_state)))
+        if self.ctrl.tcfg.storagetype in [
+            (TrafficStorage.DB.name, StorageType.MongoDB.name),]:
+            if self.current_genid is not None:
+                PandasAnalyzer.gen_report(genid=self.current_genid)
 
     @after('finish')
     def do_finish(self):

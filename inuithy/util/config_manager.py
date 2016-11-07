@@ -9,7 +9,7 @@ T_AGENTS, T_CONTROLLER, T_USER, T_TRAFFIC_STORAGE, T_GENID, T_PATH,\
 T_PORT, WorkMode, TrafficStorage, StorageType, T_PASSWD, T_CHANNEL,\
 T_GATEWAY, T_TARGET_TRAFFICS, T_DURATION, T_PKGSIZE, T_PKGRATE,\
 T_RECIPIENTS, T_SENDERS, T_NWLAYOUT, NETWORK_CONFIG_PATH,\
-TRAFFIC_CONFIG_PATH, T_HOST
+TRAFFIC_CONFIG_PATH, T_HOST, T_REPORTDIR
 from abc import ABCMeta, abstractmethod
 import logging
 import logging.config as lconf
@@ -174,7 +174,7 @@ class InuithyConfig(Config):
     @property
     def storagetype(self):
         """Storage type"""
-        return self.config[T_TRAFFIC_STORAGE][T_TYPE].split(':')
+        return tuple(self.config[T_TRAFFIC_STORAGE][T_TYPE].split(':'))
     @storagetype.setter
     def storagetype(self, val):
         pass
@@ -214,10 +214,13 @@ class InuithyConfig(Config):
         }
         # Inuithy shell config
         self.config[T_TSH] = {
-            T_HISTORY: '.inuithy.cache',
+            T_HISTORY: '/var/log/inuithy/inuithy.cache',
         }
         self.config[T_GENID] = {
-            T_PATH: '.inuithy.genid',
+            T_PATH: '/var/log/inuithy/inuithy.genid',
+        }
+        self.config[T_REPORTDIR] = {
+            T_PATH: '/var/log/inuithy/report',
         }
 
 class NetworkConfig(Config):
