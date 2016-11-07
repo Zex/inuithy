@@ -11,7 +11,7 @@ include makefiles/pack.mk
 
 .PHONY: $(VERSION_PATH) $(OUTPUT_TAR_PATH) $(BUILD) clean version sample_config traffic_config_chk run_controller run_tsh $(LOGBASE) install run_agent run_mosquitto
 
-all: $(OUTPUT_TAR_PATH)
+all: $(OUTPUT_TAR_PATH) install
 
 version: $(VERSION_PATH)
 
@@ -60,7 +60,7 @@ sfood: $(BUILD_DOCS)
 	$(PS2PDF) $(BUILD_DOCS)/inuithy.ps $(BUILD_DOCS)/inuithy.pdf
 	$(RM) $(BUILD_DOCS)/inuithy.dot $(BUILD_DOCS)/inuithy.ps
 
-install: $(LOGPATH)
+install: $(LOGPATH) $(REPORTBASE)
 	
 run_logstash:
 	$(THIRDPARTY)/logstash/bin/logstash -f inuithy/config/logstash.yml

@@ -21,6 +21,7 @@ VERSION_PATH     := inuithy/common/version.py
 PROJECT_PATH	 := /opt/inuithy
 LOGBASE			 := /var/log/inuithy/
 LOGPATH			 := $(LOGBASE)/inuithy.log
+REPORTBASE		 := $(LOGBASE)/report
 MOSQUITTO_CONFIG := inuithy/config/mosquitto.conf
 MONGODB_CONFIG	 := inuithy/config/mongod.conf
 
@@ -28,6 +29,9 @@ $(BUILD):
 	$(MKDIR) $@	
 
 $(BUILD_DOCS):
+	$(MKDIR) $@
+
+$(REPORTBASE):
 	$(MKDIR) $@
 
 $(LOGBASE):
