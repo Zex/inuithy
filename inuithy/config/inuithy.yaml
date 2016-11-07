@@ -4,7 +4,9 @@ enable_mqdebug: false
 mqtt: {host: 127.0.0.1, port: 1883, qos: 0}
 inuithy_shell: {history: /var/log/inuithy/inuithy.cache}
 genid: {path: /var/log/inuithy/inuithy.genid}
+reportdir: {path: /var/log/inuithy/report}
 traffic_storage: {passwd: '', path: '127.0.0.1:19713', type: 'DB:MongoDB', user: ''}
-#workmode: AUTO
+#traffic_storage: {passwd: '', path: '127.0.0.1:1737', type: 'DB:Splunk', user: ''}
+workmode: AUTO
 #workmode: MORNITOR
-workmode: MANUAL
+#workmode: MANUAL
