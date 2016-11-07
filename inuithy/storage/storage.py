@@ -4,6 +4,7 @@
 from inuithy.common.predef import INUITHY_LOGCONFIG, T_PATH, T_TRAFFIC_STORAGE,\
 string_write, TrafficStorage, StorageType
 from inuithy.storage.mongodb_plugin import MongodbStorage
+from inuithy.storage.splunk_plugin import SplunkStorage
 import logging
 import logging.config as lconf
 
@@ -69,6 +70,10 @@ class Storage(object):
         if sttype == TrafficStorage.DB.name:
             if stname == StorageType.MongoDB.name:
                 self.__dbplugin = MongodbStorage(
+                    *(s[T_PATH].split(":"))
+                ) 
+            elif stname == StorageType.Splunk.name:
+                self.__dbplugin = SplunkStorage(
                     *(s[T_PATH].split(":"))
                 ) 
         else: #TODO TrafficStorage.FILE.name
