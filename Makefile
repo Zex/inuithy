@@ -52,7 +52,7 @@ run_all_agents:
 	ssh root@127.0.0.1 "pushd $(PROJECT_PATH);nohup $(PYTHON) inuithy/agent.py" &
 
 viewlog:
-	vim $(LOGPATH)
+	$(VIM) $(LOGPATH)
 
 sfood: $(BUILD_DOCS)
 	$(SFOOD) --follow --internal inuithy | sfood-graph > $(BUILD_DOCS)/inuithy.dot
