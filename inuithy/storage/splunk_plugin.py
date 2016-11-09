@@ -1,9 +1,9 @@
 """ Splunk adapter for Inuithy
- @author: yun li <yun.li AT philips.com>
+ @author: Zex Li <top_zlynch@yahoo.com>
 """
 from inuithy.common.predef import MessageType, T_HOST, StorageType,\
 T_RECORDS, T_MSG_TYPE, string_write, T_TIME, T_GENID, T_CLIENTID,\
-T_SENDER, T_RECIPIENT, T_PKGSIZE, T_TYPE
+T_SENDER, T_RECIPIENT, T_PKGSIZE, T_TYPE, T_MSG
 import socket, time
 
 #import thirdparty.splunklib.client as client
@@ -102,7 +102,8 @@ class SplunkStorage(object):
         return data[T_GENID]
 
     def insert_record(self, data):
-        msg = ' '.join(['{}={}'.format(k, v) for k, v in data.items()])
+        msg = ' '.join(['{}={}'.format(k, v) for k, v in data.items() if k != T_MSG])
+        msg += ' '.join(['{}="{}"'.format(T_MSG, data.get(T_MSG))])
         msg += '\r\n'
         self.cli.send(msg.encode())
 

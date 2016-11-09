@@ -9,7 +9,7 @@ from inuithy.protocol.ble_protocol import BleProtocol as BleProt
 from inuithy.protocol.zigbee_protocol import ZigbeeProtocol
 import logging.config as lconf
 import threading as thrd
-from datetime import datetime as dt
+#from datetime import datetime as dt
 from copy import deepcopy
 from enum import Enum
 import logging
@@ -59,7 +59,7 @@ class SerialNode(object):
             traftype = random.randint(TrafficType.JOIN.value, TrafficType.SCMD.value)
             report[T_TRAFFIC_TYPE] = traftype == TrafficType.JOIN.value and TrafficType.JOIN.name or TrafficType.SCMD.name
 
-            report[T_TIME] = str(dt.now())
+            report[T_TIME] = str(int(time.time()))#dt.now())
             self.report_read(report)
         return rdbuf
 
@@ -71,7 +71,7 @@ class SerialNode(object):
         #TODO -->
         if report is not None:
             self.report = deepcopy(report)
-            report[T_TIME] = str(dt.now())
+            report[T_TIME] = str(int(time.time()))#dt.now())
             report[T_MSG] = data
             self.report_write(report)
 

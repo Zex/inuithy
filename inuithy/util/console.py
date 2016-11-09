@@ -38,6 +38,7 @@ TSH_CMD_DEPLOY = "deploy"
 TSH_CMD_RUN = "run"
 TSH_CMD_REGTRAF = "regtraf"
 TSH_CMD_WHOHAS = "whohas"
+TSH_CMD_GENREPORT = "report"
 
 console_reader = hasattr(__builtins__, 'raw_input') and raw_input or input
 
@@ -111,7 +112,9 @@ class Console(threading.Thread):
     Command(delimstr(' ', TSH_CMD_TRAFFIC, TSH_CMD_REGTRAF),\
         desc="Register predefined traffic to agents"),
     Command(delimstr(' ', TSH_CMD_TRAFFIC, TSH_CMD_RUN),\
-        desc="Run registed traffic"),]),
+        desc="Run registed traffic"),
+    Command(delimstr(' ', TSH_CMD_TRAFFIC, TSH_CMD_GENREPORT),\
+        desc="Generate report for previous traffic"),]),
 #            "usage_config": Usage(self.__title, [
 #    Command(delimstr(' ', TSH_CMD_CONFIG, 'nw'),\
 #        "<network_config_file>",\
@@ -148,6 +151,7 @@ class Console(threading.Thread):
             TSH_CMD_DEPLOY:     self.on_cmd_traffic_deploy,
             TSH_CMD_RUN:        self.on_cmd_traffic_run,
             TSH_CMD_REGTRAF:    self.on_cmd_traffic_regtraf,
+            TSH_CMD_GENREPORT:  self.on_cmd_traffic_genreport,
         }
 
     def __init__(self, group=None, target=None, name=None, args =(), kwargs=None, verbose=None):
@@ -260,6 +264,11 @@ class Console(threading.Thread):
         self.__ctrl.traffic_state.deploy()
         self.__ctrl.traffic_state.wait_nwlayout()
         console_write("Netowrk deployment finished")
+
+    def on_cmd_traffic_genreport(self, *args, **kwargs):
+        """Traffic report generation handler"""
+        console_write("Generating traffic report")
+        self.__ctrl.traffic_state.genreport()
 
     def on_cmd_traffic_regtraf(self, *args, **kwargs):
         """Register traffic command handler"""

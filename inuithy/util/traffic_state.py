@@ -5,11 +5,12 @@ from inuithy.common.predef import T_TID, T_GENID, T_TRAFFIC_TYPE,\
 T_CLIENTID, T_NODE, T_HOST, T_DURATION, T_TIMESLOT, T_SENDER,\
 T_RECIPIENT, T_PKGSIZE, T_NODES, T_PATH, T_NWLAYOUT, T_PANID,\
 console_write, string_write, TrafficType, T_TRAFFIC_FINISH_DELAY,\
-TrafficStorage, StorageType
+TrafficStorage, StorageType, INUITHY_CONFIG_PATH
 from inuithy.util.helper import getnwlayoutname
 from inuithy.util.cmd_helper import pub_traffic, start_agents
 from inuithy.common.traffic import create_traffics
 from inuithy.analysis.pandas_plugin import PandasAnalyzer
+from inuithy.util.task_manager import ProcTaskManager
 from state_machine import State, Event, acts_as_state_machine,\
 after, before, InvalidStateTransition
 from datetime import datetime as dt
@@ -152,7 +153,7 @@ class TrafficState:
         traffic_finished, waitfor_agent_all_up,
         waitfor_nwlayout_done, waitfor_traffic_all_set, reportgened,
     ), to_state=(finished))
-    analyze = Event(from_states=traffic_finished, to_state=reportgened)
+    genreport = Event(from_states=traffic_finished, to_state=reportgened)
 
     def __init__(self, controller, lgr=None, trdelay=1):
         """
@@ -251,7 +252,7 @@ class TrafficState:
             self.wait_traffic()
             self.fire()
             self.traffic_finish()
-            self.analyze()
+            self.genreport()
         except Exception as ex:
             self.lgr.error(string_write("Traffic state transition failed: {}", str(ex)))
 
@@ -336,14 +337,19 @@ class TrafficState:
             time.sleep(2)
         self.ctrl.chk.traffire = {}
 
-    @after('analyze')
-    def do_analyze(self):
-        """Analyze collected data"""
+    @after('genreport')
+    def do_genreport(self):
+        """Analyze collected data and generate report"""
         self.lgr.info(string_write("Try analysing: {}", str(self.current_state)))
         if self.ctrl.tcfg.storagetype in [
             (TrafficStorage.DB.name, StorageType.MongoDB.name),]:
             if self.current_genid is not None:
-                PandasAnalyzer.gen_report(genid=self.current_genid)
+                tmg = ProcTaskManager()
+                tmg.create_task(PandasAnalyzer.gen_report, (INUITHY_CONFIG_PATH, self.current_genid,))
+                tmg.waitall()
+#                PandasAnalyzer.gen_report(genid=self.current_genid)
+        else:
+            self.lgr.info(string_write("Unsupported storage type: {}", str(self.ctrl.tcfg.storagetype)))
 
     @after('finish')
     def do_finish(self):
