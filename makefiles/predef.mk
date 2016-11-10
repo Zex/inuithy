@@ -14,6 +14,7 @@ DOT			:= @dot
 TAILEND		:= @tail -1
 PS2PDF		:= @ps2pdf
 VIM			:= @vim
+ULIMIT		:= @ulimit
 
 
 BUILD		     := build
