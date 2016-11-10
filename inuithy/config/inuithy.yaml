@@ -1,5 +1,5 @@
 controller: {host: 127.0.0.1}
-enable_localdebug: False
+enable_localdebug: True #False
 enable_mqdebug: false
 mqtt: {host: 127.0.0.1, port: 1883, qos: 0}
 inuithy_shell: {history: /var/log/inuithy/inuithy.cache}
