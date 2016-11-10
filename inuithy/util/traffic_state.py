@@ -204,6 +204,8 @@ class TrafficState:
     @before('create')
     def do_create(self):
         self.lgr.info(string_write("Create traffic from configure: {}", str(self.current_state)))
+        if not self.running:
+            return
         self.trgens = create_traffics(self.ctrl.trcfg, self.ctrl.nwcfg)
         self.next_tgs = self.yield_traffic()
         self.lgr.info(string_write("Total generator: [{}]", len(self.trgens)))
@@ -228,11 +230,15 @@ class TrafficState:
 
     def yield_traffic(self):
         """Yield traffic generator"""
+        if not self.running:
+            return
         for tg in self.trgens:
             yield tg
 
     def next(self):
         """Next traffic generator"""
+        if not self.running:
+            return
         self.current_tg = next(self.next_tgs)
         nwlayoutname = getnwlayoutname(self.current_tg.nwlayoutid)
         cfg = {
@@ -259,6 +265,8 @@ class TrafficState:
     def config_network(self, nwlayoutname):
         """Configure network by given network layout"""
         self.lgr.info(string_write("Config network: [{}]", nwlayoutname))
+        if not self.running:
+            return
         for subnet in self.ctrl.nwcfg.config.get(nwlayoutname).values():
             data = deepcopy(subnet)
             del data[T_NODES]
@@ -289,7 +297,10 @@ class TrafficState:
     def do_register(self, tg=None):
         """Register traffic to agents"""
         self.lgr.info(string_write("Register traffic task: {}", str(self.current_state)))
-        if tg is None: tg = self.current_tg
+        if not self.running:
+            return
+        if tg is None:
+            tg = self.current_tg
         self.lgr.info(string_write("Register traffic: [{}]", str(tg)))
         for tr in tg.traffics:
             try:
@@ -320,6 +331,8 @@ class TrafficState:
     def do_fire(self):
         """Tell agents to fire registerd traffic"""
         self.lgr.info(string_write("Fire traffic: {}", str(self.current_state)))
+        if not self.running:
+            return
         self.ctrl.chk.create_traffire()
         for agent in self.ctrl.chk.available_agents.keys():
             console_write(string_write("Fire on {}", agent))
@@ -328,7 +341,7 @@ class TrafficState:
                 T_TRAFFIC_TYPE: TrafficType.START.name,
             }
             pub_traffic(self.ctrl.subscriber, self.ctrl.tcfg.mqtt_qos, data)
-    
+
     @before('traffic_finish')
     def do_traffic_finish(self):
         """Waif for one traffic finished"""
@@ -341,7 +354,9 @@ class TrafficState:
     def do_genreport(self):
         """Analyze collected data and generate report"""
         self.lgr.info(string_write("Try analysing: {}", str(self.current_state)))
-        if self.ctrl.tcfg.storagetype in [
+        if not self.running:
+            return
+        if self.ctrl.tcfg.storagetype in [\
             (TrafficStorage.DB.name, StorageType.MongoDB.name),]:
             if self.current_genid is not None:
                 tmg = ProcTaskManager()
@@ -355,6 +370,8 @@ class TrafficState:
     def do_finish(self):
         """All traffic finished"""
         self.lgr.info(string_write("All finished: {}", str(self.current_state)))
+        if not self.running:
+            return
         console_write("Wait for last notifications")
         if not self.ctrl.tcfg.enable_localdebug:
             time.sleep(self.ctrl.tcfg.config.get(T_TRAFFIC_FINISH_DELAY))

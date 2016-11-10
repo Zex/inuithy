@@ -26,7 +26,7 @@ class TrafficTrigger(threading.Thread):
 
     def __init__(self, interval=0, duration=0, target=None,\
         name="Trigger", daemon=False, *args, **kwargs):
-        threading.Thread.__init__(self, target=target,
+        threading.Thread.__init__(self, target=target,\
             name=name, args=args, kwargs=kwargs, daemon=daemon)
         self.stop_timer = threading.Timer(duration, self._stop_trigger)
         self.__interval = interval

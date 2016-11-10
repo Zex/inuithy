@@ -4,13 +4,13 @@
 from inuithy.common.predef import INUITHY_LOGCONFIG, string_write,\
 INUITHY_TITLE, INUITHY_VERSION, INUITHY_CONFIG_PATH, T_ENABLE_LDEBUG,\
 T_MQTT, T_WORKMODE, T_ENABLE_MQDEBUG, T_TSH, T_HISTORY, T_QOS,\
-T_TARGET_AGENTS, T_NODES, T_PANID, T_NODE, T_NWCONFIG_PATH, T_TYPE,\
+T_TARGET_AGENTS, T_NODES, T_PANID, T_NWCONFIG_PATH, T_TYPE,\
 T_AGENTS, T_CONTROLLER, T_USER, T_TRAFFIC_STORAGE, T_GENID, T_PATH,\
 T_PORT, WorkMode, TrafficStorage, StorageType, T_PASSWD, T_CHANNEL,\
 T_GATEWAY, T_TARGET_TRAFFICS, T_DURATION, T_PKGSIZE, T_PKGRATE,\
 T_RECIPIENTS, T_SENDERS, T_NWLAYOUT, NETWORK_CONFIG_PATH,\
-TRAFFIC_CONFIG_PATH, T_HOST, T_REPORTDIR
-from abc import ABCMeta, abstractmethod
+TRAFFIC_CONFIG_PATH, T_HOST, T_REPORTDIR, T_TRAFFIC_FINISH_DELAY
+from abc import ABCMeta#, abstractmethod
 import logging
 import logging.config as lconf
 
@@ -280,27 +280,99 @@ class NetworkConfig(Config):
         # Expected agent list
         self.config[T_AGENTS] = {
             'agent_0': {
+                T_HOST:     '192.168.100.130',
+                T_NODES:    [
+                    '1101', '1102', '1103', '1104'
+                ],
+            },
+            'agent_1': {
                 T_HOST:     '192.168.100.131',
                 T_NODES:    [
                     '1111', '1112', '1113', '1114',
                 ],
             },
-            'agent_1': {
+            'agent_2': {
                 T_HOST:     '192.168.100.132',
                 T_NODES:    [
                     '1121', '1122', '1123', '1124',
-                ],
-            },
-            'agent_2': {
-                T_HOST:     '192.168.100.133',
-                T_NODES:    [
-                    '1131', '1132', '1133', '1134',
                     ],
             },
             'agent_3': {
+                T_HOST:     '192.168.100.133',
+                T_NODES:    [
+                    '1131', '1132', '1133', '1134',
+                ],
+            },
+            'agent_4': {
                 T_HOST:     '192.168.100.134',
                 T_NODES:    [
-                    '1141', '1142', '1143', '1144',
+                    '1141', '1142', '1143', '1144'
+                ],
+            },
+            'agent_5': {
+                T_HOST:     '192.168.100.135',
+                T_NODES:    [
+                    '1151', '1152', '1153', '1154',
+                ],
+            },
+            'agent_6': {
+                T_HOST:     '192.168.100.136',
+                T_NODES:    [
+                    '1161', '1162', '1163', '1164',
+                    ],
+            },
+            'agent_7': {
+                T_HOST:     '192.168.100.137',
+                T_NODES:    [
+                    '1171', '1172', '1173', '1174',
+                ],
+            },
+            'agent_8': {
+                T_HOST:     '192.168.100.138',
+                T_NODES:    [
+                    '1181', '1182', '1183', '1184'
+                ],
+            },
+            'agent_9': {
+                T_HOST:     '192.168.100.139',
+                T_NODES:    [
+                    '1191', '1192', '1193', '1194',
+                ],
+            },
+            'agent_a': {
+                T_HOST:     '192.168.100.140',
+                T_NODES:    [
+                    '11a1', '11a2', '11a3', '11a4',
+                    ],
+            },
+            'agent_b': {
+                T_HOST:     '192.168.100.141',
+                T_NODES:    [
+                    '11b1', '11b2', '11b3', '11b4',
+                ],
+            },
+            'agent_c': {
+                T_HOST:     '192.168.100.142',
+                T_NODES:    [
+                    '11c1', '11c2', '11c3', '11c4'
+                ],
+            },
+            'agent_d': {
+                T_HOST:     '192.168.100.143',
+                T_NODES:    [
+                    '11d1', '11d2', '11d3', '11d4',
+                ],
+            },
+            'agent_e': {
+                T_HOST:     '192.168.100.144',
+                T_NODES:    [
+                    '11e1', '11e2', '11e3', '11e4',
+                    ],
+            },
+            'agent_f': {
+                T_HOST:     '192.168.100.145',
+                T_NODES:    [
+                    '11f1', '11f2', '11f3', '11f4',
                 ],
             },
         }
@@ -316,7 +388,7 @@ class NetworkConfig(Config):
                 ],
             },
             'subnet_1': {
-                T_PANID     : 6262441166221516,
+                T_PANID     : '6262441166221516',
                 T_CHANNEL   : 16,
                 T_GATEWAY   : '1144',
                 T_NODES     : [
@@ -331,10 +403,22 @@ class NetworkConfig(Config):
                 T_CHANNEL   : 17,
                 T_GATEWAY   : '1122',
                 T_NODES     : [
+                    '1101', '1102', '1103', '1104',
                     '1111', '1112', '1113', '1114',
-                    '1122', '1123', '1124', '1134',
-                    '1121', '1131', '1132', '1133',
+                    '1121', '1122', '1123', '1124',
+                    '1131', '1132', '1133', '1134',
                     '1141', '1142', '1143', '1144',
+                    '1151', '1152', '1153', '1154',
+                    '1161', '1162', '1163', '1164',
+                    '1172', '1173', '1174', '1134',
+                    '1181', '1181', '1182', '1183',
+                    '1191', '1192', '1193', '1194',
+                    '11a1', '11a2', '11a3', '11a4',
+                    '11b1', '11b2', '11b3', '11b4',
+                    '11c1', '11c2', '11c3', '11c4',
+                    '11d1', '11d2', '11d3', '11d4',
+                    '11e1', '11e2', '11e3', '11e4',
+                    '11f1', '11f2', '11f3', '11f4',
                 ],
             },
         }
@@ -469,6 +553,20 @@ class TrafficConfig(Config):
             # seconds
             T_DURATION  : 360,
         }
+        self.config["traffic_5"] = {
+            T_NWLAYOUT  : 'network_1',
+            T_SENDERS   : [
+                '*',
+            ],
+            T_RECIPIENTS: [
+                '*',
+            ],
+            # package / seconds
+            T_PKGRATE   : 0.2,
+            T_PKGSIZE   : 2,
+            # seconds
+            T_DURATION  : 10,
+        }
         # Network layout configure path
         self.config[T_NWCONFIG_PATH] = NETWORK_CONFIG_PATH
         # Traffics to run
@@ -476,7 +574,10 @@ class TrafficConfig(Config):
             "traffic_0", "traffic_2",
         ]
         self.config[T_TARGET_AGENTS] = [
-            "agent_0", "agent_1",
+            "agent_0", "agent_1", "agent_2", "agent_3",
+            "agent_4", "agent_5", "agent_6", "agent_7",
+            "agent_8", "agent_9", "agent_a", "agent_b",
+            "agent_c", "agent_d", "agent_e", "agent_f",
         ]
         # Delay befor finish one traffic, in second
         self.config[T_TRAFFIC_FINISH_DELAY] = 30
@@ -504,7 +605,7 @@ if __name__ == '__main__':
 
     cfg = InuithyConfig(INUITHY_CONFIG_PATH)
     cfg.create_sample()
-    cfg.dump_yaml()
+#    cfg.dump_yaml()
     cfg.config_path = INUITHY_CONFIG_PATH.replace('yaml', 'json')
     cfg.dump_json()
 
@@ -516,7 +617,7 @@ if __name__ == '__main__':
 
     cfg = TrafficConfig(TRAFFIC_CONFIG_PATH)
     cfg.create_sample()
-    cfg.dump_yaml()
+#    cfg.dump_yaml()
     cfg.config_path = TRAFFIC_CONFIG_PATH.replace('yaml', 'json')
     cfg.dump_json()
 

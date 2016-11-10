@@ -11,7 +11,14 @@ Command, Usage, TSH_ERR_INVALID_CMD
 from inuithy.util.helper import valid_cmds, runonremote, delimstr
 from inuithy.util.cmd_helper import start_agents, stop_agents
 import multiprocessing as mp
-import socket, threading, logging, signal, sys, glob, os, os.path
+import socket
+import threading
+import logging
+import signal
+import sys
+import glob
+import os
+import os.path
 import logging.config as lconf
 from random import randint
 import copy
@@ -76,57 +83,56 @@ class Console(threading.Thread):
             console_write("Setup banner failed: {}", ex)
 
     def __register_routes(self):
-        # TODO command routes
         self.usages = {
-            "usage": Usage(self.__title, [
-    Command(TSH_CMD_HELP, desc="Print inuithy shell usage"),
-    Command(TSH_CMD_HELP, "<command>", desc="Print usage for <command>"),
-    Command(TSH_CMD_QUIT, desc="Leave me"),
+            "usage": Usage(self.__title, [\
+    Command(TSH_CMD_HELP, desc="Print inuithy shell usage"),\
+    Command(TSH_CMD_HELP, "<command>", desc="Print usage for <command>"),\
+    Command(TSH_CMD_QUIT, desc="Leave me"),\
 #    Command(TSH_CMD_CONFIG, desc="Configure items"),
-    Command(TSH_CMD_AGENT, desc="Operations on agents"),
-    Command(TSH_CMD_TRAFFIC, desc="Run traffic"),
-    Command(TSH_CMD_EXCLAM, "<system command>", desc="Execute shell command"),
+    Command(TSH_CMD_AGENT, desc="Operations on agents"),\
+    Command(TSH_CMD_TRAFFIC, desc="Run traffic"),\
+    Command(TSH_CMD_EXCLAM, "<system command>", desc="Execute shell command"),\
     Command(TSH_CMD_AT, "<host> <system command>",\
-        desc="Execute shell command on remote host"),
+        desc="Execute shell command on remote host"),\
     ]),
-            "usage_agent": Usage(self.__title, [
-    Command(delimstr(' ', TSH_CMD_AGENT, TSH_CMD_LIST), desc="Print available agents"),
+            "usage_agent": Usage(self.__title, [\
+    Command(delimstr(' ', TSH_CMD_AGENT, TSH_CMD_LIST), desc="Print available agents"),\
     Command(delimstr(' ', TSH_CMD_AGENT, TSH_CMD_LIST_LESS),\
-        desc="Print available agents with less details"),
-    Command(delimstr(' ', TSH_CMD_AGENT, TSH_CMD_START),
+        desc="Print available agents with less details"),\
+    Command(delimstr(' ', TSH_CMD_AGENT, TSH_CMD_START),\
         desc="Start agent on <host>\n"\
     "'*' for all targetted hosts"),
     Command(delimstr(' ', TSH_CMD_AGENT, TSH_CMD_STOP),\
         desc="Stop agent on <host>\n"\
-    "'*' for all targetted hosts"),
+    "'*' for all targetted hosts"),\
     Command(delimstr(' ', TSH_CMD_AGENT, TSH_CMD_FORCE_STOP),\
         desc="Force stop agent on <host>\n"\
-    "'*' for all targetted hosts"),
+    "'*' for all targetted hosts"),\
     ]),
-            "usage_traffic": Usage(self.__title, [
+            "usage_traffic": Usage(self.__title, [\
     Command(delimstr(' ', TSH_CMD_TRAFFIC, TSH_CMD_HOST),\
-    "<host>:<node addr> <serial command>",
-    "Send serial command to agent on <host>"),
+    "<host>:<node addr> <serial command>",\
+    "Send serial command to agent on <host>"),\
     Command(delimstr(' ', TSH_CMD_TRAFFIC, TSH_CMD_DEPLOY),\
         desc="Deploy predefined network layout"),
     Command(delimstr(' ', TSH_CMD_TRAFFIC, TSH_CMD_REGTRAF),\
         desc="Register predefined traffic to agents"),
     Command(delimstr(' ', TSH_CMD_TRAFFIC, TSH_CMD_RUN),\
-        desc="Run registed traffic"),
+        desc="Run registed traffic"),\
     Command(delimstr(' ', TSH_CMD_TRAFFIC, TSH_CMD_GENREPORT),\
         desc="Generate report for previous traffic"),]),
 #            "usage_config": Usage(self.__title, [
 #    Command(delimstr(' ', TSH_CMD_CONFIG, 'nw'),\
 #        "<network_config_file>",\
 #        "Create network layout based on <network_config_file>"),]),
-        "usage_quit": Usage(self.__title, [
-    Command(TSH_CMD_QUIT, desc="Leave me")]),
-        "usage_help": Usage(self.__title, [
-    Command(TSH_CMD_HELP, desc="Print inuithy shell usage")]),
-        "usage_!": Usage(self.__title, [
+        "usage_quit": Usage(self.__title, [\
+    Command(TSH_CMD_QUIT, desc="Leave me")]),\
+        "usage_help": Usage(self.__title, [\
+    Command(TSH_CMD_HELP, desc="Print inuithy shell usage")]),\
+        "usage_!": Usage(self.__title, [\
     Command(TSH_CMD_EXCLAM, "<system command>",\
-        desc="Execute shell command"),]),
-        "usage_@": Usage(self.__title, [
+        desc="Execute shell command"),]),\
+        "usage_@": Usage(self.__title, [\
     Command(TSH_CMD_AT, "<host> <system command>",\
         desc="Execute shell command on remote host"),]),
         }
@@ -154,7 +160,8 @@ class Console(threading.Thread):
             TSH_CMD_GENREPORT:  self.on_cmd_traffic_genreport,
         }
 
-    def __init__(self, group=None, target=None, name=None, args =(), kwargs=None, verbose=None):
+    def __init__(self, group=None, target=None, name=None, args=(), kwargs=None, verbose=None):
+        threading.Thread.__init__(self, target=target, name=name, args=args, kwargs=kwargs, daemon=False)
         self.__title = INUITHY_TITLE.format(INUITHY_VERSION, "Shell")
         self.__running = True
         self.__banner = ""
@@ -166,7 +173,7 @@ class Console(threading.Thread):
     def create_controller(self):
         """Run a Controller in manual mode"""
         self.__ctrl = ManualController(INUITHY_CONFIG_PATH, TRAFFIC_CONFIG_PATH)
-        self.__ctrl_proc = threading.Thread(target =self.__ctrl.start, name ="Ctrl@InuithyShell")
+        self.__ctrl_proc = threading.Thread(target=self.__ctrl.start, name="Ctrl@InuithyShell")
         self.__ctrl_proc.daemon = False
 
     def on_cmd_agent_start(self, *args, **kwargs):
@@ -207,7 +214,7 @@ class Console(threading.Thread):
 
     def on_cmd_agent_list(self, *args, **kwargs):
         """List available agnents"""
-        [console_write("AGENT[{}]:{}", k, str(v)) for k,v in self.__ctrl.available_agents.items()]
+        [console_write("AGENT[{}]:{}", k, str(v)) for k, v in self.__ctrl.available_agents.items()]
 
     def on_cmd_agent(self, *args, **kwargs):
         """Operation on agent"""
