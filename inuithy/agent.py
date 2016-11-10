@@ -6,7 +6,7 @@ INUITHY_VERSION, INUITHY_CONFIG_PATH, CtrlCmd, INUITHY_TOPIC_TRAFFIC,\
 INUITHY_TOPIC_CONFIG, INUITHYAGENT_CLIENT_ID, T_ADDR, T_HOST, T_NODE,\
 T_CLIENTID, T_TID, T_TIMESLOT, T_DURATION, T_NODES, T_RECIPIENT,\
 T_TRAFFIC_STATUS, T_MSG, T_CTRLCMD, TrafficStatus, T_TRAFFIC_TYPE,\
-INUITHY_LOGCONFIG, INUITHY_TOPIC_COMMAND, TrafficType, T_MSG
+INUITHY_LOGCONFIG, INUITHY_TOPIC_COMMAND, TrafficType
 from inuithy.util.helper import getpredefaddr
 from inuithy.util.cmd_helper import pub_status, pub_heartbeat, pub_unregister, extract_payload
 from inuithy.util.config_manager import create_inuithy_cfg
@@ -111,8 +111,8 @@ class Agent(object):
 #            message.qos, message.retain, message.state, message.timestamp,
 #            message.topic))
         try:
-#            userdata.topic_routes[message.topic](message)
-            thrd.Thread(target=userdata.topic_routes[message.topic], args=(message,)).start()
+            userdata.topic_routes[message.topic](message)
+#            thrd.Thread(target=userdata.topic_routes[message.topic], args=(message,)).start()
         except Exception as ex:
             msg = string_write("Exception on MQ message dispatching: {}", ex)
             lgr.error(msg)
@@ -305,10 +305,24 @@ class Agent(object):
 #       import random, string
 #       [self.__addr2node.__setitem__(''.join([random.choice(string.hexdigits)\
 #           for i in range(4)]), n) for n in self.__sad.nodes]
-        samples = ['1111', '1112', '1113', '1114',
-                   '1121', '1122', '1123', '1124',
-                   '1131', '1132', '1133', '1134',
-                   '1141', '1142', '1143', '1144']
+        samples = [
+                    '1101', '1102', '1103', '1104',
+                    '1111', '1112', '1113', '1114',
+                    '1121', '1122', '1123', '1124',
+                    '1131', '1132', '1133', '1134',
+                    '1141', '1142', '1143', '1144',
+                    '1151', '1152', '1153', '1154',
+                    '1161', '1162', '1163', '1164',
+                    '1172', '1173', '1174', '1134',
+                    '1181', '1181', '1182', '1183',
+                    '1191', '1192', '1193', '1194',
+                    '11a1', '11a2', '11a3', '11a4',
+                    '11b1', '11b2', '11b3', '11b4',
+                    '11c1', '11c2', '11c3', '11c4',
+                    '11d1', '11d2', '11d3', '11d4',
+                    '11e1', '11e2', '11e3', '11e4',
+                    '11f1', '11f2', '11f3', '11f4',
+                ]
         [self.__addr2node.__setitem__(addr, n) for addr, n in zip(samples, self.__sad.nodes)]
         [n.__setattr__(T_ADDR, addr) for addr, n in zip(samples, self.__sad.nodes)]
         [str(n) for n in self.__sad.nodes]
@@ -388,7 +402,17 @@ class Agent(object):
             data[T_CLIENTID] = self.clientid
             data[T_HOST] = self.host
             cmd = node.prot.traffic(data[T_RECIPIENT])
-            te = TrafficExecutor(node, cmd, data[T_TIMESLOT], data[T_DURATION], data)
+            report = {
+                T_GENID: data.get(T_GENID),
+                T_TRAFFIC_TYPE: data.get(T_TRAFFIC_TYPE),
+                T_NODE: data.get(T_NODE),
+                T_HOST: self.host,
+                T_CLIENTID: self.clientid,
+                T_SENDER: data.get(T_SENDER),
+                T_RECIPIENT: data.get(T_RECIPIENT),
+                T_PKGSIZE: data.get(T_PKGSIZE),
+            }
+            te = TrafficExecutor(node, cmd, data[T_TIMESLOT], data[T_DURATION], report)
             self.__traffic_executors.append(te)
             pub_status(self.__subscriber, self.tcfg.mqtt_qos, {
                 T_TRAFFIC_STATUS:   TrafficStatus.REGISTERED.name,
