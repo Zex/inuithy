@@ -25,67 +25,74 @@ class PandasAnalyzer(object):
     """Analysis helper"""
     @staticmethod
     def gen_sender_pack(recs, genid, pdf_pg):
-   
-        index = []
-        count = {}
-        for v in recs:
-            t = v.get(T_TIME)
-            n = v.get(T_SENDER)
-            if n is None or t is None:
-                continue
-            if count.get(n) is None:
-                count[n] = {t:1}
-            elif count.get(n).get(t) is None:
-                count[n][t] = 1
-            else:
-                count[n][t] += 1
-            index = count.get(n).keys()
-        index = list(index)
-        index.sort()
-        data = {}
-        for i in index:
-            for n, c in count.items():
-                if data.get(n) is not None:
-                    data[n].append(c.get(i))
-                else:
-                    data[n] = [c.get(i)]
-
-        df = pd.DataFrame(data, index=range(len(index)), columns=data.keys())
-        df.plot.line(grid=False, colormap='rainbow')
-        plt.title("Number of packs sent via address")
-        pdf_pg.savefig()
+        pass   
+#        index = []
+#        count = {}
+#        for v in recs:
+#            t = v.get(T_TIME)
+#            n = v.get(T_SENDER)
+#            if n is None or t is None:
+#                continue
+#            if count.get(n) is None:
+#                count[n] = {t:1}
+#            elif count.get(n).get(t) is None:
+#                count[n][t] = 1
+#            else:
+#                count[n][t] += 1
+#            print("=>", str(count))
+#            index = count.values().keys()#.get(t+n)
+#        index = list(index)
+#        index.sort()
+#        data = {}
+#        for i in index:
+#            for n, c in count.items():
+#                if data.get(n) is not None:
+#                    data[n].append(c.get(i))
+#                else:
+#                    data[n] = [c.get(i)]
+#
+#        df = pd.DataFrame(data, index=range(len(index)), columns=data.keys())
+#        df.plot.line(grid=False, colormap='rainbow')
+#        plt.title("Number of packs sent via address")
+#        pdf_pg.savefig()
 
     @staticmethod
     def gen_recipient_pack(recs, genid, pdf_pg):
    
-        index = []
-        count = {}
-        for v in recs:
-            t = v.get(T_TIME)
-            n = v.get(T_RECIPIENT)
-            if n is None or t is None:
-                continue
-            if count.get(n) is None:
-                count[n] = {t:1}
-            elif count.get(n).get(t) is None:
-                count[n][t] = 1
-            else:
-                count[n][t] += 1
-            index = count.get(n).keys()
-        index = list(index)
-        index.sort()
-        data = {}
-        for i in index:
-            for n, c in count.items():
-                if data.get(n) is not None:
-                    data[n].append(c.get(i))
-                else:
-                    data[n] = [c.get(i)]
-
-        df = pd.DataFrame(data, index=range(len(index)), columns=data.keys())
-        df.plot.line(grid=False, colormap='rainbow')
-        plt.title("Number of packs received via address")
-        pdf_pg.savefig()
+        for rec in recs:
+            line = []
+            for k, v in rec.items():
+                line.append(v)
+            print(tuple(rec.keys()))
+            print(line)
+#        index = []
+#        count = {}
+#        for v in recs:
+#            t = v.get(T_TIME)
+#            n = v.get(T_RECIPIENT)
+#            if n is None or t is None:
+#                continue
+#            if count.get(n) is None:
+#                count[n] = {t:1}
+#            elif count.get(n).get(t) is None:
+#                count[n][t] = 1
+#            else:
+#                count[n][t] += 1
+#            index = count.get(n).keys()
+#        index = list(index)
+#        index.sort()
+#        data = {}
+#        for i in index:
+#            for n, c in count.items():
+#                if data.get(n) is not None:
+#                    data[n].append(c.get(i))
+#                else:
+#                    data[n] = [c.get(i)]
+#
+#        df = pd.DataFrame(data, index=range(len(index)), columns=data.keys())
+#        df.plot.line(grid=False, colormap='rainbow')
+#        plt.title("Number of packs received via address")
+#        pdf_pg.savefig()
 
     @staticmethod
     def gen_total_gwpack(recs, genid, pdf_pg):
@@ -155,7 +162,7 @@ class PandasAnalyzer(object):
             #DEBUG
             with open('records-{}'.format(genid), 'w') as fd:
                 for r in recs:
-                    fd.write(str(r))
+                    fd.write(str(r)+'\n')
             with PdfPages(string_write('{}/{}.pdf', cfg.config[T_REPORTDIR][T_PATH], genid)) as pdf_pg:
                 PandasAnalyzer.gen_total_pack(recs, genid, pdf_pg) 
                 PandasAnalyzer.gen_sender_pack(recs, genid, pdf_pg) 
@@ -166,7 +173,8 @@ if __name__ == '__main__':
 
 #    PandasAnalyzer.gen_report(genid='581fdfe3362ac719d1c96eb3')
 #    PandasAnalyzer.gen_report(genid='1478508817')
-    PandasAnalyzer.gen_report(genid='1478585096')
+#    PandasAnalyzer.gen_report(genid='1478585096')
+    import sys
+    if len(sys.argv) > 1:
+        PandasAnalyzer.gen_report(genid=argv[1])
 
-#import matplotlib.pyplot as plt
-#import pandas as pd
