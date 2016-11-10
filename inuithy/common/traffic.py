@@ -129,8 +129,8 @@ class TrafficGenerator(object):
         nodes = []
         for s in tr[T_SENDERS]:
             if s == '*':
-                for sname in nw.keys():
-                    sub = nwcfg.subnet(nw, sname)
+                for sub_name in nwcfg.config.get(nw):
+                    sub = nwcfg.subnet(nw, sub_name)
                     if sub is None: raise ValueError(string_write(TRAFFIC_ERR_NOSUBNET, sub, nw))
                     [nodes.append(node) for node in sub[T_NODES]]
             elif is_number(s):
