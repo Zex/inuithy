@@ -6,7 +6,8 @@ INUITHY_VERSION, INUITHY_CONFIG_PATH, CtrlCmd, INUITHY_TOPIC_TRAFFIC,\
 INUITHY_TOPIC_CONFIG, INUITHYAGENT_CLIENT_ID, T_ADDR, T_HOST, T_NODE,\
 T_CLIENTID, T_TID, T_TIMESLOT, T_DURATION, T_NODES, T_RECIPIENT,\
 T_TRAFFIC_STATUS, T_MSG, T_CTRLCMD, TrafficStatus, T_TRAFFIC_TYPE,\
-INUITHY_LOGCONFIG, INUITHY_TOPIC_COMMAND, TrafficType
+INUITHY_LOGCONFIG, INUITHY_TOPIC_COMMAND, TrafficType, DEV_TTY, T_GENID,\
+T_SENDER 
 from inuithy.util.helper import getpredefaddr
 from inuithy.util.cmd_helper import pub_status, pub_heartbeat, pub_unregister, extract_payload
 from inuithy.util.config_manager import create_inuithy_cfg
@@ -313,8 +314,8 @@ class Agent(object):
                     '1141', '1142', '1143', '1144',
                     '1151', '1152', '1153', '1154',
                     '1161', '1162', '1163', '1164',
-                    '1172', '1173', '1174', '1134',
-                    '1181', '1181', '1182', '1183',
+                    '1171', '1172', '1173', '1174',
+                    '1181', '1182', '1183', '1184',
                     '1191', '1192', '1193', '1194',
                     '11a1', '11a2', '11a3', '11a4',
                     '11b1', '11b2', '11b3', '11b4',
@@ -335,7 +336,7 @@ class Agent(object):
         status_msg = 'Agent fine'
         try:
             self.lgr.info(string_write("Starting Agent {}", self.clientid))
-            self.__sad.scan_nodes()
+            self.__sad.scan_nodes(DEV_TTY.format('*'))
             self.lgr.info(string_write("Connected nodes: [{}]", self.__sad.nodes))
             self.addr_to_node()
             self.register()
@@ -373,7 +374,7 @@ class Agent(object):
     def on_traffic_join(self, data):
         """Traffic join command handler"""
         self.lgr.info(string_write("Join request"))
-        naddr = data[T_NODE]
+        naddr = data.get(T_NODE)
         node = self.addr2node.get(naddr)
         self.lgr.debug(string_write("Found node: {}", node))
         data[T_CLIENTID] = self.clientid
@@ -399,20 +400,20 @@ class Agent(object):
         node = self.addr2node.get(naddr)
         if None != node:
             self.lgr.debug(string_write("Found node: {}", node))
-            data[T_CLIENTID] = self.clientid
-            data[T_HOST] = self.host
-            cmd = node.prot.traffic(data[T_RECIPIENT])
+#            data[T_CLIENTID] = self.clientid
+#            data[T_HOST] = self.host
+            cmd = node.prot.traffic(data.get(T_RECIPIENT))
             report = {
+                T_HOST: self.host,
+                T_CLIENTID: self.clientid,
                 T_GENID: data.get(T_GENID),
                 T_TRAFFIC_TYPE: data.get(T_TRAFFIC_TYPE),
                 T_NODE: data.get(T_NODE),
-                T_HOST: self.host,
-                T_CLIENTID: self.clientid,
                 T_SENDER: data.get(T_SENDER),
                 T_RECIPIENT: data.get(T_RECIPIENT),
                 T_PKGSIZE: data.get(T_PKGSIZE),
             }
-            te = TrafficExecutor(node, cmd, data[T_TIMESLOT], data[T_DURATION], report)
+            te = TrafficExecutor(node, cmd, data.get(T_TIMESLOT), data.get(T_DURATION), report)
             self.__traffic_executors.append(te)
             pub_status(self.__subscriber, self.tcfg.mqtt_qos, {
                 T_TRAFFIC_STATUS:   TrafficStatus.REGISTERED.name,
@@ -433,11 +434,11 @@ class Agent(object):
         }
         """
         self.lgr.info(string_write("TSH request"))
-        naddr = data[T_NODE]
+        naddr = data.get(T_NODE)
         node = self.addr2node.get(naddr)
         if node is not None:
             self.lgr.debug(string_write("Found node: {}", node))
-            node.write(data[T_MSG])
+            node.write(data.get(T_MSG))
         else: # DEBUG
             self.lgr.error(string_write("{}: Node [{}] not found", self.clientid, naddr))
 
