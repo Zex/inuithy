@@ -1,7 +1,7 @@
 ## Predefinition for make
 # Author: Zex Li <top_zlynch@yahoo.com>
 #
-ECHO		:= @echo
+ECHO		:= @echo -e
 TAR			:= @tar
 FIND		:= @find
 RM			:= @rm -rf
@@ -15,9 +15,9 @@ TAILEND		:= @tail -1
 PS2PDF		:= @ps2pdf
 VIM			:= @vim
 ULIMIT		:= @ulimit
+CD			:= @cd
 
-
-BUILD		     := build
+BUILD		     := $(shell pwd)/build
 BUILD_DOCS		 := $(BUILD)/docs
 THIRDPARTY		 := thirdparty
 VERSION_PATH     := inuithy/common/version.py

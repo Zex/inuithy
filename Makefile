@@ -16,7 +16,7 @@ all: $(OUTPUT_TAR_PATH) install
 version: $(VERSION_PATH)
 
 clean:
-	$(ECHO) "-----------------Cleaning-------------------"
+	$(ECHO) "\033[01;32m[Cleaning]\033[00m"
 	$(FIND) . -name *.pyc -delete 
 	$(FIND) . -name __pycache__ -exec rm -rf {} \;
 	$(RM) $(VERSION_PATH)
@@ -73,4 +73,5 @@ run_kibana:
 	$(THIRDPARTY)/kibana/bin/kibana
 
 run_elk: run_logstash run_elasticsearch run_kibana
+
 
