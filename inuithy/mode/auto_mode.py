@@ -21,12 +21,12 @@ class AutoController(ControllerBase):
     """Controller in automatic mode
     """
     def create_mqtt_subscriber(self, host, port):
-        self._subscriber = mqtt.Client(self.clientid, True, self)
-        self._subscriber.on_connect = AutoController.on_connect
-        self._subscriber.on_message = AutoController.on_message
-        self._subscriber.on_disconnect = AutoController.on_disconnect
-        self._subscriber.connect(host, port)
-        self._subscriber.subscribe([
+        self._mqclient = mqtt.Client(self.clientid, True, self)
+        self._mqclient.on_connect = AutoController.on_connect
+        self._mqclient.on_message = AutoController.on_message
+        self._mqclient.on_disconnect = AutoController.on_disconnect
+        self._mqclient.connect(host, port)
+        self._mqclient.subscribe([
             (INUITHY_TOPIC_HEARTBEAT, self.tcfg.mqtt_qos),
             (INUITHY_TOPIC_UNREGISTER, self.tcfg.mqtt_qos),
             (INUITHY_TOPIC_STATUS, self.tcfg.mqtt_qos),
@@ -62,7 +62,7 @@ class AutoController(ControllerBase):
             self._alive_notification()
             if self._traffic_timer is not None:
                 self._traffic_timer.start()
-            self._subscriber.loop_forever()
+            self._mqclient.loop_forever()
         except KeyboardInterrupt:
             self.lgr.info(string_write("AutoController received keyboard interrupt"))
         except NameError as ex:
@@ -78,7 +78,7 @@ class AutoController(ControllerBase):
             if AutoController.initialized:
                 AutoController.initialized = False
                 self.lgr.info("Stop agents")
-                stop_agents(self._subscriber, self.tcfg.mqtt_qos)
+                stop_agents(self._mqclient, self.tcfg.mqtt_qos)
                 time.sleep(5)
                 if self._traffic_state:
                     self._traffic_state.running = False
@@ -86,8 +86,8 @@ class AutoController(ControllerBase):
                     self._traffic_timer.cancel()
                 if self.storage:
                     self.storage.close()
-                if self.subscriber:
-                    self._subscriber.disconnect()
+                if self.mqclient:
+                    self.mqclient.disconnect()
         except Exception as ex:
             self.lgr.error(string_write("Exception on teardown: {}", ex))
 
@@ -144,12 +144,15 @@ class AutoController(ControllerBase):
 #       self.lgr.info(string_write("On topic notification"))
         data = extract_payload(message.payload)
         try:
-            self.lgr.debug(string_write("NOTIFY: {}", data))
+#            self.lgr.debug(string_write("NOTIFY: {}", data))
             if data[T_TRAFFIC_TYPE] == TrafficType.JOIN.name:
                 if self.chk.nwlayout.get(data.get(T_PANID)) is not None:
                     self.chk.nwlayout[data.get(T_PANID)][data.get(T_NODE)] = True
             elif data[T_TRAFFIC_TYPE] == TrafficType.SCMD.name:
                 pass
+            # Record traffic only
+            # if data.get(SCMD)
+#            if data.get(T_SENDER) and data.get(T_RECIPIENT):
             self.storage.insert_record(data)
         except Exception as ex:
             self.lgr.error(string_write("Update nwlayout failed: {}", ex))

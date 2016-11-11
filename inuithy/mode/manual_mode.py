@@ -20,12 +20,12 @@ class ManualController(ControllerBase):
     """Controller in automatic mode
     """
     def create_mqtt_subscriber(self, host, port):
-        self._subscriber = mqtt.Client(self.clientid, True, self)
-        self._subscriber.on_connect = ManualController.on_connect
-        self._subscriber.on_message = ManualController.on_message
-        self._subscriber.on_disconnect = ManualController.on_disconnect
-        self._subscriber.connect(host, port)
-        self._subscriber.subscribe([
+        self._mqclient = mqtt.Client(self.clientid, True, self)
+        self._mqclient.on_connect = ManualController.on_connect
+        self._mqclient.on_message = ManualController.on_message
+        self._mqclient.on_disconnect = ManualController.on_disconnect
+        self._mqclient.connect(host, port)
+        self._mqclient.subscribe([
             (INUITHY_TOPIC_HEARTBEAT, self.tcfg.mqtt_qos),
             (INUITHY_TOPIC_UNREGISTER, self.tcfg.mqtt_qos),
             (INUITHY_TOPIC_STATUS, self.tcfg.mqtt_qos),
@@ -61,7 +61,7 @@ class ManualController(ControllerBase):
             self._alive_notification()
 #            if self._traffic_timer is not None:
 #                self._traffic_timer.start()
-            self._subscriber.loop_forever()
+            self._mqclient.loop_forever()
         except KeyboardInterrupt:
             self.lgr.info(string_write("ManualController received keyboard interrupt"))
         except Exception as ex:
@@ -75,15 +75,15 @@ class ManualController(ControllerBase):
             if ManualController.initialized:
                 ManualController.initialized = False
 #                self.lgr.info("Stop agents")
-#                stop_agents(self._subscriber, self.tcfg.mqtt_qos)
+#                stop_agents(self._mqclient, self.tcfg.mqtt_qos)
 #                if self._traffic_timer is not None:
 #                    self._traffic_timer.cancel()
                 if self._traffic_state:
                     self._traffic_state.running = False
                 if self.storage:
                     self.storage.close()
-                if self.subscriber:
-                    self.subscriber.disconnect()
+                if self.mqclient:
+                    self.mqclient.disconnect()
         except Exception as ex:
             self.lgr.error(string_write("Exception on teardown: {}", ex))
 

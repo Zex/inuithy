@@ -40,11 +40,11 @@ class ControllerBase(object):
         pass
 
     @property
-    def subscriber(self):
+    def mqclient(self):
         """Message queue client"""
-        return self._subscriber
-    @subscriber.setter
-    def subscriber(self, val):
+        return self._mqclient
+    @mqclient.setter
+    def mqclient(self, val):
         pass
 
     @property
@@ -153,7 +153,7 @@ class ControllerBase(object):
             self.lgr = lgr
         else:
             self.lgr = logging
-        self._subscriber = None
+        self._mqclient = None
         self._storage = None
         self.topic_routes = {}
         self._current_nwlayout = ('', '')
@@ -201,7 +201,7 @@ class ControllerBase(object):
             "MQ.Disconnection: client:{} userdata:[{}] rc:{}",
             client, userdata, rc))
         if 0 != rc:
-            userdata.lgr.info(string_write("MQ.Disconnection: disconnection error"))
+            userdata.lgr.error(string_write("MQ.Disconnection: disconnection error"))
 
     @staticmethod
     def on_log(client, userdata, level, buf):
@@ -229,7 +229,7 @@ class ControllerBase(object):
             T_CTRLCMD:  CtrlCmd.NEW_CONTROLLER.name,
             T_CLIENTID: self.clientid,
         }
-        pub_ctrlcmd(self._subscriber, self.tcfg.mqtt_qos, data)
+        pub_ctrlcmd(self._mqclient, self.tcfg.mqtt_qos, data)
 
     def add_agent(self, agentid, host, nodes):
         """Register started agent"""

@@ -20,12 +20,12 @@ class MonitorController(ControllerBase):
     """Controller in automatic mode
     """
     def create_mqtt_subscriber(self, host, port):
-        self._subscriber = mqtt.Client(self.clientid, True, self)
-        self._subscriber.on_connect = MonitorController.on_connect
-        self._subscriber.on_message = MonitorController.on_message
-        self._subscriber.on_disconnect = MonitorController.on_disconnect
-        self._subscriber.connect(host, port)
-        self._subscriber.subscribe([
+        self._mqclient = mqtt.Client(self.clientid, True, self)
+        self._mqclient.on_connect = MonitorController.on_connect
+        self._mqclient.on_message = MonitorController.on_message
+        self._mqclient.on_disconnect = MonitorController.on_disconnect
+        self._mqclient.connect(host, port)
+        self._mqclient.subscribe([
             (INUITHY_TOPIC_HEARTBEAT, self.tcfg.mqtt_qos),
             (INUITHY_TOPIC_UNREGISTER, self.tcfg.mqtt_qos),
             (INUITHY_TOPIC_STATUS, self.tcfg.mqtt_qos),
@@ -59,10 +59,10 @@ class MonitorController(ControllerBase):
             self.lgr.info(string_write("Expected Agents({}): {}",\
                 len(self.chk.expected_agents), self.chk.expected_agents))
             self._alive_notification()
-            pub_enable_hb(self.subscriber)
+            pub_enable_hb(self.mqclient)
 #            if self._traffic_timer is not None:
 #                self._traffic_timer.start()
-            self._subscriber.loop_forever()
+            self._mqclient.loop_forever()
         except KeyboardInterrupt:
             self.lgr.info(string_write("MonitorController received keyboard interrupt"))
         except Exception as ex:
@@ -76,16 +76,16 @@ class MonitorController(ControllerBase):
             if MonitorController.initialized:
                 MonitorController.initialized = False
                 self.lgr.info("Stop agents")
-                stop_agents(self._subscriber, self.tcfg.mqtt_qos)
-                pub_disable_hb(self.subscriber)
+                stop_agents(self._mqclient, self.tcfg.mqtt_qos)
+                pub_disable_hb(self.mqclient)
                 if self._traffic_state:
                     self._traffic_state.running = False
                 if self._traffic_timer:
                     self._traffic_timer.cancel()
                 if self.storage:
                     self.storage.close()
-                if self.subscriber:
-                    self.subscriber.disconnect()
+                if self.mqclient:
+                    self.mqclient.disconnect()
         except Exception as ex:
             self.lgr.error(string_write("Exception on teardown: {}", ex))
 
