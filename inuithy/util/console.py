@@ -3,7 +3,8 @@
 """
 from inuithy.common.version import INUITHY_ROOT, INUITHY_VERSION
 from inuithy.common.predef import INUITHY_LOGCONFIG, INUITHY_TITLE,\
-INUITHY_CONFIG_PATH, TRAFFIC_CONFIG_PATH, console_write, string_write
+INUITHY_CONFIG_PATH, TRAFFIC_CONFIG_PATH, console_write, string_write\
+T_EVERYONE
 from inuithy.agent import Agent
 from inuithy.mode.manual_mode import ManualController
 from inuithy.common.command import TSH_ERR_GENERAL, TSH_ERR_HANDLING_CMD,\
@@ -172,18 +173,18 @@ class Console(threading.Thread):
 
     def create_controller(self):
         """Run a Controller in manual mode"""
-        self.__ctrl = ManualController(INUITHY_CONFIG_PATH, TRAFFIC_CONFIG_PATH)
-        self.__ctrl_proc = threading.Thread(target=self.__ctrl.start, name="Ctrl@InuithyShell")
-        self.__ctrl_proc.daemon = False
+        self._ctrl = ManualController(INUITHY_CONFIG_PATH, TRAFFIC_CONFIG_PATH)
+        self._ctrl_proc = threading.Thread(target=self._ctrl.start, name="Ctrl@InuithyShell")
+        self._ctrl_proc.daemon = False
 
     def on_cmd_agent_start(self, *args, **kwargs):
         """Agent start command handler"""
         if args is None or len(args) < 1:
             return
         hosts = args[0]
-        if hosts == '*':
-            self.__ctrl.expected_agents
-            agents = copy.deepcopy(self.__ctrl.expected_agents)
+        if hosts == T_EVERYONE:
+            self._ctrl.expected_agents
+            agents = copy.deepcopy(self._ctrl.expected_agents)
         else:
             agents = [hosts]
         start_agents(agents)
@@ -193,16 +194,16 @@ class Console(threading.Thread):
         if args is None or len(args) < 1:
             return
         clientid = args[0]
-        stop_agents(self.__ctrl.subscriber, clientid=clientid)
+        stop_agents(self._ctrl.mqclient, clientid=clientid)
 
     def on_cmd_agent_stop_force(self, *args, **kwargs):
         """Agent force stop command handler"""
         if args is None or len(args) < 1:
             return
         hosts = args[0]
-        if hosts == '*':
-            self.__ctrl.expected_agents
-            agents = copy.deepcopy(self.__ctrl.expected_agents)
+        if hosts == T_EVERYONE:
+            self._ctrl.expected_agents
+            agents = copy.deepcopy(self._ctrl.expected_agents)
         else:
             agents = [hosts]
         force_stop_agents(agents)
@@ -210,11 +211,11 @@ class Console(threading.Thread):
 
     def on_cmd_agent_list_less(self, *args, **kwargs):
         """List available agnents with less details"""
-        [console_write("{}", k) for k in self.__ctrl.available_agents.keys()]
+        [console_write("{}", k) for k in self._ctrl.available_agents.keys()]
 
     def on_cmd_agent_list(self, *args, **kwargs):
         """List available agnents"""
-        [console_write("AGENT[{}]:{}", k, str(v)) for k, v in self.__ctrl.available_agents.items()]
+        [console_write("AGENT[{}]:{}", k, str(v)) for k, v in self._ctrl.available_agents.items()]
 
     def on_cmd_agent(self, *args, **kwargs):
         """Operation on agent"""
@@ -247,7 +248,7 @@ class Console(threading.Thread):
         if len(args) < 3:
             console_write(str(self.usages['usage_traffic']))
             return
-        if len(self.__ctrl.host2aid) == 0:
+        if len(self._ctrl.host2aid) == 0:
             console_write("No available agent")
             return
         host, node = args[0].split(':')
@@ -255,40 +256,40 @@ class Console(threading.Thread):
             T_TRAFFIC_TYPE: TrafficType.TSH.name,
             T_HOST:         host,
             T_NODE:         node,
-            T_CLIENTID:     self.__ctrl.host2aid.get(host),
+            T_CLIENTID:     self._ctrl.host2aid.get(host),
             T_MSG:          ' '.join(list(args[1:])),
         }
-        pub_traffic(self.__ctrl.subscriber, self.__ctrl.tcfg.mqtt_qos, data)
+        pub_traffic(self._ctrl.mqclient, self._ctrl.tcfg.mqtt_qos, data)
 
     def on_cmd_traffic_deploy(self, *args, **kwargs):
         """Traffic deploy command handler"""
         console_write("Initialize traffic configure")
-        self.__ctrl.traffic_state.create()
-        self.__ctrl.traffic_state.next()
+        self._ctrl.traffic_state.create()
+        self._ctrl.traffic_state.next()
         console_write("Waiting for agents to get ready")
-        self.__ctrl.traffic_state.wait_agent()
+        self._ctrl.traffic_state.wait_agent()
         console_write("Start deploying network layout")
-        self.__ctrl.traffic_state.deploy()
-        self.__ctrl.traffic_state.wait_nwlayout()
+        self._ctrl.traffic_state.deploy()
+        self._ctrl.traffic_state.wait_nwlayout()
         console_write("Netowrk deployment finished")
 
     def on_cmd_traffic_genreport(self, *args, **kwargs):
         """Traffic report generation handler"""
         console_write("Generating traffic report")
-        self.__ctrl.traffic_state.genreport()
+        self._ctrl.traffic_state.genreport()
 
     def on_cmd_traffic_regtraf(self, *args, **kwargs):
         """Register traffic command handler"""
         console_write("Start registering traffic")
-        self.__ctrl.traffic_state.register()
-        self.__ctrl.traffic_state.wait_traffic()
+        self._ctrl.traffic_state.register()
+        self._ctrl.traffic_state.wait_traffic()
         console_write("Traffic registerd")
 
     def on_cmd_traffic_run(self, *args, **kwargs):
         """Run traffic command handler"""
         console_write("Start firing")
-        self.__ctrl.traffic_state.fire()
-        self.__ctrl.traffic_state.traffic_finish()
+        self._ctrl.traffic_state.fire()
+        self._ctrl.traffic_state.traffic_finish()
         console_write("One traffic fired")
 
     def on_cmd_help(self, *args, **kwargs):
@@ -311,10 +312,10 @@ class Console(threading.Thread):
         """Quit command handler"""
         try:
             self.running = False
-            if self.__ctrl:
-                self.__ctrl.teardown()
-            if self.__ctrl_proc and self.__ctrl_proc.is_alive():
-                self.__ctrl_proc.join()
+            if self._ctrl:
+                self._ctrl.teardown()
+            if self._ctrl_proc and self._ctrl_proc.is_alive():
+                self._ctrl_proc.join()
         except Exception as ex:
             console_write("Exception on quit", ex)
 
@@ -350,9 +351,9 @@ class Console(threading.Thread):
         """Start inuithy shell"""
         console_write(self.__title)
         console_write(self.__banner)
-        self.__ctrl_proc.start()
-        mod = os.path.exists(self.__ctrl.tcfg.tsh_hist) and 'a+' or 'w+'
-        with open(self.__ctrl.tcfg.tsh_hist, mod) as tshhist:
+        self._ctrl_proc.start()
+        mod = os.path.exists(self._ctrl.tcfg.tsh_hist) and 'a+' or 'w+'
+        with open(self._ctrl.tcfg.tsh_hist, mod) as tshhist:
             self.console_loop(tshhist)
 
     def dispatch(self, command):

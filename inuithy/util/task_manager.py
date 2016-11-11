@@ -1,7 +1,8 @@
 """ Task manager
  @author: Zex Li <top_zlynch@yahoo.com>
 """
-from inuithy.common.predef import string_write, INUITHY_LOGCONFIG
+from inuithy.common.predef import string_write, INUITHY_LOGCONFIG,\
+T_EVERYONE
 import logging.config as lconf
 import os, multiprocessing, logging, threading
 
@@ -73,7 +74,7 @@ if __name__ == '__main__':
 #    from inuithy.common.node import *
     import glob, time
     DEV_TTYS = '/dev/ttyS1{}'
-    ports = enumerate(name for name in glob.glob(DEV_TTYS.format('*')))
+    ports = enumerate(name for name in glob.glob(DEV_TTYS.format(T_EVERYONE)))
     mng = TaskManager()
     mng.create_task_foreach(dummy_task, ports)
     mng.waitall()

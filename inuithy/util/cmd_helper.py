@@ -121,7 +121,8 @@ class Heartbeat(threading.Thread):
         self.__target = target
 
     def run(self):
-        if self.__target is None: return # or self.__sender is None: return
+        if self.__target is None:
+            return # or self.__sender is None: return
         self.__running = True
 
         while self.__running:
@@ -138,19 +139,20 @@ class Heartbeat(threading.Thread):
 
 def start_agents(hosts):
     """Start agent remotely"""
-    cmd = string_write('"pushd {};nohup python3 {}/agent.py &>> {}"',\
+    cmd = string_write('pushd {};nohup python3 {}/agent.py &>> {}',\
         PROJECT_PATH, INUITHY_ROOT, INUITHY_NOHUP_OUTPUT)
     [runonremote('root', host, cmd) for host in hosts]
 
 def stop_agents(publisher, qos=0, clientid="*"):
     """Stop agent remotely"""
     data = {
-        T_CTRLCMD:  CtrlCmd.AGENT_STOP.name,
+        T_CTRLCMD: CtrlCmd.AGENT_STOP.name,
         T_CLIENTID: clientid,
     }
     pub_ctrlcmd(publisher, qos, data)
 
 def force_stop_agents(hosts):
     """Force agent stop remotely"""
-    cmd = string_write('"killall python3"')
+    cmd = 'kill `ps aux|grep inuithy/agent.py|awk \'{print $2,\"@\"$11,$12}\'|grep @python|awk \'{printf \" \"$1}\'` &> /dev/null'
     [runonremote('root', host, cmd) for host in hosts]
+

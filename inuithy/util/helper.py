@@ -9,9 +9,10 @@ import os
 def runonremote(user, host, cmd):
     """Run command on remote host
     """
-    fmt = 'ssh -f {}@{} {}'
-    cmd = string_write(fmt, user, host, cmd)
-    sp.call(cmd, shell=True)
+    fmt = 'ssh -f {}@{} '#"{}"'
+    rcmd = string_write(fmt, user, host)#, cmd)
+    rcmd += "\"" + cmd + "\""
+    sp.call(rcmd, shell=True)
 
 def delimstr(delim, *args):
     if delim is None or not isinstance(delim, str):

@@ -7,7 +7,8 @@ T_RECIPIENT, T_PKGSIZE, T_NODES, T_PATH, T_NWLAYOUT, T_PANID,\
 console_write, string_write, TrafficType, T_TRAFFIC_FINISH_DELAY,\
 TrafficStorage, StorageType, INUITHY_CONFIG_PATH
 from inuithy.util.helper import getnwlayoutname
-from inuithy.util.cmd_helper import pub_traffic, start_agents
+from inuithy.util.cmd_helper import pub_traffic, start_agents,\
+stop_agents, force_stop_agents
 from inuithy.common.traffic import create_traffics
 from inuithy.analysis.pandas_plugin import PandasAnalyzer
 from inuithy.util.task_manager import ProcTaskManager
@@ -52,6 +53,7 @@ class TrafStatChk(object):
     def create_traffire(self):
         """Create map of traffic to fire"""
         self.lgr.info("Create traffire fire state checker")
+        self.ctrl.chk.traffire = {}
         [self.traffire.__setitem__(agentid, False) for agentid in self.available_agents.keys()]
 
     def is_network_layout_done(self):
@@ -222,6 +224,8 @@ class TrafficState:
         """Start traffic deployment"""
         self.lgr.info(string_write("Start traffic sm: {}", str(self.current_state)))
         try:
+            stop_agents(self.ctrl.mqclient, self.ctrl.tcfg.mqtt_qos)
+            force_stop_agents(self.ctrl.chk.expected_agents)
             self.create()
             start_agents(self.ctrl.chk.expected_agents)
             self.wait_agent()
@@ -259,6 +263,8 @@ class TrafficState:
         """Start one traffic"""
         try:
             self.lgr.info(string_write("Deploy network begin"))
+            if not self.running:
+                return
             stat_transition = [
                 self.deploy, self.wait_nwlayout, self.register, self.wait_traffic,
                 self.fire, self.traffic_finish, self.genreport,
@@ -285,7 +291,7 @@ class TrafficState:
                 data[T_GENID] = self.current_tg.genid
                 data[T_NODE] = node
                 data[T_TRAFFIC_TYPE] = TrafficType.JOIN.name
-                pub_traffic(self.ctrl.subscriber, self.ctrl.tcfg.mqtt_qos, data)
+                pub_traffic(self.ctrl.mqclient, self.ctrl.tcfg.mqtt_qos, data)
 
     @after('deploy')
     def do_deploy(self, tg=None):
@@ -323,7 +329,7 @@ class TrafficState:
                     T_RECIPIENT:    tr.recipient,
                     T_PKGSIZE:      tr.pkgsize,
                 }
-                pub_traffic(self.ctrl.subscriber, self.ctrl.tcfg.mqtt_qos, data)
+                pub_traffic(self.ctrl.mqclient, self.ctrl.tcfg.mqtt_qos, data)
                 self.ctrl.chk.traffic_set[tid] = False
             except Exception as ex:
                 self.lgr.error(string_write(
@@ -341,7 +347,7 @@ class TrafficState:
                 T_CLIENTID: agent,
                 T_TRAFFIC_TYPE: TrafficType.START.name,
             }
-            pub_traffic(self.ctrl.subscriber, self.ctrl.tcfg.mqtt_qos, data)
+            pub_traffic(self.ctrl.mqclient, self.ctrl.tcfg.mqtt_qos, data)
 
     @before('traffic_finish')
     def do_traffic_finish(self):
@@ -349,7 +355,6 @@ class TrafficState:
         self.lgr.info(string_write("Traffic finished: {}", str(self.current_state)))
         while self.running and not self.ctrl.chk.is_traffic_finished():
             time.sleep(2)
-        self.ctrl.chk.traffire = {}
 
     @after('genreport')
     def do_genreport(self):
@@ -369,10 +374,13 @@ class TrafficState:
     def do_finish(self):
         """All traffic finished"""
         self.lgr.info(string_write("All finished: {}", str(self.current_state)))
+        if not self.running:
+            return
         console_write("Wait for last notifications")
         if not self.ctrl.tcfg.enable_localdebug:
             time.sleep(self.ctrl.tcfg.config.get(T_TRAFFIC_FINISH_DELAY))
         self.ctrl.teardown()
+        force_stop_agents(self.ctrl.chk.expected_agents)
 
 
 if __name__ == '__main__':
