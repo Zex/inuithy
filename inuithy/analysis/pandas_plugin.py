@@ -2,7 +2,7 @@
  @uthor: Zex Li <top_zlynch@yahoo.com>
 """
 from inuithy.common.predef import INUITHY_LOGCONFIG, INUITHY_CONFIG_PATH,\
-MessageType, T_HOST, StorageType, T_NODE, T_MSG,\
+MessageType, T_HOST, StorageType, T_NODE, T_MSG, T_TRAFFIC_TYPE,\
 T_RECORDS, T_MSG_TYPE, string_write, T_TIME, T_GENID, T_CLIENTID,\
 T_SENDER, T_RECIPIENT, T_PKGSIZE, T_REPORTDIR, T_PATH, T_GATEWAY
 from inuithy.storage.storage import Storage
@@ -58,13 +58,22 @@ class PandasAnalyzer(object):
 
     @staticmethod
     def gen_recipient_pack(recs, genid, pdf_pg):
-   
-        for rec in recs:
-            line = []
-            for k, v in rec.items():
-                line.append(v)
-            print(tuple(rec.keys()))
-            print(line)
+        """
+        for k, v in rec.items():
+            line.append(v)
+        ('panid', 'channel', 'msg', 'msgtype', 'gateway', 'genid', 'time', 'traffic_type', 'node', 'clientid', 'host')
+        header = (T_NODE, T_SENDER, T_RECIPIENT, T_TRAFFIC_TYPE, T_CLIENTID, T_HOST, T_GENID, T_TIME)
+        """
+       # TODO, REMOVE
+        with open('records-{}.csv'.format(genid), 'w') as fd:
+            header = (T_SENDER, T_RECIPIENT, T_TIME, T_MSG_TYPE, T_TRAFFIC_TYPE, T_CLIENTID, T_HOST, T_GENID)
+            fd.write(','.join(h for h in header) + '\n')
+            for rec in recs:
+#                if rec.get(T_SENDER) is None or rec.get(T_RECIPIENT) is None:
+#                    continue
+                line = [rec.get(k) for k in header]
+                line_fmt = ('{},' * len(line)).strip(',')
+                fd.write(line_fmt.format(*tuple(line)) + '\n')
 #        index = []
 #        count = {}
 #        for v in recs:
@@ -176,5 +185,5 @@ if __name__ == '__main__':
 #    PandasAnalyzer.gen_report(genid='1478585096')
     import sys
     if len(sys.argv) > 1:
-        PandasAnalyzer.gen_report(genid=argv[1])
+        PandasAnalyzer.gen_report(genid=sys.argv[1])
 
