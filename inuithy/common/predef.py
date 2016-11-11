@@ -52,6 +52,7 @@ INUITHY_TITLE = "Inuithy version {} {}"
 
 DEV_TTYUSB = '/dev/ttyUSB{}'
 DEV_TTYS = '/dev/ttyS{}'
+DEV_TTY = '/dev/tty{}'
 
 IFACEPATH = '/etc/network/interfaces'
 

@@ -1,7 +1,7 @@
 """ Serial port adapter
  @author: Zex Li <top_zlynch@yahoo.com>
 """
-from inuithy.common.predef import DEV_TTYUSB, DEV_TTYS, string_write
+from inuithy.common.predef import DEV_TTYUSB, DEV_TTYS, DEV_TTY, string_write
 from inuithy.common.node import NodeBLE, NodeZigbee, NodeType
 from inuithy.util.task_manager import ThrTaskManager
 import glob, logging
@@ -55,10 +55,10 @@ class SerialAdapter(object):
 
         return node
 
-    def scan_nodes(self):
+    def scan_nodes(self, targets=DEV_TTYUSB.format('*')):
         self.__nodes = []
         # TODO DEV_TTYS => DEV_TTYUSB
-        ports = enumerate(name for name in glob.glob(DEV_TTYS.format('*')))
+        ports = enumerate(name for name in glob.glob(targets))
         mng = ThrTaskManager()
         mng.create_task_foreach(self.create_node, ports)
         mng.waitall()
