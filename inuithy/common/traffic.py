@@ -128,7 +128,7 @@ class TrafficGenerator(object):
         nw = tr[T_NWLAYOUT]
         nodes = []
         for s in tr[T_SENDERS]:
-            if s == '*':
+            if s == T_EVERYONE:
                 for sub_name in nwcfg.config.get(nw):
                     sub = nwcfg.subnet(nw, sub_name)
                     if sub is None: raise ValueError(string_write(TRAFFIC_ERR_NOSUBNET, sub, nw))
@@ -151,7 +151,7 @@ class TrafficGenerator(object):
         nw = tr[T_NWLAYOUT]
         nodes = []
         for s in tr[T_RECIPIENTS]:
-            if s == '*':
+            if s == T_EVERYONE:
                 nodes.append(TRAFFIC_BROADCAST_ADDRESS)
             elif is_number(s):
                 nodes.append(s)

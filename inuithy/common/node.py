@@ -138,11 +138,11 @@ class NodeBLE(SerialNode):
             T_PORT:self.port})
 
     def join(self, data):
-        self.report = data
+        self.report = deepcopy(data)
         self.joingrp(data[T_PANID], data)
 
     def traffic(self, data):
-        self.report = data
+        self.report = deepcopy(data)
         self.lighton(self, data[T_ADDRS], data)
 
     def joingrp(self, grpid, report=None):
