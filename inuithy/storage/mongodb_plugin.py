@@ -148,7 +148,7 @@ class MongodbStorage(object):
 #        data[T_TIME] = str(dt.now())
         self.trafrec.update(
 #            {"_id": ObjectId(data[T_GENID])},
-            {T_GENID: data[T_GENID]},
+            {T_GENID: data.get(T_GENID)},
             {'$push': {T_RECORDS: data}})
 
 # -----------------------------------------------------------------------------------------
