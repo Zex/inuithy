@@ -111,6 +111,13 @@ class TrafStatChk(object):
             self.lgr.error(string_write("Failed to check agent availability", ex))
             return False
 
+def transition(sm, event, event_name):
+    """Transite between states"""
+    try:
+        event()
+    except InvalidStateTransition as ex:
+        console_write("{}: {} => {} Failed: {}", sm, event, event_name, ex)
+
 @acts_as_state_machine
 class TrafficState:
     """
@@ -252,13 +259,11 @@ class TrafficState:
         """Start one traffic"""
         try:
             self.lgr.info(string_write("Deploy network begin"))
-            self.deploy()
-            self.wait_nwlayout()
-            self.register()
-            self.wait_traffic()
-            self.fire()
-            self.traffic_finish()
-            self.genreport()
+            stat_transition = [
+                self.deploy, self.wait_nwlayout, self.register, self.wait_traffic,
+                self.fire, self.traffic_finish, self.genreport,
+            ]
+            [stat() for stat in stat_transition if self.running]
         except Exception as ex:
             self.lgr.error(string_write("Traffic state transition failed: {}", str(ex)))
 
@@ -297,8 +302,6 @@ class TrafficState:
     def do_register(self, tg=None):
         """Register traffic to agents"""
         self.lgr.info(string_write("Register traffic task: {}", str(self.current_state)))
-        if not self.running:
-            return
         if tg is None:
             tg = self.current_tg
         self.lgr.info(string_write("Register traffic: [{}]", str(tg)))
@@ -331,8 +334,6 @@ class TrafficState:
     def do_fire(self):
         """Tell agents to fire registerd traffic"""
         self.lgr.info(string_write("Fire traffic: {}", str(self.current_state)))
-        if not self.running:
-            return
         self.ctrl.chk.create_traffire()
         for agent in self.ctrl.chk.available_agents.keys():
             console_write(string_write("Fire on {}", agent))
@@ -354,8 +355,6 @@ class TrafficState:
     def do_genreport(self):
         """Analyze collected data and generate report"""
         self.lgr.info(string_write("Try analysing: {}", str(self.current_state)))
-        if not self.running:
-            return
         if self.ctrl.tcfg.storagetype in [\
             (TrafficStorage.DB.name, StorageType.MongoDB.name),]:
             if self.current_genid is not None:
@@ -370,19 +369,11 @@ class TrafficState:
     def do_finish(self):
         """All traffic finished"""
         self.lgr.info(string_write("All finished: {}", str(self.current_state)))
-        if not self.running:
-            return
         console_write("Wait for last notifications")
         if not self.ctrl.tcfg.enable_localdebug:
             time.sleep(self.ctrl.tcfg.config.get(T_TRAFFIC_FINISH_DELAY))
         self.ctrl.teardown()
 
-def transition(sm, event, event_name):
-    """Transite between states"""
-    try:
-        event()
-    except InvalidStateTransition as ex:
-        console_write("{}: {} => {} Failed: {}", sm, event, event_name, ex)
 
 if __name__ == '__main__':
     pass
