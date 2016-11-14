@@ -102,6 +102,7 @@ class Agent(object):
         lgr.info(string_write(
             "MQ.Connection client:{} userdata:[{}] rc:{}",
             client, userdata, rc))
+        userdata.register()
 
     @staticmethod
     def on_message(client, userdata, message):
@@ -148,6 +149,7 @@ class Agent(object):
             client, userdata, mid, granted_qos))
 
     def teardown(self, msg='Teardown'):
+        """Cleanup"""
         try:
             if self.initialized:
                 msg = string_write("{}:{}", self.clientid, msg)
@@ -351,9 +353,9 @@ class Agent(object):
         except Exception as ex:
             status_msg = string_write("Exception on Agent: {}", ex)
             self.lgr.error(status_msg)
-        finally:
-            self.teardown(status_msg)
-            self.lgr.info(string_write("Agent terminated"))
+#        finally:
+        self.teardown(status_msg)
+        self.lgr.info(string_write("Agent terminated"))
 
     def on_topic_command(self, message):
         """Topic command handler"""
@@ -431,7 +433,7 @@ class Agent(object):
             T_TRAFFIC_TYPE: TrafficType.TSH.name,
             T_HOST:         host,
             T_NODE:         node,
-            T_CLIENTID:     self.__ctrl.host2aid[args[0]],
+            T_CLIENTID:     clientid,
             T_MSG:          ' '.join(args[1:])
         }
         """
@@ -461,7 +463,7 @@ class Agent(object):
 
     def on_topic_traffic(self, message):
         """Traffic topic handler"""
-        self.lgr.info(string_write("On topic traffic"))
+#        self.lgr.info(string_write("On topic traffic"))
         try:
             data = extract_payload(message.payload)
 #           target = data[T_CLIENTID]
