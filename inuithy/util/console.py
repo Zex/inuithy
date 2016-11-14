@@ -3,7 +3,7 @@
 """
 from inuithy.common.version import INUITHY_ROOT, INUITHY_VERSION
 from inuithy.common.predef import INUITHY_LOGCONFIG, INUITHY_TITLE,\
-INUITHY_CONFIG_PATH, TRAFFIC_CONFIG_PATH, console_write, string_write\
+INUITHY_CONFIG_PATH, TRAFFIC_CONFIG_PATH, console_write, string_write,\
 T_EVERYONE
 from inuithy.agent import Agent
 from inuithy.mode.manual_mode import ManualController
@@ -248,7 +248,7 @@ class Console(threading.Thread):
         if len(args) < 3:
             console_write(str(self.usages['usage_traffic']))
             return
-        if len(self._ctrl.host2aid) == 0:
+        if len(self._ctrl.node2aid) == 0:
             console_write("No available agent")
             return
         host, node = args[0].split(':')
@@ -256,7 +256,7 @@ class Console(threading.Thread):
             T_TRAFFIC_TYPE: TrafficType.TSH.name,
             T_HOST:         host,
             T_NODE:         node,
-            T_CLIENTID:     self._ctrl.host2aid.get(host),
+            T_CLIENTID:     self._ctrl.node2aid.get(node),
             T_MSG:          ' '.join(list(args[1:])),
         }
         pub_traffic(self._ctrl.mqclient, self._ctrl.tcfg.mqtt_qos, data)

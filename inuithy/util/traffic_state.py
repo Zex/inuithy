@@ -10,7 +10,7 @@ from inuithy.util.helper import getnwlayoutname
 from inuithy.util.cmd_helper import pub_traffic, start_agents,\
 stop_agents, force_stop_agents
 from inuithy.common.traffic import create_traffics
-from inuithy.analysis.pandas_plugin import PandasAnalyzer
+from inuithy.analysis.pandas_plugin import PandasPlugin
 from inuithy.util.task_manager import ProcTaskManager
 from state_machine import State, Event, acts_as_state_machine,\
 after, before, InvalidStateTransition
@@ -40,7 +40,7 @@ class TrafStatChk(object):
         self.traffic_set = {}
         self.expected_agents = []
         self.available_agents = {}
-        self.host2aid = {}
+        self.node2aid = {}
         self.node2host = {}
 
     def create_nwlayout(self, nwid, nodes):
@@ -53,7 +53,7 @@ class TrafStatChk(object):
     def create_traffire(self):
         """Create map of traffic to fire"""
         self.lgr.info("Create traffire fire state checker")
-        self.ctrl.chk.traffire = {}
+        self.traffire = {}
         [self.traffire.__setitem__(agentid, False) for agentid in self.available_agents.keys()]
 
     def is_network_layout_done(self):
@@ -101,7 +101,7 @@ class TrafStatChk(object):
         try:
             expected = self.expected_agents
             available = self.available_agents
-            if len(self.host2aid) == 0:
+            if len(self.node2aid) == 0:
                 return False
             if len(expected) != len(available):
                 return False
@@ -273,6 +273,11 @@ class TrafficState:
         except Exception as ex:
             self.lgr.error(string_write("Traffic state transition failed: {}", str(ex)))
 
+
+    def pub_join(self, aid, host, gid, node, data=None):
+        if data == None:
+            data = {}
+
     def config_network(self, nwlayoutname):
         """Configure network by given network layout"""
         self.lgr.info(string_write("Config network: [{}]", nwlayoutname))
@@ -286,12 +291,20 @@ class TrafficState:
                 target_host = self.ctrl.node2host.get(node)
                 if target_host is None:
                     raise ValueError(string_write("Node [{}] not found on any agent", node))
+#                data[T_CLIENTID] = aid
                 data[T_HOST] = target_host
-                data[T_CLIENTID] = self.ctrl.host2aid.get(target_host)
                 data[T_GENID] = self.current_tg.genid
                 data[T_NODE] = node
                 data[T_TRAFFIC_TYPE] = TrafficType.JOIN.name
-                pub_traffic(self.ctrl.mqclient, self.ctrl.tcfg.mqtt_qos, data)
+                if not self.ctrl.tcfg.enable_localdebug:
+                    data[T_CLIENTID] = self.ctrl.node2aid.get(node)
+                    self.lgr.debug(string_write("LAYOUT: {}", data.get(T_CLIENTID)))
+                    pub_traffic(self.ctrl.mqclient, self.ctrl.tcfg.mqtt_qos, data)
+                else: # DEBUG
+                    for aid in self.ctrl.node2aid.values():
+                        data[T_CLIENTID] = aid
+                        self.lgr.debug(string_write("LAYOUT: {}", data.get(T_CLIENTID)))
+                        pub_traffic(self.ctrl.mqclient, self.ctrl.tcfg.mqtt_qos, data)
 
     @after('deploy')
     def do_deploy(self, tg=None):
@@ -313,14 +326,12 @@ class TrafficState:
         self.lgr.info(string_write("Register traffic: [{}]", str(tg)))
         for tr in tg.traffics:
             try:
-                self.lgr.debug(string_write("TRAFFIC: {}", tr))
                 target_host = self.ctrl.node2host.get(tr.sender)
-                tid = ''.join([random.choice(string.hexdigits) for _ in range(7)])
                 data = {
-                    T_TID:          tid,
+#                    T_TID:          tid,
                     T_GENID:        self.current_tg.genid,
                     T_TRAFFIC_TYPE: TrafficType.SCMD.name,
-                    T_CLIENTID:     self.ctrl.host2aid.get(target_host),
+#                    T_CLIENTID:     self.ctrl.node2aid.get(tr.sender),
                     T_NODE:         tr.sender,
                     T_HOST:         target_host,
                     T_DURATION:     tg.duration,
@@ -329,8 +340,22 @@ class TrafficState:
                     T_RECIPIENT:    tr.recipient,
                     T_PKGSIZE:      tr.pkgsize,
                 }
-                pub_traffic(self.ctrl.mqclient, self.ctrl.tcfg.mqtt_qos, data)
-                self.ctrl.chk.traffic_set[tid] = False
+                if not self.ctrl.tcfg.enable_localdebug:
+                    tid = ''.join([random.choice(string.hexdigits) for _ in range(7)])
+                    data[T_TID] = tid
+                    data[T_CLIENTID] = self.ctrl.node2aid.get(tr.sender)
+                    self.lgr.debug(string_write("TRAFFIC: {}:{}:{}", data.get(T_TID), data.get(T_CLIENTID), tr))
+                    pub_traffic(self.ctrl.mqclient, self.ctrl.tcfg.mqtt_qos, data)
+                    self.ctrl.chk.traffic_set[tid] = False
+                else: # DEBUG
+                    for aid in self.ctrl.node2aid.values():
+                        tid = ''.join([random.choice(string.hexdigits) for _ in range(7)])
+                        data[T_TID] = tid
+                        data[T_CLIENTID] = self.ctrl.node2aid.get(tr.sender)
+                        self.lgr.debug(string_write("TRAFFIC: {}:{}:{}", data.get(T_TID), data.get(T_CLIENTID), tr))
+                        pub_traffic(self.ctrl.mqclient, self.ctrl.tcfg.mqtt_qos, data)
+                        self.ctrl.chk.traffic_set[tid] = False
+
             except Exception as ex:
                 self.lgr.error(string_write(
                     "Exception on registering traffic, network [{}], traffic [{}]: {}",
@@ -364,9 +389,9 @@ class TrafficState:
             (TrafficStorage.DB.name, StorageType.MongoDB.name),]:
             if self.current_genid is not None:
                 tmg = ProcTaskManager()
-                tmg.create_task(PandasAnalyzer.gen_report, (INUITHY_CONFIG_PATH, self.current_genid,))
+                tmg.create_task(PandasPlugin.gen_report, (INUITHY_CONFIG_PATH, self.current_genid,))
                 tmg.waitall()
-#                PandasAnalyzer.gen_report(genid=self.current_genid)
+#                PandasPlugin.gen_report(genid=self.current_genid)
         else:
             self.lgr.info(string_write("Unsupported storage type: {}", str(self.ctrl.tcfg.storagetype)))
 

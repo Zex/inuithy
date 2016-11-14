@@ -43,11 +43,13 @@ def getpredefaddr():
                 break
     return ret
 
-def is_number(s):
+def is_number(s, base=16):
     """Is this a number
     """
-    try: int(s)
-    except ValueError: return False
+    try:
+        int(s, base)
+    except ValueError:
+        return False
     return True
 
 def valid_cmds(command):
