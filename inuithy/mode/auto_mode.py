@@ -5,8 +5,8 @@ from inuithy.common.version import INUITHY_VERSION
 from inuithy.common.predef import T_CLIENTID, T_TRAFFIC_TYPE, T_PANID,\
 T_NODE, T_HOST, T_NODES, INUITHY_TOPIC_HEARTBEAT, T_TID, T_MSG,\
 T_TRAFFIC_STATUS, TrafficStatus, TrafficType, string_write,\
-TRAFFIC_CONFIG_PATH, INUITHY_CONFIG_PATH, INUITHY_TITLE,\
-INUITHY_TOPIC_UNREGISTER, INUITHY_LOGCONFIG,\
+TRAFFIC_CONFIG_PATH, INUITHY_CONFIG_PATH, INUITHY_TITLE, T_SENDER,\
+INUITHY_TOPIC_UNREGISTER, INUITHY_LOGCONFIG, T_RECIPIENT,\
 INUITHY_TOPIC_STATUS, INUITHY_TOPIC_REPORTWRITE, INUITHY_TOPIC_NOTIFICATION
 from inuithy.mode.base import ControllerBase
 from inuithy.util.cmd_helper import stop_agents, extract_payload
@@ -137,7 +137,8 @@ class AutoController(ControllerBase):
         """Report-written topic handler"""
 #        self.lgr.info(string_write("On topic reportwrite"))
         data = extract_payload(message.payload)
-        self.storage.insert_record(data)
+        if data.get(T_SENDER) is not None and data.get(T_RECIPIENT) is not None:
+            self.storage.insert_record(data)
 
     def on_topic_notification(self, message):
         """Report-read topic handler"""
@@ -153,7 +154,8 @@ class AutoController(ControllerBase):
             # Record traffic only
             # if data.get(SCMD)
 #            if data.get(T_SENDER) and data.get(T_RECIPIENT):
-            self.storage.insert_record(data)
+            if data.get(T_SENDER) is not None and data.get(T_RECIPIENT) is not None:
+                self.storage.insert_record(data)
         except Exception as ex:
             self.lgr.error(string_write("Update nwlayout failed: {}", ex))
 

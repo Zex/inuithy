@@ -112,12 +112,20 @@ class ControllerBase(object):
         pass
 
     @property
-    def host2aid(self):
-        """host => agentid"""
-        return self.chk.host2aid
-    @host2aid.setter
-    def host2aid(self, val):
+    def node2aid(self):
+        """Node address => connected host"""
+        return self.chk.node2aid
+    @node2aid.setter
+    def node2aid(self, val):
         pass
+
+#    @property
+#    def host2aid(self):
+#        """host => agentid"""
+#        return self.chk.host2aid
+#    @host2aid.setter
+#    def host2aid(self, val):
+#        pass
 
     @property
     def current_nwlayout(self):
@@ -239,7 +247,8 @@ class ControllerBase(object):
         else:
             self.chk.available_agents[agentid].nodes = nodes
             self.lgr.info(string_write("Agent {} updated", agentid))
-        self.chk.host2aid.__setitem__(host, agentid)
+#        self.chk.host2aid.__setitem__(host, agentid)
+        [self.chk.node2aid.__setitem__(node, agentid) for node in nodes]
 
     def del_agent(self, agentid):
         """Unregister started agent"""
