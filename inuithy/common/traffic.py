@@ -4,7 +4,7 @@
 from inuithy.common.predef import T_PKGRATE, T_DURATION,\
 T_NWCONFIG_PATH, T_NWLAYOUT, T_SENDERS, T_RECIPIENTS,\
 T_TARGET_TRAFFICS, TRAFFIC_CONFIG_PATH, NETWORK_CONFIG_PATH,\
-T_PKGSIZE, T_NODES, console_write, string_write
+T_PKGSIZE, T_NODES, console_write, string_write, T_EVERYONE
 from inuithy.util.helper import getnwlayoutid, is_number
 from inuithy.util.trigger import TrafficTrigger
 import time
@@ -131,13 +131,15 @@ class TrafficGenerator(object):
             if s == T_EVERYONE:
                 for sub_name in nwcfg.config.get(nw):
                     sub = nwcfg.subnet(nw, sub_name)
-                    if sub is None: raise ValueError(string_write(TRAFFIC_ERR_NOSUBNET, sub, nw))
+                    if sub is None:
+                        raise ValueError(string_write(TRAFFIC_ERR_NOSUBNET, sub_name, nw))
                     [nodes.append(node) for node in sub[T_NODES]]
             elif is_number(s):
                 nodes.append(s)
             else:
                 sub = nwcfg.subnet(nw, s)
-                if sub is None: raise ValueError(string_write(TRAFFIC_ERR_NOSUBNET, sub, nw))
+                if sub is None:
+                    raise ValueError(string_write(TRAFFIC_ERR_NOSUBNET, s, nw))
                 [nodes.append(node) for node in sub[T_NODES]]
         return nodes
 
@@ -158,7 +160,7 @@ class TrafficGenerator(object):
             else:
                 sub = nwcfg.subnet(nw, s)
                 if sub is None:
-                    raise ValueError(string_write(TRAFFIC_ERR_NOSUBNET, sub, nw))
+                    raise ValueError(string_write(TRAFFIC_ERR_NOSUBNET, s, nw))
                 [nodes.append(node) for node in sub[T_NODES]]
         return nodes
 
