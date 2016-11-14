@@ -56,7 +56,7 @@ class SerialAdapter(object):
 
         return node
 
-    def scan_nodes(self, targets=DEV_TTYUSB.format(T_EVERYONE):
+    def scan_nodes(self, targets=DEV_TTYUSB.format(T_EVERYONE)):
         self.__nodes = []
         # TODO DEV_TTYS => DEV_TTYUSB
         ports = enumerate(name for name in glob.glob(targets))
