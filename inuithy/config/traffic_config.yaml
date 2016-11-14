@@ -3,7 +3,7 @@ target_agents: [agent_0, agent_1, agent_2, agent_3,
                 agent_4, agent_5, agent_6, agent_7,
                 agent_8, agent_9, agent_a, agent_b,
                 agent_c, agent_d, agent_e, agent_f,]
-target_traffics: [traffic_5]
+target_traffics: [traffic_6]
 traffin_delay: 30
 traffic_0:
   duration: 5
@@ -45,5 +45,12 @@ traffic_5:
   nwlayout: network_1
   pkgrate: 0.2
   pkgsize: 2
-  recipients: ['*']
+  recipients: ['*', '11a1', '11c1', '1181', '1101', '1141', '1121', '11e1', '11f1', '1131', '1171']
   senders: ['*']
+traffic_6:
+  duration: 10
+  nwlayout: network_1
+  pkgrate: 0.2
+  pkgsize: 2
+  recipients: ['11b1']
+  senders: ['11a2']
