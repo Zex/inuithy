@@ -40,9 +40,9 @@ class PandasPlugin(object):
         if data.get(n) is None:
             data[n] = {t:1}
         elif data.get(n).get(t) is None:
-            data.get(n)[t] = 1
+            data[n][t] = 1
         else:
-            data.get(n)[t] += 1
+            data[n][t] += 1
 
     @staticmethod
     def build_report_data(index, data):
@@ -51,7 +51,7 @@ class PandasPlugin(object):
         for k, v in data.items():
             repo[k] = []
             for i in index:
-                repo.get(k).append(v.get(i))
+                repo[k].append(v.get(i))
 #                fd.write(str((k, i, v.get(i)))+'\n')
         return repo
 
@@ -61,7 +61,8 @@ class PandasPlugin(object):
         data = {}
         index = set()
         for rec in recs:
-            if rec.get(T_MSG_TYPE) != MessageType.SENT.name or rec.get(T_SENDER) is None or rec.get(T_RECIPIENT) is None:
+#            if rec.get(T_MSG_TYPE) != MessageType.SENT.name or rec.get(T_SENDER) is None or rec.get(T_RECIPIENT) is None:
+            if rec.get(T_MSG_TYPE) != MessageType.SENT.name:
                 continue
             n, t = rec.get(T_NODE), rec.get(T_TIME)
             if n is None or t is None:
@@ -74,6 +75,7 @@ class PandasPlugin(object):
 
         if len(repo) > 0:
             df = pd.DataFrame(repo, index=range(len(index)), columns=repo.keys())
+            print("sender", df)
             df.plot.line(grid=False, colormap='rainbow')
             plt.title("Number of packs sent via address")
             pdf_pg.savefig()
@@ -85,13 +87,14 @@ class PandasPlugin(object):
         data = {}
         index = set()
         for rec in recs:
-            if rec.get(T_MSG_TYPE) != MessageType.RECV.name or rec.get(T_SENDER) is None or rec.get(T_RECIPIENT) is None:
+#            if rec.get(T_MSG_TYPE) != MessageType.RECV.name or rec.get(T_SENDER) is None or rec.get(T_RECIPIENT) is None:
+#                continue
+            if rec.get(T_MSG_TYPE) != MessageType.RECV.name:
                 continue
             n, t = rec.get(T_NODE), rec.get(T_TIME)
             if n is None or t is None:
                 continue
             PandasPlugin.insert_data(n, t, index, data)
-
         cache = list(index)
         cache.sort()
         index = cache
@@ -99,22 +102,20 @@ class PandasPlugin(object):
 
         if len(repo) > 0:
             df = pd.DataFrame(repo, index=range(len(index)), columns=repo.keys())
+            print("recv", df)
             df.plot.line(grid=False, colormap='rainbow')
             plt.title("Number of packs received via address")
             pdf_pg.savefig()
 
     @staticmethod
     def gen_total_gwpack(recs, genid, pdf_pg):
-
-        index = []
-        count = {}
+        """Generate total packages send/recv via gateway
+        """
+        index = set()
+        data = {}
         for v in recs:
-            n, t = v.get(T_GATEWAY), v.get(T_TIME)
-#            print(t, n, v.get(T_RECIPIENT), v.get(T_SENDER), v.get(T_NODE))
-            if n is None or t is None:
-                continue
-#            if n != v.get(T_RECIPIENT) and n != v.get(T_SENDER):
-            if n != v.get(T_NODE):
+            n, t, g = v.get(T_NODE), v.get(T_TIME), v.get(T_GATEWAY)
+            if n is None or t is None or n != g:
                 continue
             PandasPlugin.insert_data(n, t, index, data)
         cache = list(index)
@@ -122,10 +123,11 @@ class PandasPlugin(object):
         index = cache
         repo = PandasPlugin.build_report_data(index, data)
 
-        df = pd.DataFrame(data, index=range(len(index)), columns=data.keys())
-        df.plot.line(grid=False, colormap='rainbow')
-        plt.title("Total of packs via gateway")
-        pdf_pg.savefig()
+        if len(repo) > 0:
+            df = pd.DataFrame(data, index=range(len(index)), columns=data.keys())
+            df.plot.line(grid=False, colormap='rainbow')
+            plt.title("Total of packs via gateway")
+            pdf_pg.savefig()
 
     @staticmethod
     def gen_total_pack(recs, genid, pdf_pg):
@@ -135,7 +137,7 @@ class PandasPlugin(object):
             MessageType.RECV.name: 0,
             }
         for v in recs:
-            repo[v[T_MSG_TYPE]] += 1
+            repo[v.get(T_MSG_TYPE)] += 1
 
         df = pd.DataFrame(list(repo.values()), index=list(repo.keys()))
         df.plot(kind='bar', colormap='plasma')
@@ -181,13 +183,13 @@ class PandasPlugin(object):
                 fd.write(','.join(h for h in header) + '\n')
                 [fd.write(line + '\n') for line in csv_data]
 
-            jdata = json.dumps(recs)
-            pdata = pd.read_json(jdata)
-            print(pdata)
-            n = pdata.groupby(T_MSG_TYPE)
-            print(dir(n))
-            print(n.sent.sum())
-            continue
+#            jdata = json.dumps(recs)
+#            pdata = pd.read_json(jdata)
+#            print(pdata)
+#            n = pdata.groupby(T_MSG_TYPE)
+#            print(dir(n))
+#            print(n.sent.sum())
+#            continue
             with PdfPages(string_write('{}/{}.pdf', cfg.config[T_REPORTDIR][T_PATH], genid)) as pdf_pg:
                 PandasPlugin.gen_total_pack(recs, genid, pdf_pg) 
                 PandasPlugin.gen_sender_pack(recs, genid, pdf_pg) 
