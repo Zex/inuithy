@@ -140,7 +140,7 @@ class Heartbeat(threading.Thread):
 def start_agents(hosts):
     """Start agent remotely"""
     cmd = string_write('pushd {};nohup python3 {}/agent.py &>> {}',\
-        PROJECT_PATH, INUITHY_ROOT, INUITHY_NOHUP_OUTPUT)
+            PROJECT_PATH, INUITHY_ROOT, INUITHY_NOHUP_OUTPUT)
     [runonremote('root', host, cmd) for host in hosts]
 
 def stop_agents(publisher, qos=0, clientid="*"):

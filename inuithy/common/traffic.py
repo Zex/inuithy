@@ -6,8 +6,11 @@ T_NWCONFIG_PATH, T_NWLAYOUT, T_SENDERS, T_RECIPIENTS,\
 T_TARGET_TRAFFICS, TRAFFIC_CONFIG_PATH, NETWORK_CONFIG_PATH,\
 T_PKGSIZE, T_NODES, console_write, string_write, T_EVERYONE
 from inuithy.util.helper import getnwlayoutid, is_number
-from inuithy.util.trigger import TrafficTrigger
+#from inuithy.util.trigger import TrafficTrigger
 import time
+import threading
+import logging
+import logging.config as lconf
 
 TRAFFIC_ERR_NOSUBNET = "No subnet named [{}] in network [{}]"
 TRAFFIC_BROADCAST_ADDRESS = '0xFFFF'
@@ -107,7 +110,7 @@ class TrafficGenerator(object):
         self.__pkgrate = self.cur_trcfg[T_PKGRATE]
         self.__duration = self.cur_trcfg[T_DURATION]
         # In second
-        self.timeslot = 1/self.pkgrate
+        self.timespan = 1/self.pkgrate
         self.traffics = []
         self.nwlayoutid = getnwlayoutid(trcfg.config[T_NWCONFIG_PATH], self.cur_trcfg[T_NWLAYOUT])
         self.create_traffic(trcfg, nwcfg)
@@ -179,33 +182,49 @@ class TrafficGenerator(object):
     def start(self):
         self.__trigger.start()
 
-class TrafficExecutor(TrafficTrigger):
+#class TrafficExecutor(TrafficTrigger):
+class TrafficExecutor(threading.Thread):
     """
     @node       Sender node
     @command    Command to send
-    @timeslot   Traffic trigger interval, in second
+    @timespan   Traffic trigger interval, in second
     @duration   Stop traffic after given duration, in second
     """
-    def __init__(self, node, command, timeslot, duration, data=None):
-        TrafficTrigger.__init__(self, timeslot, duration)
-        self.timeslot = timeslot
+    def __init__(self, node, command, timespan, duration, report=None, lgr=None, mqclient=None, tid=None):
+        threading.Thread.__init__(self, name=string_write("TE-{}", tid), target=None, daemon=False)
+        self.lgr = lgr
+        if self.lgr is None:
+            self.lgr = logging
+        self.timespan = timespan
         self.duration = duration
         self.node = node
+        self.report = report
         self.command = command
-        self.data = data
+        self.stop_timer = threading.Timer(duration, self.stop_trigger)
 
-    def run(self): #TODO remove print
+    def run(self):
+        self.lgr.debug(string_write("Start traffic [{}]", self))
         self.running = True
         self.stop_timer.start()
 
         while self.running: # TODO debug check
 #            console_write(self.command, self.data)
-            self.node.write(self.command, self.data)
-            time.sleep(self.timeslot)
+            self.node.write(self.command, self.report)
+            time.sleep(self.timespan)
+
+    def stop_trigger(self):
+        console_write("{}: ========Stopping trigger============", self)
+        self.running = False
+        self.stop_timer.cancel()
+        if self.mqclient is not None:
+            pub_status(self.mqclient, data={
+                T_TRAFFIC_STATUS: TrafficStatus.FINISHED.name,
+                T_TID: self.tid,
+            })
 
     def __str__(self):
         return string_write("TE: ts:{}, dur:{}, node:[{}], cmd:{} ",\
-            self.timeslot, self.duration, str(self.node), self.command)
+            self.timespan, self.duration, str(self.node), self.command)
 
 def create_traffics(trcfg, nwcfg):
     """Create traffic generators for targe traffics

@@ -1,9 +1,13 @@
 """ Trigger
  @author: Zex Li <top_zlynch@yahoo.com>
 """
-from inuithy.common.predef import console_write
+from inuithy.common.predef import console_write, TrafficStatus,\
+INUITHY_LOGCONFIG, T_TID, T_TRAFFIC_STATUS
+from inuithy.util.cmd_helper import pub_status
 import logging, threading, time
 import logging.config as lconf
+
+lconf.fileConfig(INUITHY_LOGCONFIG)
 
 class Duration(object):
     """Duration indicator
@@ -25,15 +29,21 @@ class TrafficTrigger(threading.Thread):
     """
 
     def __init__(self, interval=0, duration=0, target=None,\
-        name="Trigger", daemon=False, *args, **kwargs):
+        name="Trigger", daemon=False, lgr=None, mqclient=None,\
+        tid=None, *args, **kwargs):
         threading.Thread.__init__(self, target=target,\
             name=name, args=args, kwargs=kwargs, daemon=daemon)
-        self.stop_timer = threading.Timer(duration, self._stop_trigger)
+        self.lgr = lgr
+        if self.lgr is None:
+            self.lgr = logging
+        self.mqclient = mqclient
+        self.stop_timer = threading.Timer(duration, self.stop_trigger)
         self.__interval = interval
         self.running = False
         self.__args = args
         self.__kwargs = kwargs
         self._target = target
+        self.tid = tid
 
     def run(self):
         if self._target is None:
@@ -46,13 +56,18 @@ class TrafficTrigger(threading.Thread):
             self._target(self.__args, self.__kwargs)
             time.sleep(self.__interval)
 
-    def _stop_trigger(self):
-        console_write("{}: ========Stopping trgger============", self)
+    def stop_trigger(self):
+#        console_write("{}: ========Stopping trigger============", self)
         self.running = False
         self.stop_timer.cancel()
+        if self.mqclient is not None:
+            pub_status(self.mqclient, data={
+                T_TRAFFIC_STATUS: TrafficStatus.FINISHED.name,
+                T_TID:       self.tid,
+            })
 
-    def __del__(self):
-        self._stop_trigger()
+#    def __del__(self):
+#        self.stop_trigger()
 
     def _target(self):
         pass

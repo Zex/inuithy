@@ -3,12 +3,12 @@
 """
 from inuithy.common.predef import TrafficType, T_TRAFFIC_TYPE, T_MSG,\
 INUITHY_LOGCONFIG, T_MSG_TYPE, MessageType, string_write, T_TYPE,\
-T_ADDR, T_PORT, T_PANID, T_TIME, T_NODE
+T_ADDR, T_PORT, T_PANID, T_TIME, T_NODE, T_SENDER, T_RECIPIENT
 from inuithy.util.cmd_helper import pub_reportwrite, pub_notification
 from inuithy.protocol.ble_protocol import BleProtocol as BleProt
 from inuithy.protocol.zigbee_protocol import ZigbeeProtocol
 import logging.config as lconf
-import threading as thrd
+import threading as threading
 #from datetime import datetime as dt
 from copy import deepcopy
 from enum import Enum
@@ -39,7 +39,7 @@ class SerialNode(object):
         self.reporter = reporter
         # TODO: create serial object
         self.__serial = None #serial.Serial(port, baudrate=baudrate, timeout=timeout)
-        self.__listener = thrd.Thread(target=self.__listener_routine, name="Listener")
+        self.__listener = threading.Thread(target=self.__listener_routine, name="Listener")
         self.run_listener = False
 
     def read(self, rdbyte=0, report=None):
@@ -53,13 +53,16 @@ class SerialNode(object):
             #TODO parse rdbuf
 #            report[T_MSG] = rdbuf
             report[T_NODE] = self.addr
+#            report[T_RECIPIENT] = self.addr
+            report[T_TIME] = str(int(time.time()))#dt.now())
 #            if rdbuf.split(' ')[0] == 'joingrp':
 #                report[T_TRAFFIC_TYPE] = TrafficType.JOIN.name
+#            else
+#                report[T_TRAFFIC_TYPE] = TrafficType.SCMD.name
             import random
             traftype = random.randint(TrafficType.JOIN.value, TrafficType.SCMD.value)
             report[T_TRAFFIC_TYPE] = traftype == TrafficType.JOIN.value and TrafficType.JOIN.name or TrafficType.SCMD.name
 
-            report[T_TIME] = str(int(time.time()))#dt.now())
             self.report_read(report)
         return rdbuf
 

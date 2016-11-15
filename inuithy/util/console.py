@@ -183,10 +183,9 @@ class Console(threading.Thread):
             return
         hosts = args[0]
         if hosts == T_EVERYONE:
-            self._ctrl.expected_agents
             agents = copy.deepcopy(self._ctrl.expected_agents)
         else:
-            agents = [hosts]
+            agents = list(hosts)
         start_agents(agents)
 
     def on_cmd_agent_stop(self, *args, **kwargs):
@@ -202,10 +201,9 @@ class Console(threading.Thread):
             return
         hosts = args[0]
         if hosts == T_EVERYONE:
-            self._ctrl.expected_agents
             agents = copy.deepcopy(self._ctrl.expected_agents)
         else:
-            agents = [hosts]
+            agents = list(hosts)
         force_stop_agents(agents)
 
 

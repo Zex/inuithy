@@ -62,6 +62,7 @@ T_MQTT = 'mqtt'
 T_HOST = 'host'
 T_PORT = 'port'
 T_QOS = 'qos'
+T_VERSION = 'version'
 T_CONTROLLER = 'controller'
 T_AGENTS = 'agents'
 T_ENABLE_LDEBUG = 'enable_localdebug'
@@ -101,7 +102,7 @@ T_ADDR = 'addr'
 T_CTRLCMD = 'ctrlcmd'
 T_MSG = 'msg'
 T_MSG_TYPE = 'msgtype'
-T_TIMESLOT = 'timeslot'
+T_TIMESPAN = 'timespan'
 T_TIME = 'time'
 T_RECORDS = 'records'
 T_TRAFFIC_STATUS = 'traffic_status'
@@ -142,13 +143,8 @@ def mqlog_map(lgr, level, msg):
     elif level == mqtt.MQTT_LOG_NOTICE or level == mqtt.MQTT_LOG_WARNING:
         lgr.warning(INUITHY_MQLOG_FMT.format(msg))
     else: # level == mqtt.MQTT_LOG_DEBUG:
-        #lgr.debug(INUITHY_MQLOG_FMT.format(msg))
+        lgr.debug(INUITHY_MQLOG_FMT.format(msg))
         pass
-
-TrafExecState = Enum("TrafExecState", [
-    "TRAFFIC_FIRING",
-    "TRAFFIC_FINISHED",
-])
 
 AgentStatus = Enum("AgentStatus", [
     "OFFLINE",
