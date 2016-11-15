@@ -4,9 +4,9 @@
 from inuithy.common.version import INUITHY_VERSION
 from inuithy.common.predef import T_CLIENTID, T_TRAFFIC_TYPE, T_PANID,\
 T_NODE, T_HOST, T_NODES, INUITHY_TOPIC_HEARTBEAT, T_TID, T_MSG,\
-T_TRAFFIC_STATUS, TrafficStatus, TrafficType, string_write,\
+T_TRAFFIC_STATUS, TrafficStatus, TrafficType, string_write, MessageType,\
 TRAFFIC_CONFIG_PATH, INUITHY_CONFIG_PATH, INUITHY_TITLE, T_SENDER,\
-INUITHY_TOPIC_UNREGISTER, INUITHY_LOGCONFIG, T_RECIPIENT,\
+INUITHY_TOPIC_UNREGISTER, INUITHY_LOGCONFIG, T_RECIPIENT, T_MSG_TYPE,\
 INUITHY_TOPIC_STATUS, INUITHY_TOPIC_REPORTWRITE, INUITHY_TOPIC_NOTIFICATION
 from inuithy.mode.base import ControllerBase
 from inuithy.util.cmd_helper import stop_agents, extract_payload
@@ -79,13 +79,13 @@ class AutoController(ControllerBase):
                 AutoController.initialized = False
                 self.lgr.info("Stop agents")
                 stop_agents(self._mqclient, self.tcfg.mqtt_qos)
-                time.sleep(5)
                 if self._traffic_state:
                     self._traffic_state.running = False
                 if self._traffic_timer:
                     self._traffic_timer.cancel()
                 if self.storage:
                     self.storage.close()
+                time.sleep(5)
                 if self.mqclient:
                     self.mqclient.disconnect()
         except Exception as ex:
@@ -121,14 +121,19 @@ class AutoController(ControllerBase):
         """Status topic handler"""
         self.lgr.info(string_write("On topic status"))
         data = extract_payload(message.payload)
-        if data.get(T_TRAFFIC_STATUS) == TrafficStatus.FINISHED.name:
-            self.lgr.info(string_write("Traffic finished on {}", data.get(T_CLIENTID)))
-            self.chk.traffire[data.get(T_CLIENTID)] = True
+        if data.get(T_TRAFFIC_STATUS) == TrafficStatus.RUNNING.name:
+            self.lgr.info(string_write("Traffic all fired on {}", data.get(T_CLIENTID)))
+#            self.chk.traffire[data.get(T_CLIENTID)] = True
+            del self.chk.traffire[data.get(T_CLIENTID)]
         elif data.get(T_TRAFFIC_STATUS) == TrafficStatus.REGISTERED.name:
             self.lgr.info(string_write("Traffic {} registered on {}",\
                 data.get(T_TID), data.get(T_CLIENTID)))
-            self.chk.traffic_set[data.get(T_TID)] = True
-        elif data.get(T_MSG):
+            self.chk.traffic_stat[data.get(T_TID)] = TrafficStatus.REGISTERED
+#            del self.chk.traffic_stat[data.get(T_TID)]
+        elif data.get(T_TRAFFIC_STATUS) == TrafficStatus.FINISHED.name:
+            self.lgr.info(string_write("Traffic {} finished", data.get(T_TID)))
+            self.chk.traffic_stat[data.get(T_TID)] = TrafficStatus.FINISHED
+        elif data.get(T_MSG) is not None:
             self.lgr.info(data.get(T_MSG))
         else:
             self.lgr.debug(string_write("Unhandled status message {}", data))
@@ -137,27 +142,37 @@ class AutoController(ControllerBase):
         """Report-written topic handler"""
 #        self.lgr.info(string_write("On topic reportwrite"))
         data = extract_payload(message.payload)
-        if data.get(T_SENDER) is not None and data.get(T_RECIPIENT) is not None:
-            self.storage.insert_record(data)
+        try:
+            self.lgr.debug(string_write("REPORT: {}", data))
+            if data.get(T_TRAFFIC_TYPE) == TrafficType.JOIN.name:
+                if self.chk.nwlayout.get(data.get(T_PANID)) is not None:
+                    self.chk.nwlayout[data.get(T_PANID)][data.get(T_NODE)] = True
+            elif data.get(T_TRAFFIC_TYPE) == TrafficType.SCMD.name:
+            # Record traffic only
+#            if data.get(T_SENDER) is not None and data.get(T_RECIPIENT) is not None:
+                if data.get(T_MSG_TYPE) == MessageType.SENT.name and data.get(T_NODE) is not None:
+                    self.storage.insert_record(data)
+        except Exception as ex:
+            self.lgr.error(string_write("Failed to handle report write message: {}", ex))
+            self.teardown()
 
     def on_topic_notification(self, message):
         """Report-read topic handler"""
 #       self.lgr.info(string_write("On topic notification"))
         data = extract_payload(message.payload)
         try:
-#            self.lgr.debug(string_write("NOTIFY: {}", data))
-            if data[T_TRAFFIC_TYPE] == TrafficType.JOIN.name:
+            self.lgr.debug(string_write("NOTIFY: {}", data))
+            if data.get(T_TRAFFIC_TYPE) == TrafficType.JOIN.name:
                 if self.chk.nwlayout.get(data.get(T_PANID)) is not None:
                     self.chk.nwlayout[data.get(T_PANID)][data.get(T_NODE)] = True
-            elif data[T_TRAFFIC_TYPE] == TrafficType.SCMD.name:
-                pass
+            elif data.get(T_TRAFFIC_TYPE) == TrafficType.SCMD.name:
             # Record traffic only
-            # if data.get(SCMD)
-#            if data.get(T_SENDER) and data.get(T_RECIPIENT):
-            if data.get(T_SENDER) is not None and data.get(T_RECIPIENT) is not None:
-                self.storage.insert_record(data)
+#            if data.get(T_SENDER) is not None and data.get(T_RECIPIENT) is not None:
+                if data.get(T_MSG_TYPE) == MessageType.RECV.name and data.get(T_NODE) is not None:
+                    self.storage.insert_record(data)
         except Exception as ex:
-            self.lgr.error(string_write("Update nwlayout failed: {}", ex))
+            self.lgr.error(string_write("Failed to handle notification message: {}", ex))
+            self.teardown()
 
 def start_controller(tcfg, trcfg, lgr=None):
     """Shortcut to start controller"""

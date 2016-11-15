@@ -2,7 +2,7 @@
  @author: Zex Li <top_zlynch@yahoo.com>
 """
 from inuithy.common.predef import T_CTRLCMD, CtrlCmd, T_CLIENTID,\
-T_HOST, T_NODES, AgentStatus, INUITHY_LOGCONFIG,\
+T_HOST, T_NODES, AgentStatus, INUITHY_LOGCONFIG, mqlog_map,\
 string_write, INUITHYCONTROLLER_CLIENT_ID
 from inuithy.util.helper import getnwlayoutid
 from inuithy.util.cmd_helper import pub_ctrlcmd
@@ -11,7 +11,7 @@ from inuithy.storage.storage import Storage
 from inuithy.common.agent_info import AgentInfo
 from inuithy.util.config_manager import create_inuithy_cfg, create_traffic_cfg,\
 create_network_cfg
-import threading as thrd
+import threading
 import logging, socket
 import logging.config as lconf
 
@@ -20,8 +20,8 @@ lconf.fileConfig(INUITHY_LOGCONFIG)
 class ControllerBase(object):
     """Base of controllers
     """
-    __mutex = thrd.Lock()
-    __mutex_msg = thrd.Lock()
+    __mutex = threading.Lock()
+    __mutex_msg = threading.Lock()
 
     @property
     def traffic_state(self):
@@ -172,7 +172,7 @@ class ControllerBase(object):
             self._do_init()
             self.load_storage()
             self._traffic_state = TrafficState(self)
-            self._traffic_timer = thrd.Timer(delay, self._traffic_state.start)
+            self._traffic_timer = threading.Timer(delay, self._traffic_state.start)
 
     def __del__(self):
         pass
@@ -198,7 +198,7 @@ class ControllerBase(object):
 #            message.topic))
         try:
             userdata.topic_routes[message.topic](message)
-#            thrd.Thread(target=userdata.topic_routes[message.topic], args=(message,)).start()
+#            threading.Thread(target=userdata.topic_routes[message.topic], args=(message,)).start()
         except Exception as ex:
             userdata.lgr.error(string_write("Exception on MQ message dispatching: {}", ex))
 
@@ -249,6 +249,7 @@ class ControllerBase(object):
             self.lgr.info(string_write("Agent {} updated", agentid))
 #        self.chk.host2aid.__setitem__(host, agentid)
         [self.chk.node2aid.__setitem__(node, agentid) for node in nodes]
+        self.lgr.debug("n=>aid"+str(self.node2aid))
 
     def del_agent(self, agentid):
         """Unregister started agent"""
@@ -265,7 +266,7 @@ class ControllerBase(object):
         try:
             for aname in self.trcfg.target_agents:
                 agent = self.nwcfg.agent_by_name(aname)
-                self.chk.expected_agents.append(agent[T_HOST])
+                self.chk.expected_agents.append(agent.get(T_HOST))
             self.register_routes()
             self.create_mqtt_subscriber(*self.tcfg.mqtt)
             ControllerBase.initialized = True
