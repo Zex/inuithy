@@ -61,9 +61,12 @@ sfood: $(BUILD_DOCS)
 	$(PS2PDF) $(BUILD_DOCS)/inuithy.ps $(BUILD_DOCS)/inuithy.pdf
 	$(RM) $(BUILD_DOCS)/inuithy.dot $(BUILD_DOCS)/inuithy.ps
 
-install: $(LOGPATH) $(REPORTBASE)
-	$(CP) $(shell pwd) $(INSTALL_PREFIX)
+install: $(LOGPATH) $(REPORTBASE) install_dir
+	$(CP) $(OUTPUT_TAR_SOURCE) $(INSTALL_PREFIX)/$(PROJECT_ALIAS)
 	
+install_dir:
+	$(MKDIR) $(INSTALL_PREFIX)/$(PROJECT_ALIAS)
+
 run_logstash:
 	$(THIRDPARTY)/logstash/bin/logstash -f inuithy/config/logstash.yml
 

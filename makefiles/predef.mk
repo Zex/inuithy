@@ -16,7 +16,9 @@ PS2PDF		:= @ps2pdf
 VIM			:= @vim
 ULIMIT		:= @ulimit
 CD			:= @cd
+CP			:= @cp -ra
 MAKE		:= make
+CAT			:= @cat
 
 BUILD		     := $(shell pwd)/build
 BUILD_DOCS		 := $(BUILD)/docs
@@ -27,6 +29,7 @@ LOGBASE			 := /var/log/inuithy/
 LOGPATH			 := $(LOGBASE)/inuithy.log
 LASTGENID		 := lastgenid
 LASTREPORT		 := lastreport
+ALLGENID		 := allgenid
 REPORTBASE		 := $(LOGBASE)/report
 MOSQUITTO_CONFIG := inuithy/config/mosquitto.conf
 MONGODB_CONFIG	 := inuithy/config/mongod.conf
@@ -47,4 +50,6 @@ $(LOGBASE):
 $(LASTGENID):
 	$(TAILEND) $(LOGBASE)/inuithy.genid
 
+$(ALLGENID):
+	$(CAT) $(LOGBASE)/inuithy.genid
 
