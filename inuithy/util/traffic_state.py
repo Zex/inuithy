@@ -2,7 +2,7 @@
  @author: Zex Li <top_zlynch@yahoo.com>
 """
 from inuithy.common.predef import T_TID, T_GENID, T_TRAFFIC_TYPE,\
-T_CLIENTID, T_NODE, T_HOST, T_DURATION, T_TIMESPAN, T_SENDER,\
+T_CLIENTID, T_NODE, T_HOST, T_DURATION, T_INTERVAL, T_SENDER,\
 T_RECIPIENT, T_PKGSIZE, T_NODES, T_PATH, T_NWLAYOUT, T_PANID,\
 console_write, string_write, TrafficType, T_TRAFFIC_FINISH_DELAY,\
 TrafficStorage, StorageType, INUITHY_CONFIG_PATH, TrafficStatus
@@ -93,7 +93,7 @@ class TrafStatChk(object):
                 return True
             return False
         except Exception as ex:
-            self.lgr.error(string_write("Failed to check traffic register status", ex))
+            self.lgr.error(string_write("Failed to check whether traffic fired: {}", ex))
             return False
 
     def is_traffic_all_set(self):
@@ -109,22 +109,23 @@ class TrafStatChk(object):
                 return True
             return False
         except Exception as ex:
-            self.lgr.error(string_write("Failed to check traffic register status", ex))
+            self.lgr.error(string_write("Failed to check whether traffic registered: {}", ex))
             return False
 
     def is_traffic_finished(self):
         """Whether traffics are finished"""
-        self.lgr.info("Is traffic finished")
+        self.lgr.info("Is traffic all finished")
         try:
             if len(self.available_agents) == 0:
                 raise ValueError("No agent available")
             if len(self.traffic_stat) == 0:
                 return True
+            self.lgr.debug(self.traffic_stat)
             if len([chk for chk in self.traffic_stat.values() if chk == TrafficStatus.FINISHED]) == len(self.traffic_stat):
                 return True
             return False
         except Exception as ex:
-            self.lgr.error(string_write("Failed to check traffic register status", ex))
+            self.lgr.error(string_write("Failed to check whether traffic finished: {}", ex))
             return False
 
     def is_agents_all_up(self):
@@ -292,8 +293,9 @@ class TrafficState:
             start_agents(self.ctrl.chk.expected_agents)
             self.wait_agent()
             try:
-                self.next()
-                self.start_one()
+                gid = self.next()
+                if gid is not None:
+                    self.start_one()
             except StopIteration:
                 self.lgr.info("All traffic generator done")
 #            [self.start_one() for tg in self.next_tgs]
@@ -379,13 +381,15 @@ class TrafficState:
     @after('register')
     def do_register(self):
         """Register traffic to agents"""
-        with open("node2aid", 'w') as fd:
-            for k, v in self.ctrl.node2aid.items():
-                fd.write(str(("node2aid", k, v))+'\n')
+#        with open("node2aid", 'w') as fd:
+#            for k, v in self.ctrl.node2aid.items():
+#                fd.write(str(("node2aid", k, v))+'\n')
         self.lgr.info(string_write("Register traffic task: {}", str(self.current_state)))
         tg = self.current_tg
         self.lgr.info(string_write("Register traffic: [{}]", str(tg)))
         for tr in tg.traffics:
+#            with open("node2aid", 'a') as fd:
+#                fd.write(str(tr)+'\n')
             try:
                 target_host = self.ctrl.node2host.get(tr.sender)
                 data = {
@@ -396,7 +400,7 @@ class TrafficState:
                     T_NODE:         tr.sender,
                     T_HOST:         target_host,
                     T_DURATION:     tg.duration,
-                    T_TIMESPAN:     tg.timespan,
+                    T_INTERVAL:     tg.interval,
                     T_SENDER:       tr.sender,
                     T_RECIPIENT:    tr.recipient,
                     T_PKGSIZE:      tr.pkgsize,
