@@ -4,7 +4,7 @@
 from inuithy.common.predef import string_write, INUITHY_TITLE,\
 INUITHY_VERSION, INUITHY_CONFIG_PATH, CtrlCmd, INUITHY_TOPIC_TRAFFIC,\
 INUITHY_TOPIC_CONFIG, INUITHYAGENT_CLIENT_ID, T_ADDR, T_HOST, T_NODE,\
-T_CLIENTID, T_TID, T_TIMESPAN, T_DURATION, T_NODES, T_RECIPIENT,\
+T_CLIENTID, T_TID, T_INTERVAL, T_DURATION, T_NODES, T_RECIPIENT,\
 T_TRAFFIC_STATUS, T_MSG, T_CTRLCMD, TrafficStatus, T_TRAFFIC_TYPE,\
 INUITHY_LOGCONFIG, INUITHY_TOPIC_COMMAND, TrafficType, DEV_TTY, T_GENID,\
 T_SENDER, T_PKGSIZE, T_EVERYONE, mqlog_map, T_VERSION, T_MSG_TYPE
@@ -216,7 +216,7 @@ class Agent(object):
         except Exception as ex:
             self.lgr.error(string_write("Unregister failed: {}", ex))
 
-    def create_mqtt_subscriber(self, host, port):
+    def create_mqtt_client(self, host, port):
         """Create MQTT subscriber"""
         self.topic_routes = {
             INUITHY_TOPIC_COMMAND:  self.on_topic_command,
@@ -274,16 +274,20 @@ class Agent(object):
         """
         self.lgr.info(string_write("Do initialization"))
         try:
-            self.create_mqtt_subscriber(*self.tcfg.mqtt)
-            self.__sad = SerialAdapter(self._mqclient)
+            self.create_mqtt_client(*self.tcfg.mqtt)
+            self.__sad = SerialAdapter(self.mqclient)
             Agent.initialized = True
         except Exception as ex:
             self.lgr.error(string_write("Failed to initialize: {}", ex))
+            pub_status(self.mqclient, self.tcfg.mqtt_qos, {
+                T_TRAFFIC_STATUS: TrafficStatus.INITFAILED.name,
+                T_CLIENTID: self.clientid,
+                T_MSG: str(ex),
+            })
 
     def __init__(self, cfgpath='config/inuithy.conf', lgr=None, cid_surf=None):
-        if lgr is not None:
-            self.lgr = lgr
-        else:
+        self.lgr = lgr
+        if self.lgr is not None:
             self.lgr = logging
         Agent.__initialized = False
         self.__enable_heartbeat = False
@@ -296,7 +300,7 @@ class Agent(object):
         self.set_host()
         self.__addr2node = {}
         self.__clientid = self.get_clientid(cid_surf)
-        if self.__inuithy_cfg.load() is False:
+        if self.__inuithy_cfg is None:
             self.lgr.error(string_write("Failed to load configure"))
         else:
             self.__do_init()
@@ -356,13 +360,13 @@ class Agent(object):
 
     def start(self):
         """Start Agent routine"""
-        if not self.initialized:
+        if not Agent.initialized:
             self.lgr.error(string_write("Agent not initialized"))
             return
         status_msg = 'Agent fine'
         try:
             self.lgr.info(string_write("Starting Agent {}", self.clientid))
-            self.__sad.scan_nodes(DEV_TTY.format(T_EVERYONE))
+            self.__sad.scan_nodes(DEV_TTY.format(T_EVERYONE)) # TODO use ttyusb
             self.lgr.info(string_write("Connected nodes: [{}]", self.__sad.nodes))
             self.addr_to_node()
             self.register()
@@ -415,7 +419,7 @@ class Agent(object):
         data = {
              T_GENID:        tg.genid,
              T_DURATION:     tg.duration,
-             T_TIMESPAN:     tg.timespan,
+             T_INTERVAL:     tg.interval,
              T_SENDER:       tr.sender,
              T_RECIPIENT:    tr.recipient,
              T_PKGSIZE:      tr.pkgsize,
@@ -439,7 +443,7 @@ class Agent(object):
                 T_RECIPIENT: data.get(T_RECIPIENT),
                 T_PKGSIZE: data.get(T_PKGSIZE),
             }
-            te = TrafficExecutor(node, cmd, data.get(T_TIMESPAN), data.get(T_DURATION), report=report, lgr=self.lgr, mqclient=self.mqclient, tid=data.get(T_TID))
+            te = TrafficExecutor(node, cmd, data.get(T_INTERVAL), data.get(T_DURATION), report=report, lgr=self.lgr, mqclient=self.mqclient, tid=data.get(T_TID))
             self.__traffic_executors.put(te)
             pub_status(self._mqclient, self.tcfg.mqtt_qos, {
                 T_TRAFFIC_STATUS:   TrafficStatus.REGISTERED.name,
@@ -493,9 +497,8 @@ class Agent(object):
         try:
 #            [te.start() for te in self.__traffic_executors]
 #            for te in self.__traffic_executors:
-            while not self.__traffic_executors.empty():
-                if not Agent.initialized:
-                    break
+            self.lgr.info(string_write("Total traffic executors: [{}]", self.__traffic_executors.qsize()))
+            while not self.__traffic_executors.empty() and Agent.initialized:
                 te = self.__traffic_executors.get()
                 te.start()
                 pub_status(self._mqclient, self.tcfg.mqtt_qos, {
@@ -504,6 +507,7 @@ class Agent(object):
                     T_TID: te.tid,
                 })
                 te.finished.wait()
+                self.lgr.debug(string_write("{} finished", te))
         except Exception as ex:
             self.lgr.error(string_write("Exception on running traffic: {}", ex))
 
