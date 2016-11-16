@@ -19,6 +19,7 @@ import threading
 import socket
 import logging
 import sys
+from queue import Queue
 
 lconf.fileConfig(INUITHY_LOGCONFIG)
 
@@ -168,11 +169,13 @@ class Agent(object):
                 if self.__heartbeat is not None:
                     self.__heartbeat.stop()
                 self.__sad.stop_nodes()
-                while True:
-                    self.lgr.info("Stopping traffic executors")
-                    [te.stop_trigger() for te in self.__traffic_executors if te.isAlive()]
-                    if len([te for te in self.__traffic_executors if te.isAlive()]) == 0:
-                        break
+                self.lgr.info("Stopping traffic executors")
+                while not self.__traffic_executors.empty():
+                    te = self.__traffic_executors.get()
+                    te.stop_trigger()
+#                    [te.stop_trigger() for te in self.__traffic_executors if te.isAlive()]
+#                    if len([te for te in self.__traffic_executors if te.isAlive()]) == 0:
+#                        break
 #                [te.stop_trigger() for te in self.__traffic_executors if te is not None]
                 self._mqclient.disconnect()
                 sys.exit()
@@ -288,7 +291,7 @@ class Agent(object):
         self._mqclient = None
         self.topic_routes = {}
         self.ctrlcmd_routes = {}
-        self.__traffic_executors = []
+        self.__traffic_executors = Queue()
         self.__inuithy_cfg = create_inuithy_cfg(cfgpath)
         self.set_host()
         self.__addr2node = {}
@@ -437,7 +440,7 @@ class Agent(object):
                 T_PKGSIZE: data.get(T_PKGSIZE),
             }
             te = TrafficExecutor(node, cmd, data.get(T_TIMESPAN), data.get(T_DURATION), report=report, lgr=self.lgr, mqclient=self.mqclient, tid=data.get(T_TID))
-            self.__traffic_executors.append(te)
+            self.__traffic_executors.put(te)
             pub_status(self._mqclient, self.tcfg.mqtt_qos, {
                 T_TRAFFIC_STATUS:   TrafficStatus.REGISTERED.name,
                 T_CLIENTID:         self.clientid,
@@ -488,15 +491,19 @@ class Agent(object):
     def start_traffic(self):
         """Start traffic routine"""
         try:
-#            [te.run() for te in self.__traffic_executors]
-            for te in self.__traffic_executors:
+#            [te.start() for te in self.__traffic_executors]
+#            for te in self.__traffic_executors:
+            while not self.__traffic_executors.empty():
                 if not Agent.initialized:
                     break
-                te.run()
-            pub_status(self._mqclient, self.tcfg.mqtt_qos, {
-                T_TRAFFIC_STATUS: TrafficStatus.RUNNING.name,
-                T_CLIENTID:       self.clientid,
-            })
+                te = self.__traffic_executors.get()
+                te.start()
+                pub_status(self._mqclient, self.tcfg.mqtt_qos, {
+                    T_TRAFFIC_STATUS: TrafficStatus.RUNNING.name,
+                    T_CLIENTID: self.clientid,
+                    T_TID: te.tid,
+                })
+                te.finished.wait()
         except Exception as ex:
             self.lgr.error(string_write("Exception on running traffic: {}", ex))
 
