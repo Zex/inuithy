@@ -75,7 +75,6 @@ class PandasPlugin(object):
 
         if len(repo) > 0:
             df = pd.DataFrame(repo, index=range(len(index)), columns=repo.keys())
-            print("sender", df)
             df.plot.line(grid=False, colormap='rainbow')
             plt.title("Number of packs sent via address")
             pdf_pg.savefig()
@@ -99,10 +98,10 @@ class PandasPlugin(object):
         cache.sort()
         index = cache
         repo = PandasPlugin.build_report_data(index, data)
-
+        print(repo)
         if len(repo) > 0:
             df = pd.DataFrame(repo, index=range(len(index)), columns=repo.keys())
-            print("recv", df)
+            plt.figure(figsize=(15,5),facecolor='w')
             df.plot.line(grid=False, colormap='rainbow')
             plt.title("Number of packs received via address")
             pdf_pg.savefig()
@@ -183,13 +182,13 @@ class PandasPlugin(object):
                 fd.write(','.join(h for h in header) + '\n')
                 [fd.write(line + '\n') for line in csv_data]
 
-#            jdata = json.dumps(recs)
-#            pdata = pd.read_json(jdata)
+            jdata = json.dumps(recs)
+            pdata = pd.read_json(jdata)
 #            print(pdata)
-#            n = pdata.groupby(T_MSG_TYPE)
-#            print(dir(n))
-#            print(n.sent.sum())
-#            continue
+            n = pdata.groupby(T_MSG_TYPE)
+            print(dir(n))
+            print(n)
+            continue
             with PdfPages(string_write('{}/{}.pdf', cfg.config[T_REPORTDIR][T_PATH], genid)) as pdf_pg:
                 PandasPlugin.gen_total_pack(recs, genid, pdf_pg) 
                 PandasPlugin.gen_sender_pack(recs, genid, pdf_pg) 
