@@ -237,7 +237,7 @@ class ControllerBase(object):
             T_CTRLCMD:  CtrlCmd.NEW_CONTROLLER.name,
             T_CLIENTID: self.clientid,
         }
-        pub_ctrlcmd(self._mqclient, self.tcfg.mqtt_qos, data)
+        pub_ctrlcmd(self.mqclient, self.tcfg.mqtt_qos, data)
 
     def add_agent(self, agentid, host, nodes):
         """Register started agent"""
@@ -268,12 +268,12 @@ class ControllerBase(object):
                 agent = self.nwcfg.agent_by_name(aname)
                 self.chk.expected_agents.append(agent.get(T_HOST))
             self.register_routes()
-            self.create_mqtt_subscriber(*self.tcfg.mqtt)
+            self.create_mqtt_client(*self.tcfg.mqtt)
             ControllerBase.initialized = True
         except Exception as ex:
             self.lgr.error(string_write("Failed to initialize: {}", ex))
 
-    def create_mqtt_subscriber(self, host, port):
+    def create_mqtt_client(self, host, port):
         """Create MQTT subscriber"""
         pass
 

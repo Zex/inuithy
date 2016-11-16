@@ -20,7 +20,7 @@ lconf.fileConfig(INUITHY_LOGCONFIG)
 class AutoController(ControllerBase):
     """Controller in automatic mode
     """
-    def create_mqtt_subscriber(self, host, port):
+    def create_mqtt_client(self, host, port):
         self._mqclient = mqtt.Client(self.clientid, True, self)
         self._mqclient.on_connect = AutoController.on_connect
         self._mqclient.on_message = AutoController.on_message
@@ -135,6 +135,10 @@ class AutoController(ControllerBase):
         elif data.get(T_TRAFFIC_STATUS) == TrafficStatus.FINISHED.name:
             self.lgr.info(string_write("Traffic {} finished", data.get(T_TID)))
             self.chk.traffic_stat[data.get(T_TID)] = TrafficStatus.FINISHED
+        elif data.get(T_TRAFFIC_STATUS) == TrafficStatus.INITFAILED.name:
+            self.lgr.error(string_write("Agent {} failed to initialize: {}",\
+                data.get(T_CLIENTID), data.get(T_MSG)))
+            self.teardown()
         elif data.get(T_MSG) is not None:
             self.lgr.info(data.get(T_MSG))
         else:
