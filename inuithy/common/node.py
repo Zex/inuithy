@@ -50,20 +50,7 @@ class SerialNode(object):
                 rdbuf = self.__serial.readall()
         #TODO
         if report is not None:
-            #TODO parse rdbuf
-#            report[T_MSG] = rdbuf
-            report[T_NODE] = self.addr
-#            report[T_RECIPIENT] = self.addr
-            report[T_TIME] = str(int(time.time()))#dt.now())
-#            if rdbuf.split(' ')[0] == 'joingrp':
-#                report[T_TRAFFIC_TYPE] = TrafficType.JOIN.name
-#            else
-#                report[T_TRAFFIC_TYPE] = TrafficType.SCMD.name
-            import random
-            traftype = random.randint(TrafficType.JOIN.value, TrafficType.SCMD.value)
-            report[T_TRAFFIC_TYPE] = traftype == TrafficType.JOIN.value and TrafficType.JOIN.name or TrafficType.SCMD.name
-
-            self.report_read(report)
+            self.report_read(report, rdbuf)
         return rdbuf
 
     def write(self, data="", report=None):
@@ -73,9 +60,6 @@ class SerialNode(object):
             written = self.__serial.write(data)
         #TODO -->
         if report is not None:
-            self.report = deepcopy(report)
-            report[T_TIME] = str(int(time.time()))#dt.now())
-            report[T_MSG] = data
             self.report_write(report)
 
     def start_listener(self):
@@ -88,8 +72,8 @@ class SerialNode(object):
     def __listener_routine(self):
         while self.run_listener:
             try:
-                if self.__serial is None:
-                    time.sleep(5)
+                if self.__serial is None: #DEBUG
+                    time.sleep(30)
                 report = deepcopy(self.report)
                 self.read(report=report)
             except Exception as ex:
@@ -99,14 +83,10 @@ class SerialNode(object):
         self.run_listener = False
 
     def report_write(self, data):
-        data.__setitem__(T_MSG_TYPE, MessageType.SENT.name)
-        if self.reporter is not None:
-            pub_reportwrite(self.reporter, data=data)
+        pass
 
     def report_read(self, data):
-        data.__setitem__(T_MSG_TYPE, MessageType.RECV.name)
-        if self.reporter is not None:
-            pub_notification(self.reporter, data=data)
+        pass
 
     def __str__(self):
         return jsoin.dumps({T_TYPE:self.ntype.name})
@@ -139,6 +119,34 @@ class NodeBLE(SerialNode):
             T_TYPE:self.ntype.name,
             T_ADDR:self.addr,
             T_PORT:self.port})
+
+    def report_write(self, report, data=None):
+        """"Report writen data"""
+        self.report = deepcopy(report)
+        report[T_TIME] = str(int(time.time()))
+        report[T_MSG] = data
+        report.__setitem__(T_MSG_TYPE, MessageType.SENT.name)
+        if self.reporter is not None:
+            pub_reportwrite(self.reporter, data=report)
+
+    def report_read(self, report, data=None):
+        """"Report received data"""
+        #TODO parse data
+#        report[T_MSG] = data
+#        report[T_RECIPIENT] = self.addr
+        report[T_NODE] = self.addr
+        report[T_TIME] = str(int(time.time()))#dt.now())
+#        if data.split(' ')[0] == 'joingrp':
+#            report[T_TRAFFIC_TYPE] = TrafficType.JOIN.name
+#        else
+#            report[T_TRAFFIC_TYPE] = TrafficType.SCMD.name
+        import random
+        traftype = random.randint(TrafficType.JOIN.value, TrafficType.SCMD.value)
+        report[T_TRAFFIC_TYPE] = traftype == TrafficType.JOIN.value and TrafficType.JOIN.name or TrafficType.SCMD.name
+
+        report.__setitem__(T_MSG_TYPE, MessageType.RECV.name)
+        if self.reporter is not None:
+            pub_notification(self.reporter, data=report)
 
     def join(self, data):
         self.report = deepcopy(data)

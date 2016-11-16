@@ -229,18 +229,16 @@ class TrafficExecutor(threading.Thread):
 def create_traffics(trcfg, nwcfg):
     """Create traffic generators for targe traffics
     """
-    trs = []
+    trgens = []
     for trname in trcfg.config[T_TARGET_TRAFFICS]:
         gentor = TrafficGenerator(trcfg, nwcfg, trname)
-        trs.append(gentor)
-    return trs
+        trgens.append(gentor)
+    return trgens
 
 if __name__ == '__main__':
-    from inuithy.util.config_manager import TrafficConfig
-    trcfg = TrafficConfig(TRAFFIC_CONFIG_PATH)
-    trcfg.load()
-    nwcfg = TrafficConfig(NETWORK_CONFIG_PATH)
-    nwcfg.load()
+    from inuithy.util.config_manager import create_traffic_cfg, create_network_cfg
+    trcfg = create_traffic_cfg(TRAFFIC_CONFIG_PATH)
+    nwcfg = create_network_cfg(trcfg.nw_cfgpath)
     tgs = create_traffics(trcfg, nwcfg)
     for tg in tgs:
         console_write("---------------------------------------------")
@@ -249,3 +247,15 @@ if __name__ == '__main__':
     te = TrafficExecutor("BLE", 'shield on', 1/0.9, 3, {"account":88888})
     te.run()
     print("===========end==============")
+
+#    cur_trcfg = trcfg.config['traffic_6']
+#    senders = TrafficGenerator.parse_senders(cur_trcfg, nwcfg)
+#    recipients = TrafficGenerator.parse_recipients(cur_trcfg, nwcfg)
+#    print(senders)
+#    print(recipients)
+
+#    trgens = create_traffics(trcfg, nwcfg)
+#    print(len(trgens))
+#    for tg in trgens:
+#        print(len(tg.traffics))
+
