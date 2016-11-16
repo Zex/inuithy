@@ -3,23 +3,24 @@
 """
 from inuithy.common.version import INUITHY_VERSION
 from inuithy.common.predef import T_CLIENTID, T_TRAFFIC_TYPE, T_PANID,\
-T_NODE, T_HOST, T_NODES, INUITHY_TOPIC_HEARTBEAT, T_TID,\
-T_TRAFFIC_STATUS, TrafficStatus, TrafficType, string_write,\
-TRAFFIC_CONFIG_PATH, INUITHY_CONFIG_PATH, INUITHY_TITLE,\
-INUITHY_TOPIC_UNREGISTER, INUITHY_LOGCONFIG,\
+T_NODE, T_HOST, T_NODES, INUITHY_TOPIC_HEARTBEAT, T_TID, T_MSG,\
+T_TRAFFIC_STATUS, TrafficStatus, TrafficType, string_write, MessageType,\
+TRAFFIC_CONFIG_PATH, INUITHY_CONFIG_PATH, INUITHY_TITLE, T_SENDER,\
+INUITHY_TOPIC_UNREGISTER, INUITHY_LOGCONFIG, T_RECIPIENT, T_MSG_TYPE,\
 INUITHY_TOPIC_STATUS, INUITHY_TOPIC_REPORTWRITE, INUITHY_TOPIC_NOTIFICATION
 from inuithy.mode.base import ControllerBase
 from inuithy.util.cmd_helper import stop_agents, extract_payload
 import paho.mqtt.client as mqtt
 import logging
 import logging.config as lconf
+import time
 
 lconf.fileConfig(INUITHY_LOGCONFIG)
 
 class MonitorController(ControllerBase):
     """Controller in automatic mode
     """
-    def create_mqtt_subscriber(self, host, port):
+    def create_mqtt_client(self, host, port):
         self._mqclient = mqtt.Client(self.clientid, True, self)
         self._mqclient.on_connect = MonitorController.on_connect
         self._mqclient.on_message = MonitorController.on_message
@@ -65,6 +66,8 @@ class MonitorController(ControllerBase):
             self._mqclient.loop_forever()
         except KeyboardInterrupt:
             self.lgr.info(string_write("MonitorController received keyboard interrupt"))
+        except NameError as ex:
+            self.lgr.error(string_write("ERR: {}", ex))
         except Exception as ex:
             self.lgr.error(string_write("Exception on MonitorController: {}", ex))
         self.teardown()
@@ -84,6 +87,7 @@ class MonitorController(ControllerBase):
                     self._traffic_timer.cancel()
                 if self.storage:
                     self.storage.close()
+                time.sleep(self.shutdown_delay)
                 if self.mqclient:
                     self.mqclient.disconnect()
         except Exception as ex:
@@ -119,36 +123,19 @@ class MonitorController(ControllerBase):
         """Status topic handler"""
         self.lgr.info(string_write("On topic status"))
         data = extract_payload(message.payload)
-        if data.get(T_TRAFFIC_STATUS) == TrafficStatus.FINISHED.name:
-            self.lgr.info(string_write("Traffic finished on {}", data.get(T_CLIENTID)))
-            self.chk.traffire[data.get(T_CLIENTID)] = True
-        elif data.get(T_TRAFFIC_STATUS) == TrafficStatus.REGISTERED.name:
-            self.lgr.info(string_write("Traffic {} registered on {}",\
-                data.get(T_TID), data.get(T_CLIENTID)))
-            self.chk.traffic_set[data.get(T_TID)] = True
-        else:
-            self.lgr.debug(string_write("Unhandled status message {}", data))
+        self.lgr.info(string_write("STATUS: {}", data))
 
     def on_topic_reportwrite(self, message):
         """Report-written topic handler"""
         self.lgr.info(string_write("On topic reportwrite"))
         data = extract_payload(message.payload)
-        self.storage.insert_record(data)
+        self.lgr.info(string_write("REPORT: {}", data))
 
     def on_topic_notification(self, message):
         """Report-read topic handler"""
         self.lgr.info(string_write("On topic notification"))
         data = extract_payload(message.payload)
-        try:
-            if data[T_TRAFFIC_TYPE] == TrafficType.JOIN.name:
-                if self.chk.nwlayout.get(data[T_PANID]) is not None:
-                    self.chk.nwlayout[data[T_PANID]][data[T_NODE]] = True
-            elif data[T_TRAFFIC_TYPE] == TrafficType.SCMD.name:
-                pass
-            self.lgr.debug(string_write("NOTIFY: {}", data))
-            self.storage.insert_record(data)
-        except Exception as ex:
-            self.lgr.error(string_write("Update nwlayout failed", ex))
+        self.lgr.info(string_write("NOTIFY: {}", data))
 
 def start_controller(tcfg, trcfg, lgr=None):
     """Shortcut to start controller"""

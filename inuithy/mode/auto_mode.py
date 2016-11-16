@@ -85,7 +85,7 @@ class AutoController(ControllerBase):
                     self._traffic_timer.cancel()
                 if self.storage:
                     self.storage.close()
-                time.sleep(5)
+                time.sleep(self.shutdown_delay)
                 if self.mqclient:
                     self.mqclient.disconnect()
         except Exception as ex:
@@ -125,13 +125,10 @@ class AutoController(ControllerBase):
             self.lgr.info(string_write("Traffic {} registered on {}",\
                 data.get(T_TID), data.get(T_CLIENTID)))
             self.chk.traffic_stat[data.get(T_TID)] = TrafficStatus.REGISTERED
-#            del self.chk.traffic_stat[data.get(T_TID)]
         elif data.get(T_TRAFFIC_STATUS) == TrafficStatus.RUNNING.name:
             self.lgr.info(string_write("Traffic {} fired on {}",\
                 data.get(T_TID), data.get(T_CLIENTID)))
             self.chk.traffic_stat[data.get(T_TID)] = TrafficStatus.RUNNING
-#            self.chk.traffire[data.get(T_CLIENTID)] = True
-#            del self.chk.traffire[data.get(T_CLIENTID)]
         elif data.get(T_TRAFFIC_STATUS) == TrafficStatus.FINISHED.name:
             self.lgr.info(string_write("Traffic {} finished", data.get(T_TID)))
             self.chk.traffic_stat[data.get(T_TID)] = TrafficStatus.FINISHED
@@ -155,7 +152,6 @@ class AutoController(ControllerBase):
                     self.chk.nwlayout[data.get(T_PANID)][data.get(T_NODE)] = True
             elif data.get(T_TRAFFIC_TYPE) == TrafficType.SCMD.name:
             # Record traffic only
-#            if data.get(T_SENDER) is not None and data.get(T_RECIPIENT) is not None:
                 if data.get(T_MSG_TYPE) == MessageType.SENT.name and data.get(T_NODE) is not None:
                     self.storage.insert_record(data)
         except Exception as ex:
@@ -173,7 +169,6 @@ class AutoController(ControllerBase):
                     self.chk.nwlayout[data.get(T_PANID)][data.get(T_NODE)] = True
             elif data.get(T_TRAFFIC_TYPE) == TrafficType.SCMD.name:
             # Record traffic only
-#            if data.get(T_SENDER) is not None and data.get(T_RECIPIENT) is not None:
                 if data.get(T_MSG_TYPE) == MessageType.RECV.name and data.get(T_NODE) is not None:
                     self.storage.insert_record(data)
         except Exception as ex:

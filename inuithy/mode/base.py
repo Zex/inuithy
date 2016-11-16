@@ -156,11 +156,12 @@ class ControllerBase(object):
         @inuithy_cfgpath Path to inuithy configure
         @traffic_cfgpath Path to traffic configure
         @delay Start traffic after @delay seconds
+        @shutdown_delay Seconds to delay before shutdown controller
         """
-        if lgr is not None:
-            self.lgr = lgr
-        else:
+        self.lgr = lgr
+        if lgr is None:
             self.lgr = logging
+        self.shutdown_delay = 5
         self._mqclient = None
         self._storage = None
         self.topic_routes = {}
