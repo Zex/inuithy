@@ -121,15 +121,17 @@ class AutoController(ControllerBase):
         """Status topic handler"""
         self.lgr.info(string_write("On topic status"))
         data = extract_payload(message.payload)
-        if data.get(T_TRAFFIC_STATUS) == TrafficStatus.RUNNING.name:
-            self.lgr.info(string_write("Traffic all fired on {}", data.get(T_CLIENTID)))
-#            self.chk.traffire[data.get(T_CLIENTID)] = True
-            del self.chk.traffire[data.get(T_CLIENTID)]
-        elif data.get(T_TRAFFIC_STATUS) == TrafficStatus.REGISTERED.name:
+        if data.get(T_TRAFFIC_STATUS) == TrafficStatus.REGISTERED.name:
             self.lgr.info(string_write("Traffic {} registered on {}",\
                 data.get(T_TID), data.get(T_CLIENTID)))
             self.chk.traffic_stat[data.get(T_TID)] = TrafficStatus.REGISTERED
 #            del self.chk.traffic_stat[data.get(T_TID)]
+        elif data.get(T_TRAFFIC_STATUS) == TrafficStatus.RUNNING.name:
+            self.lgr.info(string_write("Traffic {} fired on {}",\
+                data.get(T_TID), data.get(T_CLIENTID)))
+            self.chk.traffic_stat[data.get(T_TID)] = TrafficStatus.RUNNING
+#            self.chk.traffire[data.get(T_CLIENTID)] = True
+#            del self.chk.traffire[data.get(T_CLIENTID)]
         elif data.get(T_TRAFFIC_STATUS) == TrafficStatus.FINISHED.name:
             self.lgr.info(string_write("Traffic {} finished", data.get(T_TID)))
             self.chk.traffic_stat[data.get(T_TID)] = TrafficStatus.FINISHED
