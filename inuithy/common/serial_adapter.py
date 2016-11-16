@@ -26,7 +26,7 @@ class SerialAdapter(object):
         # TODO
         return NodeType.BLE
         dev = serial.Serial(port, baudrate=115200, timeout=2)
-#TODO   dev.write(candidates)
+#TODO   dev.write("getfwver")
         buf = ''
         if dev.inWaiting():
             buf = dev.readall()

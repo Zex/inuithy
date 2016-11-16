@@ -4,9 +4,11 @@
 from inuithy.common.predef import T_PKGRATE, T_DURATION,\
 T_NWCONFIG_PATH, T_NWLAYOUT, T_SENDERS, T_RECIPIENTS,\
 T_TARGET_TRAFFICS, TRAFFIC_CONFIG_PATH, NETWORK_CONFIG_PATH,\
-T_PKGSIZE, T_NODES, console_write, string_write, T_EVERYONE
+T_PKGSIZE, T_NODES, console_write, string_write, T_EVERYONE,\
+T_TRAFFIC_STATUS, TrafficStatus, T_TID
 from inuithy.util.helper import getnwlayoutid, is_number
 #from inuithy.util.trigger import TrafficTrigger
+from inuithy.util.cmd_helper import pub_status
 import time
 import threading
 import logging
@@ -110,7 +112,7 @@ class TrafficGenerator(object):
         self.__pkgrate = self.cur_trcfg[T_PKGRATE]
         self.__duration = self.cur_trcfg[T_DURATION]
         # In second
-        self.timespan = 1/self.pkgrate
+        self.interval = 1/self.pkgrate
         self.traffics = []
         self.nwlayoutid = getnwlayoutid(trcfg.config[T_NWCONFIG_PATH], self.cur_trcfg[T_NWLAYOUT])
         self.create_traffic(trcfg, nwcfg)
@@ -187,20 +189,29 @@ class TrafficExecutor(threading.Thread):
     """
     @node       Sender node
     @command    Command to send
-    @timespan   Traffic trigger interval, in second
+    @interval   Traffic trigger interval, in second
     @duration   Stop traffic after given duration, in second
     """
-    def __init__(self, node, command, timespan, duration, report=None, lgr=None, mqclient=None, tid=None):
+    @property
+    def finished(self):
+        return self.stop_timer.finished
+    @finished.setter
+    def finished(self, val):
+        pass
+
+    def __init__(self, node, command, interval, duration, report=None, lgr=None, mqclient=None, tid=None):
         threading.Thread.__init__(self, name=string_write("TE-{}", tid), target=None, daemon=False)
         self.lgr = lgr
         if self.lgr is None:
             self.lgr = logging
-        self.timespan = timespan
+        self.interval = interval
         self.duration = duration
         self.node = node
         self.report = report
         self.command = command
         self.stop_timer = threading.Timer(duration, self.stop_trigger)
+        self.mqclient = mqclient
+        self.tid = tid
 
     def run(self):
         self.lgr.debug(string_write("Start traffic [{}]", self))
@@ -210,7 +221,7 @@ class TrafficExecutor(threading.Thread):
         while self.running: # TODO debug check
 #            console_write(self.command, self.data)
             self.node.write(self.command, self.report)
-            time.sleep(self.timespan)
+            time.sleep(self.interval)
 
     def stop_trigger(self):
         console_write("{}: ========Stopping trigger============", self)
@@ -224,7 +235,7 @@ class TrafficExecutor(threading.Thread):
 
     def __str__(self):
         return string_write("TE: ts:{}, dur:{}, node:[{}], cmd:{} ",\
-            self.timespan, self.duration, str(self.node), self.command)
+            self.interval, self.duration, str(self.node), self.command)
 
 def create_traffics(trcfg, nwcfg):
     """Create traffic generators for targe traffics

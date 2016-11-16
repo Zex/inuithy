@@ -102,7 +102,7 @@ T_ADDR = 'addr'
 T_CTRLCMD = 'ctrlcmd'
 T_MSG = 'msg'
 T_MSG_TYPE = 'msgtype'
-T_TIMESPAN = 'timespan'
+T_INTERVAL = 'interval'
 T_TIME = 'time'
 T_RECORDS = 'records'
 T_TRAFFIC_STATUS = 'traffic_status'
@@ -111,7 +111,8 @@ T_TRAFFIC_FINISH_DELAY = 'traffin_delay'
 T_EVERYONE = '*'
 
 TrafficStatus = Enum("TrafficStatus", [
-    "STOP",             # Initial status, traffic not yet launched
+    "INITFAILED",       # Initialization failure
+    "STOPPED",          # Initial status, traffic not yet launched
     "STARTED",          # Traffic routine started
     "NWCONFIGURING",    # Configuring network layout
     "NWCONFIGED",       # Network layout configured
