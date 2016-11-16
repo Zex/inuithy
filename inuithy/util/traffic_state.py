@@ -403,7 +403,7 @@ class TrafficState:
         self.lgr.info(string_write("Traffic finished: {}", str(self.current_state)))
         while self.running and not self.ctrl.chk.is_traffic_all_fired():
             time.sleep(self.chk_delay)
-        while self.running and not self.is_traffic_finished():
+        while self.running and not self.ctrl.chk.is_traffic_finished():
             time.sleep(self.chk_delay)
         self.trgens.clear()
 
