@@ -23,11 +23,11 @@ OUTPUT_LOGTAR_PATH     := $(BUILD)/$(OUTPUT_LOGTAR)
 OUTPUT_TAR_EXCLUDES	   := $(BUILD) *.pyc .git .svn .*.swp docs *~ *.cache *__pycache__*
 
 $(OUTPUT_TAR_PATH): $(BUILD) $(VERSION_PATH)
-	$(ECHO) "\033[01;04;36m[Creating $@]\033[00m"
+	$(ECHO) "\033[01;36m[Creating $@]\033[00m"
 	$(TAR) cfj $(OUTPUT_TAR_PATH) $(OUTPUT_TAR_SOURCE) $(OUTPUT_TAR_EXCLUDES:%=--exclude=%) --total -l
 
 $(VERSION_PATH):
-	$(ECHO) "\033[01;04;36m[Creating $@]\033[00m"
+	$(ECHO) "\033[01;36m[Creating $@]\033[00m"
 	$(ECHO) "## AUTO GENERATED ON `date`" > $@
 	$(ECHO) "" >> $@
 	$(ECHO) "INUITHY_VERSION = \""$(VERSION)"\"" >> $@
@@ -36,6 +36,6 @@ $(VERSION_PATH):
 	$(ECHO) "" >> $@
 
 grab_logs: $(BUILD)
-	$(ECHO) "\033[01;04;36m[Packing log]\033[00m"
+	$(ECHO) "\033[01;36m[Packing log]\033[00m"
 	$(shell cd $(LOGBASE); tar cfj $(OUTPUT_LOGTAR_PATH) . --total -l)
 
