@@ -62,6 +62,7 @@ sfood: $(BUILD_DOCS)
 	$(RM) $(BUILD_DOCS)/inuithy.dot $(BUILD_DOCS)/inuithy.ps
 
 install: $(LOGPATH) $(REPORTBASE)
+	$(CP) $(shell pwd) $(INSTALL_PREFIX)
 	
 run_logstash:
 	$(THIRDPARTY)/logstash/bin/logstash -f inuithy/config/logstash.yml

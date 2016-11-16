@@ -30,6 +30,7 @@ LASTREPORT		 := lastreport
 REPORTBASE		 := $(LOGBASE)/report
 MOSQUITTO_CONFIG := inuithy/config/mosquitto.conf
 MONGODB_CONFIG	 := inuithy/config/mongod.conf
+INSTALL_PREFIX	 := /opt
 
 $(BUILD):
 	$(MKDIR) $@	
