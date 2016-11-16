@@ -4,7 +4,8 @@
 from inuithy.common.predef import INUITHY_LOGCONFIG, INUITHY_CONFIG_PATH,\
 MessageType, T_HOST, StorageType, T_NODE, T_MSG, T_TRAFFIC_TYPE,\
 T_RECORDS, T_MSG_TYPE, string_write, T_TIME, T_GENID, T_CLIENTID,\
-T_SENDER, T_RECIPIENT, T_PKGSIZE, T_REPORTDIR, T_PATH, T_GATEWAY
+T_SENDER, T_RECIPIENT, T_PKGSIZE, T_REPORTDIR, T_PATH, T_GATEWAY,\
+console_write, string_write
 from inuithy.storage.storage import Storage
 from inuithy.util.config_manager import create_inuithy_cfg, create_traffic_cfg
 import matplotlib.pyplot as plt
@@ -60,24 +61,28 @@ class PandasPlugin(object):
 
         data = {}
         index = set()
-        for rec in recs:
-#            if rec.get(T_MSG_TYPE) != MessageType.SENT.name or rec.get(T_SENDER) is None or rec.get(T_RECIPIENT) is None:
-            if rec.get(T_MSG_TYPE) != MessageType.SENT.name:
-                continue
-            n, t = rec.get(T_NODE), rec.get(T_TIME)
-            if n is None or t is None:
-                continue
-            PandasPlugin.insert_data(n, t, index, data)
-        cache = list(index)
-        cache.sort()
-        index = cache
-        repo = PandasPlugin.build_report_data(index, data)
 
-        if len(repo) > 0:
-            df = pd.DataFrame(repo, index=range(len(index)), columns=repo.keys())
-            df.plot.line(grid=False, colormap='rainbow')
-            plt.title("Number of packs sent via address")
-            pdf_pg.savefig()
+        try:
+            for rec in recs:
+    #            if rec.get(T_MSG_TYPE) != MessageType.SENT.name or rec.get(T_SENDER) is None or rec.get(T_RECIPIENT) is None:
+                if rec.get(T_MSG_TYPE) != MessageType.SENT.name:
+                    continue
+                n, t = rec.get(T_NODE), rec.get(T_TIME)
+                if n is None or t is None:
+                    continue
+                PandasPlugin.insert_data(n, t, index, data)
+            cache = list(index)
+            cache.sort()
+            index = cache
+            repo = PandasPlugin.build_report_data(index, data)
+    
+            if len(repo) > 0:
+                df = pd.DataFrame(repo, index=range(len(index)), columns=repo.keys())
+                df.plot.line(grid=False, colormap='rainbow', figsize=(20, 20))
+                plt.title("Number of packs sent via address")
+                pdf_pg.savefig()
+        except Exception as ex:
+            console_write("ERROR: {}", ex)
 
     @staticmethod
     def gen_recipient_pack(recs, genid, pdf_pg):
@@ -85,26 +90,28 @@ class PandasPlugin(object):
         """
         data = {}
         index = set()
-        for rec in recs:
+        try:
+            for rec in recs:
 #            if rec.get(T_MSG_TYPE) != MessageType.RECV.name or rec.get(T_SENDER) is None or rec.get(T_RECIPIENT) is None:
 #                continue
-            if rec.get(T_MSG_TYPE) != MessageType.RECV.name:
-                continue
-            n, t = rec.get(T_NODE), rec.get(T_TIME)
-            if n is None or t is None:
-                continue
-            PandasPlugin.insert_data(n, t, index, data)
-        cache = list(index)
-        cache.sort()
-        index = cache
-        repo = PandasPlugin.build_report_data(index, data)
-        print(repo)
-        if len(repo) > 0:
-            df = pd.DataFrame(repo, index=range(len(index)), columns=repo.keys())
-            plt.figure(figsize=(15,5),facecolor='w')
-            df.plot.line(grid=False, colormap='rainbow')
-            plt.title("Number of packs received via address")
-            pdf_pg.savefig()
+                if rec.get(T_MSG_TYPE) != MessageType.RECV.name:
+                    continue
+                n, t = rec.get(T_NODE), rec.get(T_TIME)
+                if n is None or t is None:
+                    continue
+                PandasPlugin.insert_data(n, t, index, data)
+            cache = list(index)
+            cache.sort()
+            index = cache
+            repo = PandasPlugin.build_report_data(index, data)
+#        print(repo)
+            if len(repo) > 0:
+                df = pd.DataFrame(repo, index=range(len(index)), columns=repo.keys())
+                df.plot.line(grid=False, colormap='rainbow', figsize=(30, 30))
+                plt.title("Number of packs received via address")
+                pdf_pg.savefig()
+        except Exception as ex:
+            console_write("ERROR: {}", ex)
 
     @staticmethod
     def gen_total_gwpack(recs, genid, pdf_pg):
@@ -112,36 +119,43 @@ class PandasPlugin(object):
         """
         index = set()
         data = {}
-        for v in recs:
-            n, t, g = v.get(T_NODE), v.get(T_TIME), v.get(T_GATEWAY)
-            if n is None or t is None or n != g:
-                continue
-            PandasPlugin.insert_data(n, t, index, data)
-        cache = list(index)
-        cache.sort()
-        index = cache
-        repo = PandasPlugin.build_report_data(index, data)
 
-        if len(repo) > 0:
-            df = pd.DataFrame(data, index=range(len(index)), columns=data.keys())
-            df.plot.line(grid=False, colormap='rainbow')
-            plt.title("Total of packs via gateway")
-            pdf_pg.savefig()
+        try:
+            for v in recs:
+                n, t, g = v.get(T_NODE), v.get(T_TIME), v.get(T_GATEWAY)
+                if n is None or t is None or n != g:
+                    continue
+                PandasPlugin.insert_data(n, t, index, data)
+            cache = list(index)
+            cache.sort()
+            index = cache
+            repo = PandasPlugin.build_report_data(index, data)
+    
+            if len(repo) > 0:
+                df = pd.DataFrame(data, index=range(len(index)), columns=data.keys())
+                df.plot.line(grid=False, colormap='rainbow', figsize=(20, 20))
+                plt.title("Total of packs via gateway")
+                pdf_pg.savefig()
+        except Exception as ex:
+            console_write("ERROR: {}", ex)
 
     @staticmethod
     def gen_total_pack(recs, genid, pdf_pg):
-        
-        repo = {
-            MessageType.SENT.name: 0,
-            MessageType.RECV.name: 0,
-            }
-        for v in recs:
-            repo[v.get(T_MSG_TYPE)] += 1
-
-        df = pd.DataFrame(list(repo.values()), index=list(repo.keys()))
-        df.plot(kind='bar', colormap='plasma')
-        plt.title("Total of requested and received packets")
-        pdf_pg.savefig()
+       
+        try:
+            repo = {
+                MessageType.SENT.name: 0,
+                MessageType.RECV.name: 0,
+                }
+            for v in recs:
+                repo[v.get(T_MSG_TYPE)] += 1
+    
+            df = pd.DataFrame(list(repo.values()), index=list(repo.keys()))
+            df.plot(kind='bar', colormap='plasma', grid=False)
+            plt.title("Total of requested and received packets")
+            pdf_pg.savefig()
+        except Exception as ex:
+            console_write("ERROR: {}", ex)
 
     @staticmethod
     def create_csv(recs, header, genid):
@@ -149,13 +163,27 @@ class PandasPlugin(object):
         """
         data = []
         index = set()
-        for rec in recs:
-            if rec.get(T_SENDER) is None or rec.get(T_RECIPIENT) is None:
-                continue
-            line = [rec.get(k) for k in header]
-            line_fmt = ('{},' * len(line)).strip(',')
-            data.append(line_fmt.format(*tuple(line)))
+
+        try:
+            for rec in recs:
+                if rec.get(T_SENDER) is None or rec.get(T_RECIPIENT) is None:
+                    continue
+                line = [rec.get(k) for k in header]
+                line_fmt = ('{},' * len(line)).strip(',')
+                data.append(string_write(line_fmt, *tuple(line)))
+        except Exception as ex:
+            console_write("ERROR: {}", ex)
         return data
+
+    @staticmethod
+    def groupby(pdata, item, pdf_pg):
+        try:
+            n = pdata.groupby(item)
+            n.plot(kind='line', colormap='plasma', figsize=(20, 20))
+            plt.title(string_write("Group by {}", item))
+            pdf_pg.savefig()
+        except Exception as ex:
+            console_write("ERROR: {}", ex)
 
     @staticmethod
     def gen_report(inuithy_cfgpath=INUITHY_CONFIG_PATH, genid=None):
@@ -171,7 +199,7 @@ class PandasPlugin(object):
                 "genid": genid,
             }):
             recs = r.get(T_RECORDS)
-            #DEBUG
+#DEBUG
 #            with open('records-{}'.format(genid), 'w') as fd:
 #                for r in recs:
 #                    fd.write(str(r)+'\n')
@@ -182,14 +210,13 @@ class PandasPlugin(object):
                 fd.write(','.join(h for h in header) + '\n')
                 [fd.write(line + '\n') for line in csv_data]
 
-            jdata = json.dumps(recs)
-            pdata = pd.read_json(jdata)
-#            print(pdata)
-            n = pdata.groupby(T_MSG_TYPE)
-            print(dir(n))
-            print(n)
-            continue
+#            jdata = json.dumps(recs)
+            pdata = pd.read_csv(string_write('{}/{}.csv', cfg.config[T_REPORTDIR][T_PATH], genid))
+            print(pdata)
+#            print("=========================================================")
+#            continue
             with PdfPages(string_write('{}/{}.pdf', cfg.config[T_REPORTDIR][T_PATH], genid)) as pdf_pg:
+                [PandasPlugin.groupby(pdata, item, pdf_pg) for item in header] 
                 PandasPlugin.gen_total_pack(recs, genid, pdf_pg) 
                 PandasPlugin.gen_sender_pack(recs, genid, pdf_pg) 
                 PandasPlugin.gen_recipient_pack(recs, genid, pdf_pg) 
