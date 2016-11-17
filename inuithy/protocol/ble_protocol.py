@@ -8,39 +8,46 @@ from inuithy.protocol.protocol import Protocol
 class BleProtocol(Protocol):
     """BLE control protocol
     """
+    LIGHTON = "LIGHTON"
+    LIGHTOFF = "LIGHTOFF"
+    JOINGRP = "joingrp"
+    LEAVEGRP = "leavegrp"
+    SETADDR = "setaddr"
+    GETADDR = "getaddr"
+
     def __init__(self):
         pass
 
     @staticmethod
     def traffic(*args, **kwargs):
         raddr = args[0]
-        return string_write("lighton {}", raddr)
+        return " ".join([BleProtocol.LIGHTON, raddr])
 
     @staticmethod
     def joingrp(grpid):
-        return string_write("joingrp {}", grpid)
+        return " ".join([BleProtocol.JOINGRP, grpid, Protocol.EOL])
 
     @staticmethod
     def leavegrp(grpid):
-        return string_write("leavegrp {}", grpid)
+        return " ".join([BleProtocol.LEAVEGRP, grpid, Protocol.EOL])
 
     @staticmethod
     def lighton(*args, **kwargs):
         raddr = args[0]
-        return string_write("lighton {}", raddr)
+        return " ".join([BleProtocol.LIGHTON, raddr, Protocol.EOL])
 
     @staticmethod
     def lightoff(*args, **kwargs):
         raddr = args[0]
-        return string_write("lightoff {}", raddr)
+        return " ".join([BleProtocol.LIGHTOFF, raddr, Protocol.EOL])
 
     @staticmethod
     def setaddr(self, *args, **kwargs):
         addr = args[0] 
-        return sting_write("addr {}", addr)
+        return " ".join([BleProtocol.SETADDR, raddr, Protocol.EOL])
 
     @staticmethod
     def getaddr(self, *args, **kwargs):
-        return string_write("addr")
+        return " ".join([BleProtocol.GETADDR, Protocol.EOL])
 
 

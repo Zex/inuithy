@@ -3,33 +3,38 @@
 """
 from inuithy.common.predef import string_write
 from inuithy.protocol.protocol import Protocol
+from enum import Enum
 
 class ZigbeeProtocol(Protocol):
-    
+    """Protocol for communication with Zigbee firmware"""
+    JOIN = "JOIN"
+    WRITEATTRIBUTE2 = "writeAttribute2"
+    GETNETWORKADDRESS = 'getNetworkAddress'
+    GETUID = 'getUID'
+    RESET_CONF = 'minimalDevice'
+    DGN = 'Dgn'
+
+    ReqType  = Enum('ReqType', [
+        'snd_req',
+    ])
+    MsgType = Enum('MsgType', [
+        'snd',
+        'rcv',
+        'dgn',
+    ])
+
     def __init__(self):
         pass
 
-    def joinnw(self, ch):
-        return string_write("join {}", ch)
+    @staticmethod
+    def joinnw(ch, ext_panid, panid, addr):
+        msg = " ".join([ZigbeeProtocol.JOIN, str(ch), str(ext_panid), str(panid), str(addr), Protocol.EOL])
+        return msg
 
-    def writeattribute2(self, destination, packet_size, response=False):
-        self.nr_messages_requested += 1
-        send_request = {}
-        send_request['time'] = time.time()
-        send_request['type'] = 'snd_req'
-        send_request['zbee_nwk_src'] = self.get_network_address()
-        send_request['zbee_nwk_dst'] = destination
-        if response == True:
-            rsp = "1"
-            send_request['ack'] = 'y'
-        else:
-            rsp = "0"
-            send_request['ack'] = 'n'
-
-        msg = 'writeAttribute2  s '+str(destination)+' 20 0 4 0x42 "1" %s '%str(packet_size) + rsp +"\r"
-
-#        self.log_queue.put(send_request)
-#        self.sport.write(msg)
-
+    @staticmethod
+    def writeattribute2(dest, psize, rsp=1):
+#        msg = 'writeAttribute2 s '+str(destination)+' 20 0 4 0x42 "1" %s '%str(packet_size) + rsp +"\r"
+#        data = " ".join([BluetoothDevice.WRITEATTRIBUTE2, "s", "0x%04X"%dest, "0x14 0x00 0x04 0x42", "1", "0x%02X"%psize, "0x%02X"%rsp, BluetoothDevice.EOL])
+        msg = " ".join([ZigbeeProtocol.WRITEATTRIBUTE2, "s", "0x"+dest, "20 0 4 42", "1", str(psize), str(rsp), Protocol.EOL])
         return msg
 
