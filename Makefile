@@ -70,15 +70,19 @@ install_dir:
 	$(ECHO) "\033[01;36m[Creating target directory]\033[00m"
 	$(MKDIR) $(INSTALL_PREFIX)/$(PROJECT_ALIAS)
 
-run_logstash:
-	$(THIRDPARTY)/logstash/bin/logstash -f inuithy/config/logstash.yml
+#run_logstash:
+#	$(THIRDPARTY)/logstash/bin/logstash -f inuithy/config/logstash.yml
+#
+#run_elasticsearch:
+#	$(THIRDPARTY)/elasticsearch/bin/elasticsearch
+#	
+#run_kibana:
+#	$(THIRDPARTY)/kibana/bin/kibana
+#
+#run_elk: run_logstash run_elasticsearch run_kibana
 
-run_elasticsearch:
-	$(THIRDPARTY)/elasticsearch/bin/elasticsearch
-	
-run_kibana:
-	$(THIRDPARTY)/kibana/bin/kibana
-
-run_elk: run_logstash run_elasticsearch run_kibana
-
+pylint:
+	$(MKDIR) $(PYLINT_OUTPUT)
+	$(PYLINT) --files-output=y $(PROJECT_ALIAS)
+#	$(MV) pylint*.txt $(PYLINT_OUTPUT)
 

@@ -17,8 +17,10 @@ VIM			:= @vim
 ULIMIT		:= @ulimit
 CD			:= @cd
 CP			:= @cp -ra
+MV			:= @mv
 MAKE		:= make
 CAT			:= @cat
+PYLINT		:= pylint
 
 BUILD		     := $(shell pwd)/build
 BUILD_DOCS		 := $(BUILD)/docs
