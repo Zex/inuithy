@@ -2,8 +2,8 @@
  @author: Zex Li <top_zlynch@yahoo.com>
 """
 from inuithy.common.predef import T_TID, T_GENID, T_TRAFFIC_TYPE,\
-T_CLIENTID, T_NODE, T_HOST, T_DURATION, T_INTERVAL, T_SENDER,\
-T_RECIPIENT, T_PKGSIZE, T_NODES, T_PATH, T_NWLAYOUT, T_PANID,\
+T_CLIENTID, T_NODE, T_HOST, T_DURATION, T_INTERVAL, T_SRC,\
+T_DEST, T_PKGSIZE, T_NODES, T_PATH, T_NWLAYOUT, T_PANID, T_SPANID,\
 console_write, string_write, TrafficType, T_TRAFFIC_FINISH_DELAY,\
 TrafficStorage, StorageType, INUITHY_CONFIG_PATH, TrafficStatus
 from inuithy.util.helper import getnwlayoutname
@@ -42,12 +42,13 @@ class TrafStatChk(object):
         self.node2aid = {}
         self.node2host = {}
 
-    def create_nwlayout(self, nwid, nodes):
+    def create_nwlayout(self, nwinfo):#nwid, nodes):
         """Create map of network layout configure"""
         self.lgr.info("Create network layout checker")
-        if nodes is None or nwid is None:
+        if nwinfo is None:
             return
-        self.nwlayout[nwid] = {node:False for node in nodes}
+#        self.nwlayout[nwid] = {node:False for node in nodes}
+        self.nwlayout = {node:False for node in nwinfo.get(T_NODES)}
 
 #    def create_traffire(self):
 #        """Create map of traffic to fire"""
@@ -62,10 +63,11 @@ class TrafStatChk(object):
         try:
             if self.available_agents is None or len(self.available_agents) == 0:
                 raise ValueError("No agent available")
-            for nw in self.nwlayout.values():
-                chks = [chk for chk in nw.values() if chk is True]
-                if len(chks) != len(nw):
-                    return False
+#            for nw in self.nwlayout.values():
+            nw = self.nwlayout
+            chks = [chk for chk in nw.values() if chk is True]
+            if len(chks) != len(nw):
+                return False
             return True
         except Exception as ex:
             self.lgr.error(string_write("Failed to check network layout: {}", ex))
@@ -346,7 +348,7 @@ class TrafficState:
         for subnet in self.ctrl.nwcfg.config.get(nwlayoutname).values():
             data = deepcopy(subnet)
             del data[T_NODES]
-            self.ctrl.chk.create_nwlayout(subnet.get(T_PANID), subnet.get(T_NODES))
+            self.ctrl.chk.create_nwlayout(subnet)
             for node in subnet.get(T_NODES):
                 target_host = self.ctrl.node2host.get(node)
                 if target_host is None:
@@ -391,24 +393,24 @@ class TrafficState:
 #            with open("node2aid", 'a') as fd:
 #                fd.write(str(tr)+'\n')
             try:
-                target_host = self.ctrl.node2host.get(tr.sender)
+                target_host = self.ctrl.node2host.get(tr.src)
                 data = {
-#                    T_TID:          tid,
-                    T_GENID:        self.current_tg.genid,
+#                   T_TID: tid,
+                    T_GENID: self.current_tg.genid,
                     T_TRAFFIC_TYPE: TrafficType.SCMD.name,
-#                    T_CLIENTID:     self.ctrl.node2aid.get(tr.sender),
-                    T_NODE:         tr.sender,
-                    T_HOST:         target_host,
-                    T_DURATION:     tg.duration,
-                    T_INTERVAL:     tg.interval,
-                    T_SENDER:       tr.sender,
-                    T_RECIPIENT:    tr.recipient,
-                    T_PKGSIZE:      tr.pkgsize,
+#                   T_CLIENTID: self.ctrl.node2aid.get(tr.src),
+                    T_NODE: tr.src,
+                    T_HOST: target_host,
+                    T_DURATION: tg.duration,
+                    T_INTERVAL: tg.interval,
+                    T_SRC: tr.src,
+                    T_DEST: tr.dest,
+                    T_PKGSIZE: tr.pkgsize,
                 }
                 if not self.ctrl.tcfg.enable_localdebug:
                     tid = ''.join([random.choice(string.hexdigits) for _ in range(7)])
                     data[T_TID] = tid
-                    data[T_CLIENTID] = self.ctrl.node2aid.get(tr.sender)
+                    data[T_CLIENTID] = self.ctrl.node2aid.get(tr.src)
                     self.lgr.debug(string_write("TRAFFIC: {}:{}:{}", data.get(T_TID), data.get(T_CLIENTID), tr))
                     pub_traffic(self.ctrl.mqclient, self.ctrl.tcfg.mqtt_qos, data)
                     self.ctrl.chk.traffic_stat[tid] = TrafficStatus.REGISTERING

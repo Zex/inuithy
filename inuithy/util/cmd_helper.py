@@ -122,7 +122,7 @@ class Heartbeat(threading.Thread):
 
     def run(self):
         if self.__target is None:
-            return # or self.__sender is None: return
+            return # or self.__src is None: return
         self.__running = True
 
         while self.__running:
