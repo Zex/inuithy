@@ -4,10 +4,10 @@
 from inuithy.common.predef import string_write, INUITHY_TITLE,\
 INUITHY_VERSION, INUITHY_CONFIG_PATH, CtrlCmd, INUITHY_TOPIC_TRAFFIC,\
 INUITHY_TOPIC_CONFIG, INUITHYAGENT_CLIENT_ID, T_ADDR, T_HOST, T_NODE,\
-T_CLIENTID, T_TID, T_INTERVAL, T_DURATION, T_NODES, T_RECIPIENT,\
+T_CLIENTID, T_TID, T_INTERVAL, T_DURATION, T_NODES, T_DEST,\
 T_TRAFFIC_STATUS, T_MSG, T_CTRLCMD, TrafficStatus, T_TRAFFIC_TYPE,\
 INUITHY_LOGCONFIG, INUITHY_TOPIC_COMMAND, TrafficType, DEV_TTY, T_GENID,\
-T_SENDER, T_PKGSIZE, T_EVERYONE, mqlog_map, T_VERSION, T_MSG_TYPE
+T_SRC, T_PKGSIZE, T_EVERYONE, mqlog_map, T_VERSION, T_MSG_TYPE
 from inuithy.util.helper import getpredefaddr
 from inuithy.util.cmd_helper import pub_status, pub_heartbeat, pub_unregister, extract_payload
 from inuithy.util.config_manager import create_inuithy_cfg
@@ -407,8 +407,8 @@ class Agent(object):
         naddr = data.get(T_NODE)
         node = self.addr2node.get(naddr)
         self.lgr.debug(string_write("Found node: {}", node))
-        data[T_CLIENTID] = self.clientid
-        data[T_HOST] = self.host
+#        data[T_CLIENTID] = self.clientid
+#        data[T_HOST] = self.host
         if node is not None:
             node.join(data)
         else: # DEBUG
@@ -420,8 +420,8 @@ class Agent(object):
              T_GENID:        tg.genid,
              T_DURATION:     tg.duration,
              T_INTERVAL:     tg.interval,
-             T_SENDER:       tr.sender,
-             T_RECIPIENT:    tr.recipient,
+             T_SRC:          tr.src,
+             T_DEST:         tr.dest,
              T_PKGSIZE:      tr.pkgsize,
              }
         """
@@ -430,25 +430,24 @@ class Agent(object):
         node = self.addr2node.get(naddr)
         if None != node:
             self.lgr.debug(string_write("Found node: {}", node))
-#            data[T_CLIENTID] = self.clientid
-#            data[T_HOST] = self.host
-            cmd = node.prot.traffic(data.get(T_RECIPIENT))
-            report = {
+            cmd = node.prot.traffic(data.get(T_DEST))
+            request = {
                 T_HOST: self.host,
                 T_CLIENTID: self.clientid,
                 T_GENID: data.get(T_GENID),
                 T_TRAFFIC_TYPE: data.get(T_TRAFFIC_TYPE),
                 T_NODE: data.get(T_NODE),
-                T_SENDER: data.get(T_SENDER),
-                T_RECIPIENT: data.get(T_RECIPIENT),
+                T_SRC: data.get(T_SRC),
+                T_DEST: data.get(T_DEST),
                 T_PKGSIZE: data.get(T_PKGSIZE),
             }
-            te = TrafficExecutor(node, cmd, data.get(T_INTERVAL), data.get(T_DURATION), report=report, lgr=self.lgr, mqclient=self.mqclient, tid=data.get(T_TID))
+            te = TrafficExecutor(node, cmd, data.get(T_INTERVAL), data.get(T_DURATION),\
+                request=request, lgr=self.lgr, mqclient=self.mqclient, tid=data.get(T_TID))
             self.__traffic_executors.put(te)
             pub_status(self._mqclient, self.tcfg.mqtt_qos, {
-                T_TRAFFIC_STATUS:   TrafficStatus.REGISTERED.name,
-                T_CLIENTID:         self.clientid,
-                T_TID:              data.get(T_TID),
+                T_TRAFFIC_STATUS: TrafficStatus.REGISTERED.name,
+                T_CLIENTID: self.clientid,
+                T_TID: data.get(T_TID),
             })
         else:
             self.lgr.error(string_write("{}: Node [{}] not found", self.clientid, naddr))
@@ -490,7 +489,7 @@ class Agent(object):
             self.lgr.debug(string_write("Traffic data: {}", data))
             self.traffic_dispatch(data)
         except Exception as ex:
-            self.lgr.error(string_write("Failed on handling traffic request: {}", ex))
+            self.lgr.error(string_write("Failure on handling traffic request: {}", ex))
 
     def start_traffic(self):
         """Start traffic routine"""
@@ -514,13 +513,13 @@ class Agent(object):
     def traffic_dispatch(self, data):
         """Dispatch traffic topic handlers"""
         self.lgr.info(string_write("Dispatch traffic request: {}", data))
-        if data[T_TRAFFIC_TYPE] == TrafficType.JOIN.name:
+        if data.get(T_TRAFFIC_TYPE) == TrafficType.JOIN.name:
             self.on_traffic_join(data)
-        elif data[T_TRAFFIC_TYPE] == TrafficType.SCMD.name:
+        elif data.get(T_TRAFFIC_TYPE) == TrafficType.SCMD.name:
             self.on_traffic_scmd(data)
-        elif data[T_TRAFFIC_TYPE] == TrafficType.START.name:
+        elif data.get(T_TRAFFIC_TYPE) == TrafficType.START.name:
             self.on_traffic_start(data)
-        elif data[T_TRAFFIC_TYPE] == TrafficType.TSH.name:
+        elif data.get(T_TRAFFIC_TYPE) == TrafficType.TSH.name:
             self.on_traffic_tsh(data)
         else:
             self.lgr.error(string_write("{}: Unhandled traffic message [{}]", self.clientid, data))

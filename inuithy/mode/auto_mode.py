@@ -3,10 +3,10 @@
 """
 from inuithy.common.version import INUITHY_VERSION
 from inuithy.common.predef import T_CLIENTID, T_TRAFFIC_TYPE, T_PANID,\
-T_NODE, T_HOST, T_NODES, INUITHY_TOPIC_HEARTBEAT, T_TID, T_MSG,\
+T_NODE, T_HOST, T_NODES, INUITHY_TOPIC_HEARTBEAT, T_TID, T_MSG, T_SPANID,\
 T_TRAFFIC_STATUS, TrafficStatus, TrafficType, string_write, MessageType,\
-TRAFFIC_CONFIG_PATH, INUITHY_CONFIG_PATH, INUITHY_TITLE, T_SENDER,\
-INUITHY_TOPIC_UNREGISTER, INUITHY_LOGCONFIG, T_RECIPIENT, T_MSG_TYPE,\
+TRAFFIC_CONFIG_PATH, INUITHY_CONFIG_PATH, INUITHY_TITLE, T_SRC,\
+INUITHY_TOPIC_UNREGISTER, INUITHY_LOGCONFIG, T_DEST, T_MSG_TYPE,\
 INUITHY_TOPIC_STATUS, INUITHY_TOPIC_REPORTWRITE, INUITHY_TOPIC_NOTIFICATION
 from inuithy.mode.base import ControllerBase
 from inuithy.util.cmd_helper import stop_agents, extract_payload
@@ -148,11 +148,10 @@ class AutoController(ControllerBase):
         try:
             self.lgr.debug(string_write("REPORT: {}", data))
             if data.get(T_TRAFFIC_TYPE) == TrafficType.JOIN.name:
-                if self.chk.nwlayout.get(data.get(T_PANID)) is not None:
-                    self.chk.nwlayout[data.get(T_PANID)][data.get(T_NODE)] = True
+                self.lgr.info(string_write("JOINING: {}", data.get(T_NODE)))
             elif data.get(T_TRAFFIC_TYPE) == TrafficType.SCMD.name:
             # Record traffic only
-                if data.get(T_MSG_TYPE) == MessageType.SENT.name and data.get(T_NODE) is not None:
+                if data.get(T_MSG_TYPE) == MessageType.SEND.name and data.get(T_NODE) is not None:
                     self.storage.insert_record(data)
         except Exception as ex:
             self.lgr.error(string_write("Failed to handle report write message: {}", ex))
@@ -165,12 +164,16 @@ class AutoController(ControllerBase):
         try:
             self.lgr.debug(string_write("NOTIFY: {}", data))
             if data.get(T_TRAFFIC_TYPE) == TrafficType.JOIN.name:
-                if self.chk.nwlayout.get(data.get(T_PANID)) is not None:
-                    self.chk.nwlayout[data.get(T_PANID)][data.get(T_NODE)] = True
+#                if self.chk.nwlayout.get(data.get(T_PANID)) is not None:
+#                    self.chk.nwlayout[data.get(T_PANID)][data.get(T_NODE)] = True
+                if self.chk.nwlayout.get(data.get(T_NODE)) is not None:
+                    self.chk.nwlayout[data.get(T_NODE)] = True
             elif data.get(T_TRAFFIC_TYPE) == TrafficType.SCMD.name:
             # Record traffic only
                 if data.get(T_MSG_TYPE) == MessageType.RECV.name and data.get(T_NODE) is not None:
                     self.storage.insert_record(data)
+            else:
+                self.storage.insert_record(data)
         except Exception as ex:
             self.lgr.error(string_write("Failed to handle notification message: {}", ex))
             self.teardown()
