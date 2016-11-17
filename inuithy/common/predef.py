@@ -79,10 +79,10 @@ T_NODES = 'nodes'
 T_GATEWAY = 'gateway'
 T_PKGSIZE = 'pkgsize'
 T_PKGRATE = 'pkgrate'
-T_RECIPIENTS = 'recipients'
-T_SENDERS = 'senders'
-T_SENDER = 'sender'
-T_RECIPIENT = 'recipient'
+T_DESTS = 'dests'
+T_DEST = 'dest'
+T_SRCS = 'srcs'
+T_SRC = 'src'
 T_DURATION = 'duration'
 T_TARGET_TRAFFICS = 'target_traffics'
 T_TARGET_AGENTS = 'target_agents'
@@ -91,6 +91,7 @@ T_NWCONFIG_PATH = 'network_config'
 T_NWLAYOUT_ID_FMT = '{}:{}'
 T_TRAFFICS = 'traffics'
 T_PANID = 'panid'
+T_SPANID = 'spanid'
 T_CHANNEL = 'channel'
 T_GENID = 'genid'
 T_REPORTDIR = 'reportdir'
@@ -109,6 +110,41 @@ T_TRAFFIC_STATUS = 'traffic_status'
 T_TID = 'tid'
 T_TRAFFIC_FINISH_DELAY = 'traffin_delay'
 T_EVERYONE = '*'
+# For zigbee compatiblity begin
+T_ZBEE_NWK_SRC = 'zbee_nwk_src'
+T_ZBEE_NWK_DST = 'zbee_nwk_dst'
+T_ZBEE_NWK_ADDR = 'zbee_nwk_addr'
+T_ZBEE_ZCL_CMD_TSN = 'zbee_zcl_cmd_tsn'
+T_UNKNOWN_RESP = 'unknown_resp'
+T_RSP = 'rsp'
+T_ACK = 'ack'
+T_YES = 'yes'
+T_NO = 'NO'
+T_AVGMACRETRY = 'averageMACRetryPerAPSMessageSent'
+T_LASTMSGLQI = 'lastMessageLQI'
+T_LASTMSGRSSI = 'lastMessageRSSI'
+T_PKGBUFALLOCFAIL = 'packetBufferAllocateFailure'
+T_RTDISCINIT = 'routeDiscInitiated'
+T_APSRXBCAST = 'apsRxBcast'
+T_APSTXBCAST = 'apsTxBcast'
+T_APSTXUCASTRETRY = 'apsTxUcastRetry'
+T_RELAYEDUCAST = 'relayedUcast'
+T_APSRXUCAST = 'apsRxUcast'
+T_NEIGHBORADDED = 'neighborAdded'
+T_NEIGHBORRMED = 'neighborRemoved'
+T_NEIGHBORSTALE = 'neighborStale'
+T_MACRXUCAST = 'macRxUcast'
+T_MACTXUCAST = 'macTxUcast'
+T_MACTXUCASTFAIL = 'macTxUcastFail'
+T_MACTXUCASTRETRY = 'macTxUcastRetry'
+T_MACRXBCAST = 'macRxBcast'
+T_MACTXBCAST = 'macTxBcast'
+T_APSTXUCASTSUCCESS = 'apsTxUcastSuccess'
+T_APSTXUCASTFAIL = 'apsTxUcastFail'
+T_SND_SEQ_NR = 'snd_seq_nr'
+T_STATUS = 'status'
+
+# For zigbee compatiblity end
 
 TrafficStatus = Enum("TrafficStatus", [
     "INITFAILED",       # Initialization failure
@@ -132,7 +168,8 @@ TrafficType = Enum("TrafficType", [
 
 MessageType = Enum("MessageType", [
     "RECV",
-    "SENT",
+    "SEND",
+    "JOINING",
     "UNKNOWN",
     ])
 

@@ -2,7 +2,7 @@
  @author: Zex Li <top_zlynch@yahoo.com>
 """
 from inuithy.common.predef import T_PKGRATE, T_DURATION,\
-T_NWCONFIG_PATH, T_NWLAYOUT, T_SENDERS, T_RECIPIENTS,\
+T_NWCONFIG_PATH, T_NWLAYOUT, T_SRCS, T_DESTS,\
 T_TARGET_TRAFFICS, TRAFFIC_CONFIG_PATH, NETWORK_CONFIG_PATH,\
 T_PKGSIZE, T_NODES, console_write, string_write, T_EVERYONE,\
 T_TRAFFIC_STATUS, TrafficStatus, T_TID
@@ -31,35 +31,35 @@ class Traffic(object):
         self.__pkgsize = val
 
     @property
-    def sender(self):
-        """Sender address"""
-        return self.__sender
+    def src(self):
+        """Source address"""
+        return self.__src
 
-    @sender.setter
-    def sender(self, val):
-        self.__sender = val
+    @src.setter
+    def src(self, val):
+        self.__src = val
 
     @property
-    def recipient(self):
-        """Recipient address"""
-        return self.__recipient
+    def dest(self):
+        """Destination address"""
+        return self.__dest
 
-    @recipient.setter
-    def recipient(self, val):
-        self.__recipient = val
+    @dest.setter
+    def dest(self, val):
+        self.__dest = val
 
-    def __init__(self, psize=1, sender=None, recv=None):
+    def __init__(self, psize=1, src=None, recv=None):
         self.__pkgsize = psize
-        self.__sender = sender
-        self.__recipient = recv
+        self.__src = src
+        self.__dest = recv
 
     def __str__(self):
         return string_write(
             "[{}]============P({}) ===========>[{}]",
-            self.sender, self.pkgsize, self.recipient)
+            self.src, self.pkgsize, self.dest)
 
 class TrafficGenerator(object):
-    """Parse senders/recipients, define network traffics
+    """Parse srcs/dests, define network traffics
     """
     @property
     def duration(self):
@@ -124,15 +124,15 @@ class TrafficGenerator(object):
             self.nwlayoutid, self.traffic_name, self.pkgrate, self.duration)
 
     @staticmethod
-    def parse_senders(tr, nwcfg):
+    def parse_srcs(tr, nwcfg):
         """
         @param[in] tr    A traffic block
         @param[in] nwcfg Network layout definition
-        @return Expected senders
+        @return Expected srcs
         """
         nw = tr[T_NWLAYOUT]
         nodes = []
-        for s in tr[T_SENDERS]:
+        for s in tr[T_SRCS]:
             if s == T_EVERYONE:
                 for sub_name in nwcfg.config.get(nw):
                     sub = nwcfg.subnet(nw, sub_name)
@@ -149,15 +149,15 @@ class TrafficGenerator(object):
         return nodes
 
     @staticmethod
-    def parse_recipients(tr, nwcfg):
+    def parse_dests(tr, nwcfg):
         """
         @param[in] tr    A traffic block
         @param[in] nwcfg Network layout definition
-        @return Expected recipients
+        @return Expected dests
         """
         nw = tr[T_NWLAYOUT]
         nodes = []
-        for s in tr[T_RECIPIENTS]:
+        for s in tr[T_DESTS]:
             if s == T_EVERYONE:
                 nodes.append(TRAFFIC_BROADCAST_ADDRESS)
             elif is_number(s):
@@ -172,10 +172,10 @@ class TrafficGenerator(object):
     def create_traffic(self, trcfg, nwcfg):
         """Create traffic for traffic definition named @trname
         """
-        senders = TrafficGenerator.parse_senders(self.cur_trcfg, nwcfg)
-        recipients = TrafficGenerator.parse_recipients(self.cur_trcfg, nwcfg)
-        for s in senders:
-            for r in recipients:
+        srcs = TrafficGenerator.parse_srcs(self.cur_trcfg, nwcfg)
+        dests = TrafficGenerator.parse_dests(self.cur_trcfg, nwcfg)
+        for s in srcs:
+            for r in dests:
                 tr = Traffic(self.cur_trcfg[T_PKGSIZE], s, r)
                 self.traffics.append(tr)
         return self
@@ -187,7 +187,7 @@ class TrafficGenerator(object):
 #class TrafficExecutor(TrafficTrigger):
 class TrafficExecutor(threading.Thread):
     """
-    @node       Sender node
+    @node       Source node
     @command    Command to send
     @interval   Traffic trigger interval, in second
     @duration   Stop traffic after given duration, in second
@@ -199,7 +199,7 @@ class TrafficExecutor(threading.Thread):
     def finished(self, val):
         pass
 
-    def __init__(self, node, command, interval, duration, report=None, lgr=None, mqclient=None, tid=None):
+    def __init__(self, node, command, interval, duration, request=None, lgr=None, mqclient=None, tid=None):
         threading.Thread.__init__(self, name=string_write("TE-{}", tid), target=None, daemon=False)
         self.lgr = lgr
         if self.lgr is None:
@@ -207,7 +207,7 @@ class TrafficExecutor(threading.Thread):
         self.interval = interval
         self.duration = duration
         self.node = node
-        self.report = report
+        self.request = request
         self.command = command
         self.stop_timer = threading.Timer(duration, self.stop_trigger)
         self.mqclient = mqclient
@@ -220,7 +220,8 @@ class TrafficExecutor(threading.Thread):
 
         while self.running: # TODO debug check
 #            console_write(self.command, self.data)
-            self.node.write(self.command, self.report)
+#            self.node.write(self.command, self.request)
+            self.node.traffic(self.request)
             time.sleep(self.interval)
 
     def stop_trigger(self):
@@ -248,6 +249,7 @@ def create_traffics(trcfg, nwcfg):
 
 if __name__ == '__main__':
     from inuithy.util.config_manager import create_traffic_cfg, create_network_cfg
+    from inuithy.common.node import NodeBLE, NodeZigbee
     trcfg = create_traffic_cfg(TRAFFIC_CONFIG_PATH)
     nwcfg = create_network_cfg(trcfg.nw_cfgpath)
     tgs = create_traffics(trcfg, nwcfg)
@@ -255,15 +257,17 @@ if __name__ == '__main__':
         console_write("---------------------------------------------")
         console_write(str(tg))
         console_write('\n'.join([str(traffic) for traffic in tg.traffics]))
-    te = TrafficExecutor("BLE", 'shield on', 1/0.9, 3, {"account":88888})
+#    te = TrafficExecutor("BLE", 'shield on', 1/0.9, 3, {"account":88888})
+    node = NodeZigbee('/dev/ttyS33')
+    te = TrafficExecutor(node, 'shield on', 1/0.9, 3, request={"dest":'4343'}, tid='12345')
     te.run()
     print("===========end==============")
 
 #    cur_trcfg = trcfg.config['traffic_6']
-#    senders = TrafficGenerator.parse_senders(cur_trcfg, nwcfg)
-#    recipients = TrafficGenerator.parse_recipients(cur_trcfg, nwcfg)
-#    print(senders)
-#    print(recipients)
+#    srcs = TrafficGenerator.parse_srcs(cur_trcfg, nwcfg)
+#    dests = TrafficGenerator.parse_dests(cur_trcfg, nwcfg)
+#    print(srcs)
+#    print(dests)
 
 #    trgens = create_traffics(trcfg, nwcfg)
 #    print(len(trgens))

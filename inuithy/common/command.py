@@ -72,5 +72,5 @@ if __name__ == "__main__":
     cmd_3 = Command('agent stop', '<host>', "Stop agent on <host>\n"\
                     "           '*' for all targetted hosts")
     for cmd in [cmd_0, cmd_1, cmd_2, cmd_3]:
-        print(str(cmd))
+        console_write(str(cmd))
 

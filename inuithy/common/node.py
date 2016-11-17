@@ -2,20 +2,26 @@
  @author: Zex Li <top_zlynch@yahoo.com>
 """
 from inuithy.common.predef import TrafficType, T_TRAFFIC_TYPE, T_MSG,\
-INUITHY_LOGCONFIG, T_MSG_TYPE, MessageType, string_write, T_TYPE,\
-T_ADDR, T_PORT, T_PANID, T_TIME, T_NODE, T_SENDER, T_RECIPIENT
+INUITHY_LOGCONFIG, T_MSG_TYPE, MessageType, string_write, T_TYPE, T_SPANID,\
+T_ADDR, T_PORT, T_PANID, T_TIME, T_NODE, T_SRC, T_DEST, T_ACK, T_CHANNEL,\
+T_ZBEE_NWK_SRC, T_ZBEE_NWK_DST, T_ZBEE_NWK_ADDR, T_AVGMACRETRY, T_RSP,\
+T_LASTMSGLQI, T_LASTMSGRSSI, T_PKGBUFALLOCFAIL, T_RTDISCINIT, T_YES,\
+T_APSRXBCAST, T_APSTXBCAST, T_APSTXUCASTRETRY, T_RELAYEDUCAST,\
+T_APSRXUCAST, T_NEIGHBORADDED, T_NEIGHBORRMED, T_NEIGHBORSTALE,\
+T_MACRXUCAST, T_MACTXUCAST, T_MACTXUCASTFAIL, T_MACTXUCASTRETRY,\
+T_MACRXBCAST, T_MACTXBCAST, T_APSTXUCASTSUCCESS, T_APSTXUCASTFAIL,\
+T_UNKNOWN_RESP, T_PKGSIZE
 from inuithy.util.cmd_helper import pub_reportwrite, pub_notification
 from inuithy.protocol.ble_protocol import BleProtocol as BleProt
-from inuithy.protocol.zigbee_protocol import ZigbeeProtocol
+from inuithy.protocol.zigbee_protocol import ZigbeeProtocol as ZbeeProt
 import logging.config as lconf
 import threading as threading
-#from datetime import datetime as dt
-from copy import deepcopy
 from enum import Enum
 import logging
 import serial
 import json
 import time
+import random
 
 lconf.fileConfig(INUITHY_LOGCONFIG)
 
@@ -29,10 +35,9 @@ class SerialNode(object):
     """Node control via serial port
     """
     def __init__(self, ntype, port="", reporter=None, lgr=None, timeout=2):
-        if lgr is None:
+        self.lgr = lgr
+        if self.lgr is None:
             self.lgr = logging
-        else:
-            self.lgr = lgr
         self.port = port
         self.addr = None
         self.ntype = ntype
@@ -42,30 +47,28 @@ class SerialNode(object):
         self.__listener = threading.Thread(target=self.__listener_routine, name="Listener")
         self.run_listener = False
 
-    def read(self, rdbyte=0, report=None):
+    def read(self, rdbyte=0):#, report=None):
 #        self.lgr.debug(string_write("SerialNode#R: rdbyte:{}", rdbyte))
         rdbuf = ""
         if self.__serial is not None and self.__serial.isOpen():
             if 0 < self.__serial.inWaiting():
                 rdbuf = self.__serial.readall()
         #TODO
-        if report is not None:
-            self.report_read(report, rdbuf)
+#        if report is not None:
+        self.report_read(rdbuf)
         return rdbuf
 
-    def write(self, data="", report=None):
+    def write(self, data="", request=None):
 #        self.lgr.debug(string_write("SerialNode#W: data:[{}], len:{}", data, len(data)))
         written = 0
         if self.__serial is not None and self.__serial.isOpen():
             written = self.__serial.write(data)
         #TODO -->
-        if report is not None:
-            self.report_write(report)
+        self.report_write(data, request)
 
     def start_listener(self):
         if self.run_listener is False and self.port is not None and len(self.port) > 0:
             self.run_listener = True
-            # TODO if self.__listener is not None and self.__serial is not None: self.__listener.start()
             if self.__listener is not None:
                 self.__listener.start()
 
@@ -74,22 +77,21 @@ class SerialNode(object):
             try:
                 if self.__serial is None: #DEBUG
                     time.sleep(30)
-                report = deepcopy(self.report)
-                self.read(report=report)
+                self.read()
             except Exception as ex:
                 self.lgr.error(string_write("Exception in listener routine: {}", ex))
 
     def stop_listener(self):
         self.run_listener = False
 
-    def report_write(self, data):
+    def report_write(self, data=None, request=None):
         pass
 
-    def report_read(self, data):
+    def report_read(self, data=None):
         pass
 
     def __str__(self):
-        return jsoin.dumps({T_TYPE:self.ntype.name})
+        return json.dumps({T_TYPE:self.ntype.name})
 
     def __del__(self):
         self.stop_listener()
@@ -110,7 +112,6 @@ class NodeBLE(SerialNode):
         self.addr = addr
         self.port = port
         self.prot = BleProt
-        self.report = None
 #        if port is not None and len(port) > 0:
 #            self.start_listener()
 
@@ -120,68 +121,74 @@ class NodeBLE(SerialNode):
             T_ADDR:self.addr,
             T_PORT:self.port})
 
-    def report_write(self, report, data=None):
+    def report_write(self, data=None, request=None):
         """"Report writen data"""
-        self.report = deepcopy(report)
-        report[T_TIME] = str(int(time.time()))
-        report[T_MSG] = data
-        report.__setitem__(T_MSG_TYPE, MessageType.SENT.name)
-        if self.reporter is not None:
-            pub_reportwrite(self.reporter, data=report)
+        if self.reporter is None:
+            return
+        report = {
+            T_TIME: str(time.time()),
+            T_MSG: data,
+            T_MSG_TYPE: MessageType.SEND.name,
+            T_SRC: request.get(T_SRC),
+            T_DEST: request.get(T_DEST),
+        }
+        pub_reportwrite(self.reporter, data=report)
 
-    def report_read(self, report, data=None):
+    def report_read(self, data=None):
         """"Report received data"""
+        if self.reporter is None:
+            return
         #TODO parse data
-#        report[T_MSG] = data
-#        report[T_RECIPIENT] = self.addr
-        report[T_NODE] = self.addr
-        report[T_TIME] = str(int(time.time()))#dt.now())
+        report = {
+            T_TIME: str(time.time()),
+            T_NODE: self.addr,
+            T_MSG: data,
+            T_SRC: 'SOMEONE', #TODO
+            T_DEST: self.addr,
+        }
 #        if data.split(' ')[0] == 'joingrp':
 #            report[T_TRAFFIC_TYPE] = TrafficType.JOIN.name
 #        else
 #            report[T_TRAFFIC_TYPE] = TrafficType.SCMD.name
-        import random
-        traftype = random.randint(TrafficType.JOIN.value, TrafficType.SCMD.value)
-        report[T_TRAFFIC_TYPE] = traftype == TrafficType.JOIN.value and TrafficType.JOIN.name or TrafficType.SCMD.name
+        msg_type = random.randint(TrafficType.JOIN.value, TrafficType.SCMD.value)
+        report[T_TRAFFIC_TYPE] = msg_type == TrafficType.JOIN.value\
+            and TrafficType.JOIN.name or TrafficType.SCMD.name
 
         report.__setitem__(T_MSG_TYPE, MessageType.RECV.name)
-        if self.reporter is not None:
-            pub_notification(self.reporter, data=report)
+        pub_notification(self.reporter, data=report)
 
     def join(self, data):
-        self.report = deepcopy(data)
-        self.joingrp(data[T_PANID], data)
+        """General join request adapter"""
+        self.joingrp(data.get(T_PANID), request=data)
 
     def traffic(self, data):
-        self.report = deepcopy(data)
-        self.lighton(self, data[T_ADDRS], data)
+        """General traffic request adapter"""
+        self.lighton(data.get(T_DEST), request=data)
 
-    def joingrp(self, grpid, report=None):
+    def joingrp(self, grpid, request=None):
         msg = self.prot.joingrp(grpid)
-        self.write(msg, report)
+        self.write(msg, request)
 
-    def leavegrp(self, grpid, report=None):
+    def leavegrp(self, grpid):
         msg = self.prot.leavegrp(grpid)
-        self.write(msg, report)
+        self.write(msg, request)
 
-    def lighton(self, raddr, report=None):
+    def lighton(self, raddr, request=None):
         msg = self.prot.lighton(raddr)
-        self.write(msg, report)
+        self.write(msg, request)
 
-    def lightoff(self, raddr, report=None):
+    def lightoff(self, raddr, request=None):
         msg = self.prot.lightoff(raddr)
-        self.write(msg, report)
+        self.write(msg, request)
 
-    def setaddr(self, addr, report=None):
+    def setaddr(self, addr, request=None):
         msg = self.prot.setaddr(addr)
-        self.write(msg, report)
-        self.addr = addr
+        self.write(msg, request)
 
-    def getaddr(self, report=None):
-        msg = self.prot.getaddr(addr)
-        self.write(msg, report)
+    def getaddr(self, request=None):
+        msg = self.prot.getaddr()
+        self.write(msg, request)
         self.addr = addr
-
 
 class NodeZigbee(SerialNode):
     """Zigbee node definition
@@ -190,24 +197,142 @@ class NodeZigbee(SerialNode):
         super(NodeZigbee, self).__init__(NodeType.Zigbee, port, reporter)
         #TODO
         self.addr = addr
+        self.uid = None
         self.port = port
-        self.prot = ZigbeeProtocol()
-
-#    def read(self, rdbyte=0, **kwargs):
-#        pass
-
-#    def write(self, data="", **kwargs):
-#        pass
+        self.prot = ZbeeProt()
+        self.sequence_nr = 0
 
     def __str__(self):
-        return json.dumps({T_TYPE:self.ntype.name, T_ADDR:self.addr, T_PORT: self.port})
-    # TODO: Zigbee command
+        return json.dumps({
+            T_TYPE:self.ntype.name,
+            T_ADDR:self.addr,
+            T_PORT:self.port})
 
     def join(self, data):
-        pass
+        """General join request adapter"""
+        self.joinnw(data.get(T_CHANNEL), data.get(T_PANID), data.get(T_SPANID), data.get(T_NODE), request=data)
 
     def traffic(self, data):
-        pass
+        """General traffic request adapter"""
+        self.writeattribute2(data.get(T_DEST), data.get(T_PKGSIZE), 1, request=data)
+
+    def joinnw(self, ch, ext_panid, panid, addr, request=None):
+        msg = self.prot.joinnw(ch, ext_panid, panid, addr)
+        self.write(msg, request)
+
+    def writeattribute2(self, dest, psize, rsp, request=None):
+        msg = self.prot.writeattribute2(dest, psize, rsp)
+        request[T_RSP] = rsp
+        self.write(msg, request)
+
+    def report_write(self, data=None, request=None):
+        """"Report writen data"""
+        if self.reporter is None:
+            return
+        report = {
+            T_TIME: time.time(),
+            T_TYPE: self.prot.ReqType.snd_req.name,
+            T_ZBEE_NWK_SRC: request.get(T_SRC),#self.addr,
+            T_ZBEE_NWK_DST: request.get(T_DEST),
+            T_ACK: request.get(T_RSP) == 1 and 'y' or 'n',
+        }
+        pub_reportwrite(self.reporter, data=report)
+
+    def report_read(self, data=None):
+        """"Report received data"""
+        if self.reporter is None:
+            return
+        report = {}
+        params = data.split(' ')
+        msg_type = params[0].upper()
+
+        # DEBUG data
+        rand = random.randint(TrafficType.JOIN.value, TrafficType.UNKNOWN.value)
+        if rand == TrafficType.JOIN.value:
+            params[0] = TrafficType.JOIN.name
+        elif rand == TrafficType.SCMD.value:
+            params[0] = TrafficType.SCMD.name
+        else:
+            params = [self.prot.DGN]
+            params.extend([str(random.randint(10, 100)) for _ in range(21)])
+
+        if msg_type == MessageType.SEND.name:
+            if len(params) == 6:
+                report = {\
+                    T_TRAFFIC_TYPE: TrafficType.SCMD.name,\
+                    T_TIME: time.time(),\
+                    T_ZBEE_NWK_SRC: self.addr,\
+                    T_ZBEE_NWK_DST: params[4],\
+                    T_TYPE: self.prot.MsgType.snd.name,\
+                    T_ZBEE_ZCL_CMD_TSN: params[1],\
+                    T_STATUS: param[5],\
+                    T_SND_SEQ_NR: self.sequence_nr,\
+                }
+                self.sequence_nr += 1
+#                if status == '0x00':
+#                    self.nr_messages_sent += 1
+            else:
+                self.lgr.error(string_write('Incorrect send confirm: {}', msg))
+        elif msg_type == MessageType.RECV.name:
+            report = {\
+                    T_TRAFFIC_TYPE: TrafficType.SCMD.name,\
+                    T_TIME: time.time(),\
+                    T_TYPE: self.prot.MsgType.rcv.name,\
+                    T_ZBEE_NWK_SRC: params[3],\
+                    T_ZBEE_NWK_DST: self.addr,\
+                    ZIGBEE_MSG_ZCL_CMD_TSN: params[1],\
+            }
+        elif msg_type == MessageType.JOINING.name:
+            report = {\
+                T_TRAFFIC_TYPE: TrafficType.JOIN.name,\
+                T_NODE: self.addr,\
+            }
+        elif params[0] == 'Trying':
+            pass
+        elif params[0] == 'Network':
+            pass
+        elif params[0] == self.prot.GETUID:
+            self.uid = params[1]
+        elif params[0] == self.prot.GETNETWORKADDRESS:
+            self.addr = data[-6:]
+        elif params[0] == self.prot.RESET_CONF:
+            self._confirm_device_response()
+        elif params[0] == self.prot.DGN:
+            report = {
+                T_TRAFFIC_TYPE: TrafficType.SCMD.name,\
+                T_TIME: time.time(),
+                T_TYPE: self.prot.MsgType.dgn.name,
+                T_ZBEE_NWK_ADDR: self.addr,
+                T_AVGMACRETRY: params[1],
+                T_LASTMSGLQI: params[2],
+                T_LASTMSGRSSI: params[3],
+                T_PKGBUFALLOCFAIL: params[4],
+                T_RTDISCINIT: params[5],
+                T_APSRXBCAST: params[6],
+                T_APSTXBCAST: params[7],
+                T_APSTXUCASTRETRY: params[8],
+                T_RELAYEDUCAST: params[9],
+                T_APSRXUCAST: params[10],
+                T_NEIGHBORADDED: params[11],
+                T_NEIGHBORRMED: params[12],
+                T_NEIGHBORSTALE: params[13],
+                T_MACRXUCAST: params[14],
+                T_MACTXUCAST: params[15],
+                T_MACTXUCASTFAIL: params[16],
+                T_MACTXUCASTRETRY: params[17],
+                T_MACRXBCAST: params[18],
+                T_MACTXBCAST: params[19],
+                T_APSTXUCASTSUCCESS: params[20],
+                T_APSTXUCASTFAIL: params[21],
+            }
+        else:
+            report = {
+                T_TIME: time.time(),
+                T_UNKNOWN_RESP: T_YES,
+                T_ZBEE_NWK_ADDR: ' '.join([self.addr, data]),
+            }
+        pub_notification(self.reporter, data=report)
 
 if __name__ == '__main__':
     lgr = logging.getLogger('InuithyNode')
+

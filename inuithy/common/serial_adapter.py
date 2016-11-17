@@ -24,7 +24,8 @@ class SerialAdapter(object):
     @staticmethod
     def get_type(port):
         # TODO
-        return NodeType.BLE
+#        return NodeType.BLE
+        return NodeType.Zigbee
         dev = serial.Serial(port, baudrate=115200, timeout=2)
 #TODO   dev.write("getfwver")
         buf = ''
