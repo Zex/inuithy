@@ -3,7 +3,7 @@
 """
 from inuithy.common.predef import MessageType, T_HOST, StorageType,\
 T_RECORDS, T_MSG_TYPE, string_write, T_TIME, T_GENID, T_CLIENTID,\
-T_SENDER, T_RECIPIENT, T_PKGSIZE, T_TYPE, T_MSG
+T_SRC, T_DEST, T_PKGSIZE, T_TYPE, T_MSG
 import socket, time
 
 #import thirdparty.splunklib.client as client

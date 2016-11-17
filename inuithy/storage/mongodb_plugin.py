@@ -3,7 +3,7 @@
 """
 from inuithy.common.predef import MessageType, T_HOST, StorageType,\
 T_RECORDS, T_MSG_TYPE, string_write, T_TIME, T_GENID, T_CLIENTID,\
-T_SENDER, T_RECIPIENT, T_PKGSIZE
+T_SRC, T_DEST, T_PKGSIZE
 from pymongo import MongoClient
 #from bson.objectid import ObjectId
 #from datetime import datetime as dt
@@ -99,8 +99,8 @@ class MongodbStorage(object):
         -- T_MSG         : <string from/to serial port>   => string   |
         -- T_CLIENTID    : <agentid>             => string            |
         -- T_HOST        : <agent host>          => string            +->record
-        -- T_SENDER      : <sender node addr>    => string            |
-        -- T_RECIPIENT   : <recipient node addr> => string            |
+        -- T_SRC      : <src node addr>    => string            |
+        -- T_DEST   : <dest node addr> => string            |
         -- T_PKGSIZE     : <package size>        => integer-----------+
            ]
         Data sample - initial state
@@ -128,8 +128,8 @@ class MongodbStorage(object):
         -- T_MSG_TYPE    : Message type          => string   |
         -- T_CLIENTID    : <agentid>             => string            |
         -- T_HOST        : <agent host>          => string            +->record
-        -- T_SENDER      : <sender node addr>    => string            |
-        -- T_RECIPIENT   : <recipient node addr> => string            |
+        -- T_SRC      : <src node addr>    => string            |
+        -- T_DEST   : <dest node addr> => string            |
         -- T_PKGSIZE     : <package size>        => integer-----------+
            ]
         Data sample - on record
@@ -138,8 +138,8 @@ class MongodbStorage(object):
         -- T_MSG         : <string from/to serial port>   => string   |
         -- T_CLIENTID    : <agentid>             => string            |
         -- T_HOST        : <agent host>          => string            +->record
-        -- T_SENDER      : <sender node addr>    => string            |
-        -- T_RECIPIENT   : <recipient node addr> => string            |
+        -- T_SRC      : <src node addr>    => string            |
+        -- T_DEST   : <dest node addr> => string            |
         -- T_PKGSIZE     : <package size>        => integer-----------+
         }
         Additional field
@@ -166,8 +166,8 @@ def update_test():
             T_MSG:      "lignton 1122",
             T_CLIENTID: "HAHAHAH333111MARS",
             T_HOST:     "PLUTO",
-            T_SENDER:   "1111",
-            T_RECIPIENT:"1122",
+            T_SRC:   "1111",
+            T_DEST:"1122",
             T_PKGSIZE:  "10",
         }
         sto.insert_record(rec)
@@ -198,7 +198,7 @@ def check_sent(host, port, genid):
 #            "_id": ObjectId(genid),
             T_GENID: genid,
         }):
-        [print(v) for v in r[T_RECORDS] if v[T_MSG_TYPE] == MessageType.SENT.name]
+        [print(v) for v in r[T_RECORDS] if v[T_MSG_TYPE] == MessageType.SEND.name]
 
 def cleanup():
     sto = MongodbStorage('127.0.0.1', 19713)
