@@ -10,47 +10,47 @@ traffic_0:
   nwlayout: network_0
   pkgrate: 0.5
   pkgsize: 1
-  recipients: ['1122', '1123', '1124', '1134']
-  senders: ['1111', '1112', '1113', '1114']
+  dests: ['1122', '1123', '1124', '1134']
+  srcs: ['1111', '1112', '1113', '1114']
 traffic_1:
   duration: 180
   nwlayout: network_0
   pkgrate: 0.5
   pkgsize: 2
-  recipients: ['1122', '1123', '1124', '1134']
-  senders: ['1114']
+  dests: ['1122', '1123', '1124', '1134']
+  srcs: ['1114']
 traffic_2:
   duration: 360
   nwlayout: network_1
   pkgrate: 0.2
   pkgsize: 2
-  recipients: ['1122']
-  senders: ['1123']
+  dests: ['1122']
+  srcs: ['1123']
 traffic_3:
   duration: 360
   nwlayout: network_1
   pkgrate: 0.2
   pkgsize: 2
-  recipients: ['*']
-  senders: ['1111']
+  dests: ['*']
+  srcs: ['1111']
 traffic_4:
   duration: 360
   nwlayout: network_2
   pkgrate: 0.2
   pkgsize: 2
-  recipients: ['1144']
-  senders: ['*']
+  dests: ['1144']
+  srcs: ['*']
 traffic_5:
   duration: 10
   nwlayout: network_1
   pkgrate: 0.2
   pkgsize: 2
-  recipients: ['11a1', '11c1', '1181', '1101', '1141', '1121', '11e1', '11f1', '1131', '1171']
-  senders: ['*']
+  dests: ['11a1', '11c1', '1181', '1101', '1141', '1121', '11e1', '11f1', '1131', '1171']
+  srcs: ['*']
 traffic_6:
   duration: 10
   nwlayout: network_1
   pkgrate: 0.2
   pkgsize: 2
-  recipients: ['11b1']
-  senders: ['11a2']
+  dests: ['11b1']
+  srcs: ['11a2']

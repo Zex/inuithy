@@ -4,11 +4,11 @@
 from inuithy.common.predef import INUITHY_LOGCONFIG, string_write,\
 INUITHY_TITLE, INUITHY_VERSION, INUITHY_CONFIG_PATH, T_ENABLE_LDEBUG,\
 T_MQTT, T_WORKMODE, T_ENABLE_MQDEBUG, T_TSH, T_HISTORY, T_QOS,\
-T_TARGET_AGENTS, T_NODES, T_PANID, T_NWCONFIG_PATH, T_TYPE,\
+T_TARGET_AGENTS, T_NODES, T_PANID, T_SPANID, T_NWCONFIG_PATH, T_TYPE,\
 T_AGENTS, T_CONTROLLER, T_USER, T_TRAFFIC_STORAGE, T_GENID, T_PATH,\
 T_PORT, WorkMode, TrafficStorage, StorageType, T_PASSWD, T_CHANNEL,\
 T_GATEWAY, T_TARGET_TRAFFICS, T_DURATION, T_PKGSIZE, T_PKGRATE,\
-T_RECIPIENTS, T_SENDERS, T_NWLAYOUT, NETWORK_CONFIG_PATH,\
+T_DESTS, T_SRCS, T_NWLAYOUT, NETWORK_CONFIG_PATH,\
 TRAFFIC_CONFIG_PATH, T_HOST, T_REPORTDIR, T_TRAFFIC_FINISH_DELAY
 from abc import ABCMeta#, abstractmethod
 import logging
@@ -379,19 +379,21 @@ class NetworkConfig(Config):
         # Expected network layout
         self.config['network_0'] = {
             'subnet_0': {
-                T_PANID     : 'F5F5E6E617171515',
-                T_CHANNEL   : 15,
-                T_GATEWAY   : '1122',
-                T_NODES     : [
+                T_PANID: 'F5F5E6E617171515',
+                T_SPANID: '1515',
+                T_CHANNEL: 15,
+                T_GATEWAY: '1122',
+                T_NODES: [
                     '1111', '1112', '1113', '1114',
                     '1122', '1123', '1124', '1134',
                 ],
             },
             'subnet_1': {
-                T_PANID     : '6262441166221516',
-                T_CHANNEL   : 16,
-                T_GATEWAY   : '1144',
-                T_NODES     : [
+                T_PANID: '6262441166221516',
+                T_SPANID: '1516',
+                T_CHANNEL: 16,
+                T_GATEWAY: '1144',
+                T_NODES: [
                     '1121', '1131', '1132', '1133',
                     '1141', '1142', '1143', '1144',
                 ],
@@ -399,10 +401,11 @@ class NetworkConfig(Config):
         }
         self.config['network_1'] = {
             'subnet_0': {
-                T_PANID     : '2021313515101517',
-                T_CHANNEL   : 17,
-                T_GATEWAY   : '1122',
-                T_NODES     : [
+                T_PANID: '2021313515101517',
+                T_SPANID: '1517',
+                T_CHANNEL: 17,
+                T_GATEWAY: '1122',
+                T_NODES: [
                     '1101', '1102', '1103', '1104',
                     '1111', '1112', '1113', '1114',
                     '1121', '1122', '1123', '1124',
@@ -424,27 +427,30 @@ class NetworkConfig(Config):
         }
         self.config['network_2'] = {
             'subnet_0': {
-                T_PANID     : '1717909012121522',
-                T_CHANNEL   : 22,
-                T_GATEWAY   : '1122',
-                T_NODES     : [
+                T_PANID: '1717909012121522',
+                T_SPANID: '1522',
+                T_CHANNEL: 22,
+                T_GATEWAY: '1122',
+                T_NODES: [
                     '1111', '1112', '1113', '1114',
                     '1122', '1123', '1124', '1134',
                 ],
             },
             'subnet_1': {
-                T_PANID     : '4040101033441513',
-                T_CHANNEL   : 13,
-                T_GATEWAY   : '1121',
-                T_NODES     : [
+                T_PANID: '4040101033441513',
+                T_SPANID: '1513',
+                T_CHANNEL: 13,
+                T_GATEWAY: '1121',
+                T_NODES: [
                     '1121', '1131', '1132', '1133',
                 ]
             },
             'subnet_2': {
-                T_PANID     : '5151131320201516',
-                T_CHANNEL   : 16,
-                T_GATEWAY   : '1144',
-                T_NODES     : [
+                T_PANID: '5151131320201516',
+                T_SPANID: '1516',
+                T_CHANNEL: 16,
+                T_GATEWAY: '1144',
+                T_NODES: [
                     '1141', '1142', '1143', '1144',
                 ],
             },
@@ -484,88 +490,88 @@ class TrafficConfig(Config):
     def create_sample(self):
         # Network config to use
         self.config["traffic_0"] = {
-            T_NWLAYOUT  : 'network_2',
-            T_SENDERS   : [
+            T_NWLAYOUT: 'network_2',
+            T_SRCS: [
                 '1111', '1112', '1113', '1114',
             ],
-            T_RECIPIENTS: [
+            T_DESTS: [
                 '1122', '1123', '1124', '1134',
             ],
             # package / seconds
-            T_PKGRATE   : 0.5,
-            T_PKGSIZE   : 1,
+            T_PKGRATE: 0.5,
+            T_PKGSIZE: 1,
             # seconds
-            T_DURATION  : 180,
+            T_DURATION: 180,
         }
         self.config["traffic_1"] = {
-            T_NWLAYOUT  : 'network_0',
-            T_SENDERS   : [
+            T_NWLAYOUT: 'network_0',
+            T_SRCS: [
                 '1114'
             ],
-            T_RECIPIENTS: [
+            T_DESTS: [
                 '1122', '1123', '1124', '1134'
             ],
             # package / seconds
-            T_PKGRATE   : 0.5,
-            T_PKGSIZE   : 2,
+            T_PKGRATE: 0.5,
+            T_PKGSIZE: 2,
             # seconds
-            T_DURATION  : 180,
+            T_DURATION: 180,
         }
         self.config["traffic_2"] = {
-            T_NWLAYOUT  : 'network_1',
-            T_SENDERS   : [
+            T_NWLAYOUT: 'network_1',
+            T_SRCS: [
                 '1123',
             ],
-            T_RECIPIENTS: [
+            T_DESTS: [
                 '1122',
             ],
             # package / seconds
-            T_PKGRATE   : 0.2,
-            T_PKGSIZE   : 2,
+            T_PKGRATE: 0.2,
+            T_PKGSIZE: 2,
             # seconds
-            T_DURATION  : 360,
+            T_DURATION: 360,
         }
         self.config["traffic_3"] = {
-            T_NWLAYOUT  : 'network_1',
-            T_SENDERS   : [
+            T_NWLAYOUT: 'network_1',
+            T_SRCS: [
                 '1111',
             ],
-            T_RECIPIENTS: [
+            T_DESTS: [
                 '*',
             ],
             # package / seconds
-            T_PKGRATE   : 0.2,
-            T_PKGSIZE   : 2,
+            T_PKGRATE: 0.2,
+            T_PKGSIZE: 2,
             # seconds
-            T_DURATION  : 360,
+            T_DURATION: 360,
         }
         self.config["traffic_4"] = {
-            T_NWLAYOUT  : 'network_2',
-            T_SENDERS   : [
+            T_NWLAYOUT: 'network_2',
+            T_SRCS: [
                 '*',
             ],
-            T_RECIPIENTS: [
+            T_DESTS: [
                 '1144',
             ],
             # package / seconds
-            T_PKGRATE   : 0.2,
-            T_PKGSIZE   : 2,
+            T_PKGRATE: 0.2,
+            T_PKGSIZE: 2,
             # seconds
-            T_DURATION  : 360,
+            T_DURATION: 360,
         }
         self.config["traffic_5"] = {
-            T_NWLAYOUT  : 'network_1',
-            T_SENDERS   : [
+            T_NWLAYOUT: 'network_1',
+            T_SRCS: [
                 '*',
             ],
-            T_RECIPIENTS: [
+            T_DESTS: [
                 '*',
             ],
             # package / seconds
-            T_PKGRATE   : 0.2,
-            T_PKGSIZE   : 2,
+            T_PKGRATE: 0.2,
+            T_PKGSIZE: 2,
             # seconds
-            T_DURATION  : 10,
+            T_DURATION: 10,
         }
         # Network layout configure path
         self.config[T_NWCONFIG_PATH] = NETWORK_CONFIG_PATH
@@ -591,12 +597,14 @@ def create_inuithy_cfg(cfgpath):
 
 def create_traffic_cfg(cfgpath):
     cfg = TrafficConfig(cfgpath)
-    if False == cfg.load(): return None
+    if False == cfg.load():
+        return None
     return cfg
 
 def create_network_cfg(cfgpath):
     cfg = NetworkConfig(cfgpath)
-    if False == cfg.load(): return None
+    if False == cfg.load():
+        return None
     return cfg
 
 if __name__ == '__main__':
