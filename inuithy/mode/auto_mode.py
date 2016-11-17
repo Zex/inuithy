@@ -146,11 +146,11 @@ class AutoController(ControllerBase):
 #        self.lgr.info(string_write("On topic reportwrite"))
         data = extract_payload(message.payload)
         try:
-            self.lgr.debug(string_write("REPORT: {}", data))
             if data.get(T_TRAFFIC_TYPE) == TrafficType.JOIN.name:
                 self.lgr.info(string_write("JOINING: {}", data.get(T_NODE)))
             elif data.get(T_TRAFFIC_TYPE) == TrafficType.SCMD.name:
             # Record traffic only
+                self.lgr.debug(string_write("REPORT: {}", data))
                 if data.get(T_MSG_TYPE) == MessageType.SEND.name and data.get(T_NODE) is not None:
                     self.storage.insert_record(data)
         except Exception as ex:

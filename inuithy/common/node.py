@@ -10,7 +10,7 @@ T_APSRXBCAST, T_APSTXBCAST, T_APSTXUCASTRETRY, T_RELAYEDUCAST,\
 T_APSRXUCAST, T_NEIGHBORADDED, T_NEIGHBORRMED, T_NEIGHBORSTALE,\
 T_MACRXUCAST, T_MACTXUCAST, T_MACTXUCASTFAIL, T_MACTXUCASTRETRY,\
 T_MACRXBCAST, T_MACTXBCAST, T_APSTXUCASTSUCCESS, T_APSTXUCASTFAIL,\
-T_UNKNOWN_RESP, T_PKGSIZE
+T_UNKNOWN_RESP, T_PKGSIZE, T_ZBEE_ZCL_CMD_TSN
 from inuithy.util.cmd_helper import pub_reportwrite, pub_notification
 from inuithy.protocol.ble_protocol import BleProtocol as BleProt
 from inuithy.protocol.zigbee_protocol import ZigbeeProtocol as ZbeeProt
@@ -244,17 +244,32 @@ class NodeZigbee(SerialNode):
             return
         report = {}
         params = data.split(' ')
-        msg_type = params[0].upper()
 
         # DEBUG data
-        rand = random.randint(TrafficType.JOIN.value, TrafficType.UNKNOWN.value)
-        if rand == TrafficType.JOIN.value:
-            params[0] = TrafficType.JOIN.name
-        elif rand == TrafficType.SCMD.value:
-            params[0] = TrafficType.SCMD.name
+        rand = random.randint(MessageType.RECV.value, MessageType.UNKNOWN.value)
+        if rand == MessageType.JOINING.value:
+            params = []
+            params[0] = MessageType.JOINING.name
+            params
+        elif rand == MessageType.RECV.value:
+            params = []
+            params[0] = MessageType.RECV.name
+            params[1] = str(random.randint(0, 10))
+            params[2] = str(random.randint(0, 10))
+            params[3] = str(random.randint(1100, 1144))
+        elif rand == MessageType.SEND.value:
+            params = []
+            params[0] = MessageType.SEND.name
+            params[1] = str(random.randint(0, 10))
+            params[2] = str(random.randint(0, 10))
+            params[3] = str(random.randint(0, 10))
+            params[4] = str(random.randint(1100, 1144))
+            params[5] = str(random.randint(10, 100))
         else:
             params = [self.prot.DGN]
             params.extend([str(random.randint(10, 100)) for _ in range(21)])
+        #------------end debug data--------------
+        msg_type = params[0].upper()
 
         if msg_type == MessageType.SEND.name:
             if len(params) == 6:
@@ -280,7 +295,7 @@ class NodeZigbee(SerialNode):
                     T_TYPE: self.prot.MsgType.rcv.name,\
                     T_ZBEE_NWK_SRC: params[3],\
                     T_ZBEE_NWK_DST: self.addr,\
-                    ZIGBEE_MSG_ZCL_CMD_TSN: params[1],\
+                    T_ZBEE_ZCL_CMD_TSN: params[1],\
             }
         elif msg_type == MessageType.JOINING.name:
             report = {\
