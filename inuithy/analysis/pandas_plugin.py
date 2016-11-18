@@ -5,6 +5,11 @@ from inuithy.common.predef import INUITHY_LOGCONFIG, INUITHY_CONFIG_PATH,\
 MessageType, T_HOST, StorageType, T_NODE, T_MSG, T_TRAFFIC_TYPE,\
 T_RECORDS, T_MSG_TYPE, string_write, T_TIME, T_GENID, T_CLIENTID,\
 T_SRC, T_DEST, T_PKGSIZE, T_REPORTDIR, T_PATH, T_GATEWAY,\
+T_TIME, T_ZBEE_NWK_ADDR, T_MACTXBCAST, T_MACTXUCASTRETRY,\
+T_MACTXUCASTFAIL, T_MACTXUCAST, T_MACRXUCAST, T_NEIGHBORADDED, T_NEIGHBORRMED,\
+T_NEIGHBORSTALE, T_AVGMACRETRY, T_RTDISCINIT, T_RELAYEDUCAST,\
+T_PKGBUFALLOCFAIL, T_APSTXBCAST, T_APSTXUCASTSUCCESS, T_APSTXUCASTFAIL,\
+T_APSTXUCASTRETRY, T_APSRXBCAST, T_APSRXUCAST,\
 console_write, string_write
 from inuithy.storage.storage import Storage
 from inuithy.util.config_manager import create_inuithy_cfg, create_traffic_cfg
@@ -64,8 +69,8 @@ class PandasPlugin(object):
 
         try:
             for rec in recs:
-    #            if rec.get(T_MSG_TYPE) != MessageType.SENT.name or rec.get(T_SRC) is None or rec.get(T_DEST) is None:
-                if rec.get(T_MSG_TYPE) != MessageType.SENT.name:
+    #            if rec.get(T_MSG_TYPE) != MessageType.SEND.name or rec.get(T_SRC) is None or rec.get(T_DEST) is None:
+                if rec.get(T_MSG_TYPE) != MessageType.SEND.name:
                     continue
                 n, t = rec.get(T_NODE), rec.get(T_TIME)
                 if n is None or t is None:
@@ -78,7 +83,7 @@ class PandasPlugin(object):
     
             if len(repo) > 0:
                 df = pd.DataFrame(repo, index=range(len(index)), columns=repo.keys())
-                df.plot.line(grid=False, colormap='rainbow', figsize=(20, 20))
+                df.plot.line(grid=False, colormap='rainbow', figsize=(30, 30))
                 plt.title("Number of packs sent via address")
                 pdf_pg.savefig()
         except Exception as ex:
@@ -133,7 +138,7 @@ class PandasPlugin(object):
     
             if len(repo) > 0:
                 df = pd.DataFrame(data, index=range(len(index)), columns=data.keys())
-                df.plot.line(grid=False, colormap='rainbow', figsize=(20, 20))
+                df.plot.line(grid=False, colormap='rainbow', figsize=(30, 30))
                 plt.title("Total of packs via gateway")
                 pdf_pg.savefig()
         except Exception as ex:
@@ -144,7 +149,7 @@ class PandasPlugin(object):
        
         try:
             repo = {
-                MessageType.SENT.name: 0,
+                MessageType.SEND.name: 0,
                 MessageType.RECV.name: 0,
                 }
             for v in recs:
@@ -166,9 +171,11 @@ class PandasPlugin(object):
 
         try:
             for rec in recs:
-                if rec.get(T_SRC) is None or rec.get(T_DEST) is None:
+#                if rec.get(T_SRC) is None or rec.get(T_DEST) is None:
+#                    continue
+                if len([rec.get(k) for k in header if rec.get(k) is not None]) != len(header):
                     continue
-                line = [rec.get(k) for k in header]
+                line = [rec.get(k) for k in header if rec.get(k)]
                 line_fmt = ('{},' * len(line)).strip(',')
                 data.append(string_write(line_fmt, *tuple(line)))
         except Exception as ex:
@@ -179,7 +186,7 @@ class PandasPlugin(object):
     def groupby(pdata, item, pdf_pg):
         try:
             n = pdata.groupby(item)
-            n.plot(kind='line', colormap='plasma', figsize=(20, 20))
+            n.plot(kind='line', colormap='plasma', figsize=(30, 30))
             plt.title(string_write("Group by {}", item))
             pdf_pg.savefig()
         except Exception as ex:
@@ -204,19 +211,23 @@ class PandasPlugin(object):
 #                for r in recs:
 #                    fd.write(str(r)+'\n')
 
-            header = (T_NODE, T_SRC, T_DEST, T_TIME, T_MSG_TYPE, T_TRAFFIC_TYPE, T_CLIENTID, T_HOST, T_GENID)
+#            header = (T_TIME, T_NODE, T_SRC, T_DEST, T_MSG_TYPE, T_TRAFFIC_TYPE, T_CLIENTID, T_HOST, T_GENID)
+            header = (T_TIME, T_ZBEE_NWK_ADDR, T_MACTXBCAST, T_MACTXUCASTRETRY,\
+                T_MACTXUCASTFAIL, T_MACTXUCAST, T_MACRXUCAST, T_NEIGHBORADDED, T_NEIGHBORRMED,\
+                T_NEIGHBORSTALE, T_AVGMACRETRY, T_RTDISCINIT, T_RELAYEDUCAST,\
+                T_PKGBUFALLOCFAIL, T_APSTXBCAST, T_APSTXUCASTSUCCESS, T_APSTXUCASTFAIL,\
+                T_APSTXUCASTRETRY, T_APSRXBCAST, T_APSRXUCAST)
             csv_data = PandasPlugin.create_csv(recs, header, genid)
             with open(string_write('{}/{}.csv', cfg.config[T_REPORTDIR][T_PATH], genid), 'w') as fd:
                 fd.write(','.join(h for h in header) + '\n')
                 [fd.write(line + '\n') for line in csv_data]
-
 #            jdata = json.dumps(recs)
             pdata = pd.read_csv(string_write('{}/{}.csv', cfg.config[T_REPORTDIR][T_PATH], genid))
-            print(pdata)
+#            print(pdata)
 #            print("=========================================================")
 #            continue
             with PdfPages(string_write('{}/{}.pdf', cfg.config[T_REPORTDIR][T_PATH], genid)) as pdf_pg:
-                [PandasPlugin.groupby(pdata, item, pdf_pg) for item in header] 
+                [PandasPlugin.groupby(pdata, T_TIME, pdf_pg) for item in header] 
                 PandasPlugin.gen_total_pack(recs, genid, pdf_pg) 
                 PandasPlugin.gen_src_pack(recs, genid, pdf_pg) 
                 PandasPlugin.gen_dest_pack(recs, genid, pdf_pg) 
