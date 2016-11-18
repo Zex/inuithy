@@ -20,6 +20,7 @@ import socket
 import logging
 import sys
 from queue import Queue
+import time
 
 lconf.fileConfig(INUITHY_LOGCONFIG)
 
@@ -61,7 +62,6 @@ class Agent(object):
     @mqclient.setter
     def mqclient(self, val):
         pass
-
 
     @property
     def host(self):
@@ -109,7 +109,7 @@ class Agent(object):
     @staticmethod
     def on_connect(client, userdata, rc):
         """MQ connect event handler"""
-        lgr.info(string_write(
+        userdata.lgr.info(string_write(
             "MQ.Connection client:{} userdata:[{}] rc:{}",
             client, userdata, rc))
 #        userdata.register()
@@ -117,8 +117,8 @@ class Agent(object):
     @staticmethod
     def on_message(client, userdata, message):
         """MQ message event handler"""
-#        lgr.info(string_write("MQ.Message: userdata:[{}]", userdata))
-#        lgr.info(string_write("MQ.Message: message "+INUITHY_MQTTMSGFMT,
+#        userdata.lgr.info(string_write("MQ.Message: userdata:[{}]", userdata))
+#        userdata.lgr.info(string_write("MQ.Message: message "+INUITHY_MQTTMSGFMT,
 #            message.dup, message.info, message.mid, message.payload,
 #            message.qos, message.retain, message.state, message.timestamp,
 #            message.topic))
@@ -127,13 +127,13 @@ class Agent(object):
 #            threading.Thread(target=userdata.topic_routes[message.topic], args=(message,)).start()
         except Exception as ex:
             msg = string_write("Exception on MQ message dispatching: {}", ex)
-            lgr.error(msg)
+            userdata.lgr.error(msg)
             userdata.teardown(msg)
 
     @staticmethod
     def on_disconnect(client, userdata, rc):
         """MQ disconnect event handler"""
-        lgr.info(string_write(
+        userdata.lgr.info(string_write(
             "MQ.Disconnection: client:{} userdata:[{}] rc:{}",
             client, userdata, rc))
         if 0 != rc:
@@ -142,30 +142,29 @@ class Agent(object):
     @staticmethod
     def on_log(client, userdata, level, buf):
         """MQ log event handler"""
-        mqlog_map(lgr, level, buf)
+        mqlog_map(userdata.lgr, level, buf)
 
     @staticmethod
     def on_publish(client, userdata, mid):
         """MQ publish event handler"""
-        lgr.info(string_write(
+        userdata.lgr.info(string_write(
             "MQ.Publish: client:{} userdata:[{}], mid:{}",
             client, userdata, mid))
 
     @staticmethod
     def on_subscribe(client, userdata, mid, granted_qos):
         """MQ subscribe event handler"""
-        lgr.info(string_write(
+        userdata.lgr.info(string_write(
             "MQ.Subscribe: client:{} userdata:[{}], mid:{}, grated_qos:{}",
             client, userdata, mid, granted_qos))
 
     def teardown(self, msg='Teardown'):
         """Cleanup"""
+        self.lgr.info(string_write("Agent teardown: {}", self.clientid))
         try:
             if Agent.initialized:
                 Agent.initialized = False
                 msg = string_write("{}:{}", self.clientid, msg)
-                pub_status(self._mqclient, self.tcfg.mqtt_qos, {T_MSG: msg})
-                self.unregister()
                 if self.__heartbeat is not None:
                     self.__heartbeat.stop()
                 self.__sad.stop_nodes()
@@ -177,8 +176,10 @@ class Agent(object):
 #                    if len([te for te in self.__traffic_executors if te.isAlive()]) == 0:
 #                        break
 #                [te.stop_trigger() for te in self.__traffic_executors if te is not None]
-                self._mqclient.disconnect()
-                sys.exit()
+                pub_status(self.mqclient, self.tcfg.mqtt_qos, {T_MSG: msg})
+                self.unregister()
+                time.sleep(2)
+                self.mqclient.disconnect()
         except Exception as ex:
             self.lgr.error(string_write("Exception on teardown: {}", ex))
 
@@ -212,7 +213,7 @@ class Agent(object):
         """
         self.lgr.info(string_write("Unregistering {}", self.clientid))
         try:
-            pub_unregister(self._mqclient, self.tcfg.mqtt_qos, self.clientid)
+            pub_unregister(self.mqclient, self.tcfg.mqtt_qos, self.clientid)
         except Exception as ex:
             self.lgr.error(string_write("Unregister failed: {}", ex))
 
@@ -238,7 +239,7 @@ class Agent(object):
         ])
         self.ctrlcmd_routes = {
             CtrlCmd.NEW_CONTROLLER.name:               self.on_new_controller,
-            CtrlCmd.AGENT_RESTART.name:                self.on_agent_restart,
+#            CtrlCmd.AGENT_RESTART.name:                self.on_agent_restart,
             CtrlCmd.AGENT_STOP.name:                   self.on_agent_stop,
             CtrlCmd.AGENT_ENABLE_HEARTBEAT.name:       self.on_agent_enable_heartbeat,
             CtrlCmd.AGENT_DISABLE_HEARTBEAT.name:      self.on_agent_disable_heartbeat,
@@ -251,7 +252,7 @@ class Agent(object):
             rd = cid_surf
         elif self.tcfg.enable_localdebug:
             from random import randint
-            rd = string_write('-{}', hex(randint(1000000, 10000000))[2:])
+            rd = string_write('-{}', hex(randint(1048576, 10000000))[2:])
         return string_write(INUITHYAGENT_CLIENT_ID, self.host+rd)
 
     def set_host(self):
@@ -287,7 +288,7 @@ class Agent(object):
 
     def __init__(self, cfgpath='config/inuithy.conf', lgr=None, cid_surf=None):
         self.lgr = lgr
-        if self.lgr is not None:
+        if self.lgr is None:
             self.lgr = logging
         Agent.__initialized = False
         self.__enable_heartbeat = False
@@ -367,10 +368,10 @@ class Agent(object):
         try:
             self.lgr.info(string_write("Starting Agent {}", self.clientid))
             self.__sad.scan_nodes(DEV_TTY.format(T_EVERYONE)) # TODO use ttyusb
-            self.lgr.info(string_write("Connected nodes: [{}]", self.__sad.nodes))
+            self.lgr.info(string_write("Connected nodes: [{}]", len(self.__sad.nodes)))
             self.addr_to_node()
             self.register()
-            self._mqclient.loop_forever()
+            self.mqclient.loop_forever()
         except KeyboardInterrupt:
             status_msg = string_write("Agent received keyboard interrupt")
             self.lgr.error(status_msg)
@@ -386,9 +387,9 @@ class Agent(object):
     def on_topic_command(self, message):
         """Topic command handler"""
         self.lgr.info(string_write("On topic command"))
-        msg = extract_payload(message.payload)
+        data = extract_payload(message.payload)
         try:
-            self.ctrlcmd_dispatch(msg)
+            self.ctrlcmd_dispatch(data)
         except Exception as ex:
             self.lgr.error(string_write("Exception on dispating control command: {}", ex))
 
@@ -430,7 +431,7 @@ class Agent(object):
         node = self.addr2node.get(naddr)
         if None != node:
             self.lgr.debug(string_write("Found node: {}", node))
-            cmd = node.prot.traffic(data.get(T_DEST))
+#            cmd = node.prot.traffic(data.get(T_DEST))
             request = {
                 T_HOST: self.host,
                 T_CLIENTID: self.clientid,
@@ -441,10 +442,10 @@ class Agent(object):
                 T_DEST: data.get(T_DEST),
                 T_PKGSIZE: data.get(T_PKGSIZE),
             }
-            te = TrafficExecutor(node, cmd, data.get(T_INTERVAL), data.get(T_DURATION),\
+            te = TrafficExecutor(node, data.get(T_INTERVAL), data.get(T_DURATION),\
                 request=request, lgr=self.lgr, mqclient=self.mqclient, tid=data.get(T_TID))
             self.__traffic_executors.put(te)
-            pub_status(self._mqclient, self.tcfg.mqtt_qos, {
+            pub_status(self.mqclient, self.tcfg.mqtt_qos, {
                 T_TRAFFIC_STATUS: TrafficStatus.REGISTERED.name,
                 T_CLIENTID: self.clientid,
                 T_TID: data.get(T_TID),
@@ -474,10 +475,8 @@ class Agent(object):
     def on_traffic_start(self, data):
         """Traffic start command handler"""
         self.lgr.info(string_write("Traffic start request"))
-#        self.start_traffic()
-        trafthr = threading.Thread(target=self.start_traffic)
-        trafthr.start()
-        self.lgr.info(string_write("Traffic routine started"))
+        traf_thr = threading.Thread(target=self.start_traffic)
+        traf_thr.start()
 
     def on_topic_traffic(self, message):
         """Traffic topic handler"""
@@ -496,11 +495,12 @@ class Agent(object):
         try:
 #            [te.start() for te in self.__traffic_executors]
 #            for te in self.__traffic_executors:
-            self.lgr.info(string_write("Total traffic executors: [{}]", self.__traffic_executors.qsize()))
-            while not self.__traffic_executors.empty() and Agent.initialized:
+            self.lgr.info(string_write("{}: Total traffic executors: [{}]", self.clientid, self.__traffic_executors.qsize()))
+            while self.__traffic_executors.qsize() > 0 and Agent.initialized:
+                self.lgr.info(string_write("{}: executors: {}, agent init: {}", self.clientid, self.__traffic_executors.qsize(), Agent.initialized))
                 te = self.__traffic_executors.get()
                 te.start()
-                pub_status(self._mqclient, self.tcfg.mqtt_qos, {
+                pub_status(self.mqclient, self.tcfg.mqtt_qos, {
                     T_TRAFFIC_STATUS: TrafficStatus.RUNNING.name,
                     T_CLIENTID: self.clientid,
                     T_TID: te.tid,
