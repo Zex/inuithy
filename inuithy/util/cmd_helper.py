@@ -67,8 +67,8 @@ def pub_config(publisher, qos, config=None, clientid="*"):
 
 #           unregister
 # Agent ------------------> Controller
-def pub_unregister(publisher, qos=0, clientid=''):
-    """
+def pub_unregister(publisher, qos=0, clientid='*'):
+    """Publish unregister message
     """
     payload = json.dumps({T_CLIENTID : clientid})
     publisher.publish(INUITHY_TOPIC_UNREGISTER, payload, qos, False)
@@ -119,6 +119,7 @@ class Heartbeat(threading.Thread):
         self.__args = args
         self.__kwargs = kwargs
         self.__target = target
+        self.done = threading.Event()
 
     def run(self):
         if self.__target is None:
@@ -129,7 +130,8 @@ class Heartbeat(threading.Thread):
             if Heartbeat.__mutex.acquire():
                 self.__target()
                 Heartbeat.__mutex.release()
-            time.sleep(self.__interval)
+            self.done.wait(self.__interval)
+            self.done.clear()
 
     def stop(self):
         self.__running = False

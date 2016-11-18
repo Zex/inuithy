@@ -31,9 +31,8 @@ class Config(object):
 
     def __init__(self, path, lgr=None):
         __metaclass__ = ABCMeta
-        if lgr is not None:
-            self.lgr = lgr
-        else:
+        self.lgr = lgr
+        if self.lgr is None:
             self.lgr = logging
         self.config_path = path
         self.config = {}
