@@ -8,8 +8,8 @@ from inuithy.protocol.protocol import Protocol
 class BleProtocol(Protocol):
     """BLE control protocol
     """
-    LIGHTON = "LIGHTON"
-    LIGHTOFF = "LIGHTOFF"
+    LIGHTON = "lighton"
+    LIGHTOFF = "lightoff"
     JOINGRP = "joingrp"
     LEAVEGRP = "leavegrp"
     SETADDR = "setaddr"

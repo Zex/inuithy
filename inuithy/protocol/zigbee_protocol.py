@@ -7,7 +7,7 @@ from enum import Enum
 
 class ZigbeeProtocol(Protocol):
     """Protocol for communication with Zigbee firmware"""
-    JOIN = "JOIN"
+    JOIN = "join"
     WRITEATTRIBUTE2 = "writeAttribute2"
     GETNETWORKADDRESS = 'getNetworkAddress'
     GETUID = 'getUID'
