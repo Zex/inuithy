@@ -184,9 +184,21 @@ class TrafficGenerator(object):
     def start(self):
         self.__trigger.start()
 
+class Duration(object):
+    """Duration indicator
+    """
+    def __init__(self):
+        pass
+
+    def __enter__(self):
+        console_write(">> {}", time.ctime(time.clock_gettime(time.CLOCK_REALTIME)))
+
+    def __exit__(self, cls, message, traceback):
+        console_write("<< {}", time.ctime(time.clock_gettime(time.CLOCK_REALTIME)))
+
 #class TrafficExecutor(TrafficTrigger):
 class TrafficExecutor(threading.Thread):
-    """
+    """ Traffic trigger
     @node       Source node
     @command    Command to send
     @interval   Traffic trigger interval, in second
@@ -199,7 +211,7 @@ class TrafficExecutor(threading.Thread):
     def finished(self, val):
         pass
 
-    def __init__(self, node, command, interval, duration, request=None, lgr=None, mqclient=None, tid=None):
+    def __init__(self, node, interval, duration, request=None, lgr=None, mqclient=None, tid=None):
         threading.Thread.__init__(self, name=string_write("TE-{}", tid), target=None, daemon=False)
         self.lgr = lgr
         if self.lgr is None:
@@ -208,10 +220,11 @@ class TrafficExecutor(threading.Thread):
         self.duration = duration
         self.node = node
         self.request = request
-        self.command = command
+#        self.command = command
         self.stop_timer = threading.Timer(duration, self.stop_trigger)
         self.mqclient = mqclient
         self.tid = tid
+        self.done = threading.Event()
 
     def run(self):
         self.lgr.debug(string_write("Start traffic [{}]", self))
@@ -222,7 +235,8 @@ class TrafficExecutor(threading.Thread):
 #            console_write(self.command, self.data)
 #            self.node.write(self.command, self.request)
             self.node.traffic(self.request)
-            time.sleep(self.interval)
+            self.done.wait(self.interval)
+            self.done.clear()
 
     def stop_trigger(self):
         console_write("{}: ========Stopping trigger============", self)
@@ -235,8 +249,10 @@ class TrafficExecutor(threading.Thread):
             })
 
     def __str__(self):
-        return string_write("TE: ts:{}, dur:{}, node:[{}], cmd:{} ",\
-            self.interval, self.duration, str(self.node), self.command)
+        return string_write("tid[{}]: intv:{}, dur:{}, node:[{}]",\
+            self.tid, self.interval, self.duration, str(self.node))
+        #, cmd:{} ",\
+        #, self.command)
 
 def create_traffics(trcfg, nwcfg):
     """Create traffic generators for targe traffics
@@ -260,8 +276,9 @@ if __name__ == '__main__':
 #    te = TrafficExecutor("BLE", 'shield on', 1/0.9, 3, {"account":88888})
     node = NodeZigbee('/dev/ttyS33')
     te = TrafficExecutor(node, 'shield on', 1/0.9, 3, request={"dest":'4343'}, tid='12345')
+    console_write("==========beg=============")
     te.run()
-    print("===========end==============")
+    console_write("==========end=============")
 
 #    cur_trcfg = trcfg.config['traffic_6']
 #    srcs = TrafficGenerator.parse_srcs(cur_trcfg, nwcfg)
