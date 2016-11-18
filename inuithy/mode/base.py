@@ -6,7 +6,7 @@ T_HOST, T_NODES, AgentStatus, INUITHY_LOGCONFIG, mqlog_map,\
 string_write, INUITHYCONTROLLER_CLIENT_ID
 from inuithy.util.helper import getnwlayoutid
 from inuithy.util.cmd_helper import pub_ctrlcmd
-from inuithy.util.traffic_state import TrafficState, TrafStatChk
+from inuithy.util.traffic_state import TrafficState
 from inuithy.storage.storage import Storage
 from inuithy.common.agent_info import AgentInfo
 from inuithy.util.config_manager import create_inuithy_cfg, create_traffic_cfg,\
@@ -90,7 +90,7 @@ class ControllerBase(object):
     @property
     def available_agents(self):
         """Available agent, agentid => AgentInfo"""
-        return self.chk.available_agents
+        return self.traffic_state.chk.available_agents
     @available_agents.setter
     def available_agents(self, val):
         pass
@@ -98,7 +98,7 @@ class ControllerBase(object):
     @property
     def expected_agents(self):
         """List of expected agents"""
-        return self.chk.expected_agents
+        return self.traffic_state.chk.expected_agents
     @expected_agents.setter
     def expected_agents(self, val):
         pass
@@ -106,7 +106,7 @@ class ControllerBase(object):
     @property
     def node2host(self):
         """Node address => connected host"""
-        return self.chk.node2host
+        return self.traffic_state.chk.node2host
     @node2host.setter
     def node2host(self, val):
         pass
@@ -114,7 +114,7 @@ class ControllerBase(object):
     @property
     def node2aid(self):
         """Node address => connected host"""
-        return self.chk.node2aid
+        return self.traffic_state.chk.node2aid
     @node2aid.setter
     def node2aid(self, val):
         pass
@@ -122,7 +122,7 @@ class ControllerBase(object):
 #    @property
 #    def host2aid(self):
 #        """host => agentid"""
-#        return self.chk.host2aid
+#        return self.traffic_state.chk.host2aid
 #    @host2aid.setter
 #    def host2aid(self, val):
 #        pass
@@ -156,24 +156,21 @@ class ControllerBase(object):
         @inuithy_cfgpath Path to inuithy configure
         @traffic_cfgpath Path to traffic configure
         @delay Start traffic after @delay seconds
-        @shutdown_delay Seconds to delay before shutdown controller
         """
         self.lgr = lgr
         if lgr is None:
             self.lgr = logging
-        self.shutdown_delay = 5
         self._mqclient = None
         self._storage = None
         self.topic_routes = {}
         self._current_nwlayout = ('', '')
         self._host = socket.gethostname()
         self._clientid = string_write(INUITHYCONTROLLER_CLIENT_ID, self.host)
-        self.chk = TrafStatChk()
         if self.load_configs(inuithy_cfgpath, traffic_cfgpath):
+            self._traffic_state = TrafficState(self, self.lgr)
+            self._traffic_timer = threading.Timer(delay, self.traffic_state.start)
             self._do_init()
             self.load_storage()
-            self._traffic_state = TrafficState(self)
-            self._traffic_timer = threading.Timer(delay, self._traffic_state.start)
 
     def __del__(self):
         pass
@@ -230,7 +227,7 @@ class ControllerBase(object):
             "MQ.Subscribe: client:{} userdata:[{}], mid:{}, grated_qos:{}",
             client, userdata, mid, granted_qos))
 
-    def _alive_notification(self):
+    def alive_notification(self):
         """Broadcast on new controller startup
         """
         self.lgr.info(string_write("New controller notification {}", self.clientid))
@@ -242,20 +239,20 @@ class ControllerBase(object):
 
     def add_agent(self, agentid, host, nodes):
         """Register started agent"""
-        if self.chk.available_agents.get(agentid) is None:
-            self.chk.available_agents[agentid] = AgentInfo(agentid, host, AgentStatus.ONLINE, nodes)
+        if self.traffic_state.chk.available_agents.get(agentid) is None:
+            self.traffic_state.chk.available_agents[agentid] = AgentInfo(agentid, host, AgentStatus.ONLINE, nodes)
             self.lgr.info(string_write("Agent {} added", agentid))
         else:
-            self.chk.available_agents[agentid].nodes = nodes
+            self.traffic_state.chk.available_agents[agentid].nodes = nodes
             self.lgr.info(string_write("Agent {} updated", agentid))
-#        self.chk.host2aid.__setitem__(host, agentid)
-        [self.chk.node2aid.__setitem__(node, agentid) for node in nodes]
-        self.lgr.debug("n=>aid"+str(self.node2aid))
+#        self.traffic_state.chk.host2aid.__setitem__(host, agentid)
+        [self.traffic_state.chk.node2aid.__setitem__(node, agentid) for node in nodes]
+#        self.lgr.debug("n=>aid"+str(self.node2aid))
 
     def del_agent(self, agentid):
         """Unregister started agent"""
-        if self.chk.available_agents.get(agentid):
-            del self.chk.available_agents[agentid]
+        if self.traffic_state.chk.available_agents.get(agentid):
+            del self.traffic_state.chk.available_agents[agentid]
             self.lgr.info(string_write("Agent {} removed", agentid))
 
     def _do_init(self):
@@ -265,9 +262,10 @@ class ControllerBase(object):
         """
         self.lgr.info(string_write("Do initialization"))
         try:
+            self.node_to_host()
             for aname in self.trcfg.target_agents:
                 agent = self.nwcfg.agent_by_name(aname)
-                self.chk.expected_agents.append(agent.get(T_HOST))
+                self.traffic_state.chk.expected_agents.append(agent.get(T_HOST))
             self.register_routes()
             self.create_mqtt_client(*self.tcfg.mqtt)
             ControllerBase.initialized = True
@@ -287,7 +285,7 @@ class ControllerBase(object):
         """
         self.lgr.info("Map node address to host")
         for agent in self.nwcfg.agents:
-            [self.chk.node2host.__setitem__(node, agent[T_HOST]) for node in agent[T_NODES]]
+            [self.traffic_state.chk.node2host.__setitem__(node, agent[T_HOST]) for node in agent[T_NODES]]
 
     def load_configs(self, inuithy_cfgpath, traffic_cfgpath):
         """Load runtime configure from inuithy configure file,
@@ -307,7 +305,6 @@ class ControllerBase(object):
             if self._network_cfg is None:
                 self.lgr.error(string_write("Failed to load network configure"))
                 return False
-            self.node_to_host()
             is_configured = True
         except Exception as ex:
             self.lgr.error(string_write("Configure failed: {}", ex))

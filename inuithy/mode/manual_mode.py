@@ -46,9 +46,8 @@ class ManualController(ControllerBase):
     def __init__(self, inuithy_cfgpath='config/inuithy.conf',\
         traffic_cfgpath='config/traffics.conf', lgr=None, delay=4):
         ControllerBase.__init__(self, inuithy_cfgpath, traffic_cfgpath, lgr, delay)
-        if lgr is not None:
-            self.lgr = lgr
-        else:
+        self.lgr = lgr
+        if self.lgr is None:
             self.lgr = logging
 
     def start(self):
@@ -59,9 +58,9 @@ class ManualController(ControllerBase):
         try:
             self.lgr.info(string_write("Expected Agents({}): {}",\
                 len(self.chk.expected_agents), self.chk.expected_agents))
-            self._alive_notification()
 #            if self._traffic_timer is not None:
 #                self._traffic_timer.start()
+            self.alive_notification()
             self._mqclient.loop_forever()
         except KeyboardInterrupt:
             self.lgr.info(string_write("ManualController received keyboard interrupt"))
@@ -77,15 +76,14 @@ class ManualController(ControllerBase):
         try:
             if ManualController.initialized:
                 ManualController.initialized = False
-                self.lgr.info("Stop agents")
-                stop_agents(self._mqclient, self.tcfg.mqtt_qos)
-                if self._traffic_state:
-                    self._traffic_state.running = False
+#                self.lgr.info("Stop agents")
+#                stop_agents(self._mqclient, self.tcfg.mqtt_qos)
+                if self.traffic_state:
+                    self.traffic_state.running = False
                 if self._traffic_timer:
                     self._traffic_timer.cancel()
                 if self.storage:
                     self.storage.close()
-                time.sleep(self.shutdown_delay)
                 if self.mqclient:
                     self.mqclient.disconnect()
         except Exception as ex:

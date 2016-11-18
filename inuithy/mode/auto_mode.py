@@ -14,6 +14,7 @@ import paho.mqtt.client as mqtt
 import logging
 import logging.config as lconf
 import time
+import threading
 
 lconf.fileConfig(INUITHY_LOGCONFIG)
 
@@ -23,6 +24,7 @@ class AutoController(ControllerBase):
     def create_mqtt_client(self, host, port):
         self._mqclient = mqtt.Client(self.clientid, True, self)
         self._mqclient.on_connect = AutoController.on_connect
+#        self._mqclient.on_log = AutoController.on_log
         self._mqclient.on_message = AutoController.on_message
         self._mqclient.on_disconnect = AutoController.on_disconnect
         self._mqclient.connect(host, port)
@@ -46,9 +48,8 @@ class AutoController(ControllerBase):
     def __init__(self, inuithy_cfgpath='config/inuithy.conf',\
         traffic_cfgpath='config/traffics.conf', lgr=None, delay=4):
         ControllerBase.__init__(self, inuithy_cfgpath, traffic_cfgpath, lgr, delay)
-        if lgr is not None:
-            self.lgr = lgr
-        else:
+        self.lgr = lgr
+        if self.lgr is None:
             self.lgr = logging
 
     def start(self):
@@ -58,18 +59,19 @@ class AutoController(ControllerBase):
             return
         try:
             self.lgr.info(string_write("Expected Agents({}): {}",\
-                len(self.chk.expected_agents), self.chk.expected_agents))
-            self._alive_notification()
+                len(self.traffic_state.chk.expected_agents), self.traffic_state.chk.expected_agents))
             if self._traffic_timer is not None:
                 self._traffic_timer.start()
+            self.alive_notification()
             self._mqclient.loop_forever()
         except KeyboardInterrupt:
             self.lgr.info(string_write("AutoController received keyboard interrupt"))
         except NameError as ex:
             self.lgr.error(string_write("ERR: {}", ex))
+            self.teardown()
         except Exception as ex:
             self.lgr.error(string_write("Exception on AutoController: {}", ex))
-        self.teardown()
+        self.traffic_state.finish()
         self.lgr.info(string_write("AutoController terminated"))
 
     def teardown(self):
@@ -77,15 +79,15 @@ class AutoController(ControllerBase):
         try:
             if AutoController.initialized:
                 AutoController.initialized = False
-                self.lgr.info("Stop agents")
-                stop_agents(self._mqclient, self.tcfg.mqtt_qos)
-                if self._traffic_state:
-                    self._traffic_state.running = False
+#                self.lgr.info("Stop agents")
+#                stop_agents(self._mqclient, self.tcfg.mqtt_qos)
+                if self.traffic_state:
+                    self.traffic_state.running = False
+#                    self.traffic_state.chk.done.set()
                 if self._traffic_timer:
                     self._traffic_timer.cancel()
                 if self.storage:
                     self.storage.close()
-                time.sleep(self.shutdown_delay)
                 if self.mqclient:
                     self.mqclient.disconnect()
         except Exception as ex:
@@ -96,10 +98,11 @@ class AutoController(ControllerBase):
         """
         self.lgr.info(string_write("On topic heartbeat"))
         data = extract_payload(message.payload)
-        agentid, host, nodes = data[T_CLIENTID], data[T_HOST], data[T_NODES]
+        agentid, host, nodes = data.get(T_CLIENTID), data.get(T_HOST), data.get(T_NODES)
         try:
             agentid = agentid.strip('\t\n ')
             self.add_agent(agentid, host, nodes)
+            self.traffic_state.check("is_agents_all_up")
         except Exception as ex:
             self.lgr.error(string_write("Exception on registering agent {}: {}", agentid, ex))
 
@@ -109,11 +112,13 @@ class AutoController(ControllerBase):
         """
         self.lgr.info(string_write("On topic unregister"))
         data = extract_payload(message.payload)
-        agentid = data[T_CLIENTID]
+        agentid = data.get(T_CLIENTID)
         try:
             self.del_agent(agentid)
             self.lgr.info(string_write("Available Agents({}): {}",\
-                len(self.chk.available_agents), self.chk.available_agents))
+                len(self.traffic_state.chk.available_agents), self.traffic_state.chk.available_agents))
+            if len(self.available_agents) == 0:
+                self.traffic_state.chk.done.set()
         except Exception as ex:
             self.lgr.error(string_write("Exception on unregistering agent {}: {}", agentid, ex))
 
@@ -121,17 +126,22 @@ class AutoController(ControllerBase):
         """Status topic handler"""
         self.lgr.info(string_write("On topic status"))
         data = extract_payload(message.payload)
+        thr = threading.Thread(target=self.status_handler, args=(data,))
+        thr.start()
+
+    def status_handler(self, data):
+        """Status handler routine"""
         if data.get(T_TRAFFIC_STATUS) == TrafficStatus.REGISTERED.name:
             self.lgr.info(string_write("Traffic {} registered on {}",\
                 data.get(T_TID), data.get(T_CLIENTID)))
-            self.chk.traffic_stat[data.get(T_TID)] = TrafficStatus.REGISTERED
+            self.traffic_state.update_stat(data.get(T_TID), TrafficStatus.REGISTERED, "is_traffic_all_registered")
         elif data.get(T_TRAFFIC_STATUS) == TrafficStatus.RUNNING.name:
-            self.lgr.info(string_write("Traffic {} fired on {}",\
+            self.lgr.info(string_write("Traffic {} is running on {}",\
                 data.get(T_TID), data.get(T_CLIENTID)))
-            self.chk.traffic_stat[data.get(T_TID)] = TrafficStatus.RUNNING
+            self.traffic_state.update_stat(data.get(T_TID), TrafficStatus.RUNNING)
         elif data.get(T_TRAFFIC_STATUS) == TrafficStatus.FINISHED.name:
             self.lgr.info(string_write("Traffic {} finished", data.get(T_TID)))
-            self.chk.traffic_stat[data.get(T_TID)] = TrafficStatus.FINISHED
+            self.traffic_state.update_stat(data.get(T_TID), TrafficStatus.FINISHED, "is_traffic_finished")
         elif data.get(T_TRAFFIC_STATUS) == TrafficStatus.INITFAILED.name:
             self.lgr.error(string_write("Agent {} failed to initialize: {}",\
                 data.get(T_CLIENTID), data.get(T_MSG)))
@@ -161,13 +171,17 @@ class AutoController(ControllerBase):
         """Report-read topic handler"""
 #       self.lgr.info(string_write("On topic notification"))
         data = extract_payload(message.payload)
+        thr = threading.Thread(target=self.notification_handler, args=(data,))
+        thr.start()
+
+    def notification_handler(self, data):
+        """Notification handler routine"""
         try:
             self.lgr.debug(string_write("NOTIFY: {}", data))
             if data.get(T_TRAFFIC_TYPE) == TrafficType.JOIN.name:
-#                if self.chk.nwlayout.get(data.get(T_PANID)) is not None:
-#                    self.chk.nwlayout[data.get(T_PANID)][data.get(T_NODE)] = True
-                if self.chk.nwlayout.get(data.get(T_NODE)) is not None:
-                    self.chk.nwlayout[data.get(T_NODE)] = True
+                if self.traffic_state.chk.nwlayout.get(data.get(T_NODE)) is not None:
+                    self.traffic_state.chk.nwlayout[data.get(T_NODE)] = True
+                    self.traffic_state.check("is_network_layout_done")
             elif data.get(T_TRAFFIC_TYPE) == TrafficType.SCMD.name:
             # Record traffic only
                 if data.get(T_MSG_TYPE) == MessageType.RECV.name and data.get(T_NODE) is not None:
