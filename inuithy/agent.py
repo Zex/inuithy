@@ -276,7 +276,7 @@ class Agent(object):
         self.lgr.info(string_write("Do initialization"))
         try:
             self.create_mqtt_client(*self.tcfg.mqtt)
-            self.__sad = SerialAdapter(self.mqclient)
+            self.__sad = SerialAdapter(self.mqclient, lgr=self.lgr)
             Agent.initialized = True
         except Exception as ex:
             self.lgr.error(string_write("Failed to initialize: {}", ex))
@@ -367,7 +367,8 @@ class Agent(object):
         status_msg = 'Agent fine'
         try:
             self.lgr.info(string_write("Starting Agent {}", self.clientid))
-            self.__sad.scan_nodes(DEV_TTY.format(T_EVERYONE)) # TODO use ttyusb
+            # TODO DEV_TTYS => DEV_TTYUSB
+            self.__sad.scan_nodes(DEV_TTY.format(T_EVERYONE))
             self.lgr.info(string_write("Connected nodes: [{}]", len(self.__sad.nodes)))
             self.addr_to_node()
             self.register()
