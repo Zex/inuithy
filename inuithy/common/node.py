@@ -22,6 +22,7 @@ lconf.fileConfig(INUITHY_LOGCONFIG)
 NodeType = Enum("NodeType", [
     "BLE",
     "Zigbee",
+    "BleZbee",
     "UNKNOWN",
 ])
 
@@ -188,6 +189,47 @@ class NodeZigbee(SerialNode):
     """
     def __init__(self, port='', addr='', reporter=None):
         super(NodeZigbee, self).__init__(NodeType.Zigbee, port, reporter)
+        #TODO
+        self.addr = addr
+        self.uid = None
+        self.port = port
+        self.sequence_nr = 0
+        self.joined = False # DEBUG data
+        self.prot = ZbeeProt
+        self.prot.lgr = self.lgr
+
+    def __str__(self):
+        return json.dumps({
+            T_TYPE:self.ntype.name,
+            T_ADDR:self.addr,
+            T_PORT:self.port})
+
+    def join(self, data):
+        """General join request adapter"""
+        self.genid = data.get(T_GENID)
+        self.joinnw(data)
+
+    def traffic(self, data):
+        """General traffic request adapter"""
+        self.genid = data.get(T_GENID)
+        data[T_RSP] = 1
+        self.writeattribute2(data)
+
+    def joinnw(self, request):
+        """Send join command"""
+        msg = self.prot.joinnw(request)
+        self.write(msg, request)
+
+    def writeattribute2(self, request):
+        """Send writeattribute2 command"""
+        msg = self.prot.writeattribute2(request)
+        self.write(msg, request)
+
+class NodeBz(SerialNode):
+    """BLE-Zigbee node definition
+    """
+    def __init__(self, port='', addr='', reporter=None):
+        super(NodeBz, self).__init__(NodeType.Zigbee, port, reporter)
         #TODO
         self.addr = addr
         self.uid = None

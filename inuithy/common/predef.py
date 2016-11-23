@@ -138,6 +138,21 @@ MessageType = Enum("MessageType", [
     "UNKNOWN",
     ])
 
+class GenInfo(object):
+    """Report generation info"""
+    def __init__(self):
+        self.header = None
+        self.csv_path = None
+        self.pdf_path = None
+        self.fig_base = None
+        self.cfg = None
+        self.genid = None
+
+    def __str__(self):
+        return string_write("header: {}\ncsv: {}\npdf: {}\nfigures: {}\ngenid: {}\n",\
+                self.header, self.csv_path, self.pdf_path, self.fig_base, self.genid)
+
+
 def mqlog_map(lgr, level, msg):
     if level == mqtt.MQTT_LOG_INFO:
         lgr.info(INUITHY_MQLOG_FMT.format(msg))
@@ -155,7 +170,6 @@ AgentStatus = Enum("AgentStatus", [
     "TRAFFIC_COMPLETED",
     "UNKNOWN",
     ])
-
 
 WorkMode = Enum("WorkMode", [
     "AUTO",
@@ -197,5 +211,4 @@ def console_write(fmt, *params):
         print(fmt)
         return
     print(fmt.format(*params))
-
 
