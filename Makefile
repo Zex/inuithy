@@ -17,7 +17,7 @@ version: $(VERSION_PATH)
 
 clean:
 	$(ECHO) "\033[01;32m[Cleaning]\033[00m"
-	$(FIND) . -name *.pyc -delete 
+#	$(FIND) . -name *.pyc -delete 
 	$(FIND) . -name __pycache__ -exec rm -rf {} \;
 	$(RM) $(VERSION_PATH)
 	$(RM) $(BUILD)
