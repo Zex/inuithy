@@ -50,6 +50,7 @@ class ZigbeeProtocol(Protocol):
     GETUID = 'getUID'
     RESET_CONF = 'minimalDevice'
     DGN = 'Dgn'
+    GETFWVER = "getFWName"
 
     ReqType = Enum('ReqType', [\
         'snd_req',\
@@ -61,16 +62,16 @@ class ZigbeeProtocol(Protocol):
     ])
 
     @staticmethod
-    def joinnw(params):
+    def joinnw(params=None):
         """Join network command builder"""
         ch, ext_panid, panid, addr = \
             params.get(T_CHANNEL), params.get(T_PANID),\
             params.get(T_SPANID), params.get(T_NODE)
-        msg = " ".join([PROT.JOIN, str(ch), str(ext_panid), str(panid), str(addr), Protocol.EOL])
+        msg = " ".join([PROTO.JOIN, str(ch), str(ext_panid), str(panid), str(addr), Protocol.EOL])
         return msg
 
     @staticmethod
-    def writeattribute2(params):
+    def writeattribute2(params=None):
         """Write attribute command builder"""
 # msg = 'writeAttribute2 s '+str(destination)+
 #    ' 20 0 4 0x42 "1" %s '%str(packet_size) + rsp +"\r"
@@ -78,9 +79,14 @@ class ZigbeeProtocol(Protocol):
 #   "0x%04X"%dest, "0x14 0x00 0x04 0x42", "1", "0x%02X"%psize, "0x%02X"%rsp, BluetoothDevice.EOL])
         dest, psize, rsp = params.get(T_DEST),\
             params.get(T_PKGSIZE), params.get(T_RSP)
-        msg = " ".join([PROT.WRITEATTRIBUTE2, "s", "0x"+dest,\
+        msg = " ".join([PROTO.WRITEATTRIBUTE2, "s", "0x"+dest,\
             "20 0 4 42", "1", str(psize), str(rsp), Protocol.EOL])
         return msg
+
+    @staticmethod
+    def getfwver(params=None):
+        """Get firmware version command builder"""
+        return " ".join([PROTO.GETFWVER, Protocol.EOL])
 
     @staticmethod
     def parse_rbuf(data, node):
@@ -114,7 +120,7 @@ class ZigbeeProtocol(Protocol):
                 params.append(str(random.randint(1100, 1144)))
                 params.append(str(random.randint(10, 100)))
             else:
-                params = [PROT.DGN]
+                params = [PROTO.DGN]
                 params.extend([str(random.randint(0, 2000)) for _ in range(21)])
         #------------end debug data--------------
         msg_type = params[0].upper()
@@ -128,7 +134,7 @@ class ZigbeeProtocol(Protocol):
                     T_MSG_TYPE: MessageType.RECV.name,
                     T_ZBEE_NWK_SRC: node.addr,\
                     T_ZBEE_NWK_DST: params[4],\
-                    T_TYPE: PROT.MsgType.snd.name,\
+                    T_TYPE: PROTO.MsgType.snd.name,\
                     T_ZBEE_ZCL_CMD_TSN: params[1],\
                     T_STATUS: params[5],\
                     T_SND_SEQ_NR: node.sequence_nr,\
@@ -137,16 +143,16 @@ class ZigbeeProtocol(Protocol):
 #                if status == '0x00':
 #                    node.nr_messages_sent += 1
             else:
-                PROT.lgr.error(string_write('Incorrect send confirm: {}', data))
+                PROTO.lgr.error(string_write('Incorrect send confirm: {}', data))
         elif msg_type == MessageType.RECV.name:
             report = {\
-                    T_TRAFFIC_TYPE: TrafficType.SCMD.name,\
-                    T_MSG_TYPE: MessageType.RECV.name,
-                    T_NODE: node.addr,
-                    T_TYPE: PROT.MsgType.rcv.name,\
-                    T_ZBEE_NWK_SRC: params[3],\
-                    T_ZBEE_NWK_DST: node.addr,\
-                    T_ZBEE_ZCL_CMD_TSN: params[1],\
+                T_TRAFFIC_TYPE: TrafficType.SCMD.name,\
+                T_MSG_TYPE: MessageType.RECV.name,
+                T_NODE: node.addr,
+                T_TYPE: PROTO.MsgType.rcv.name,\
+                T_ZBEE_NWK_SRC: params[3],\
+                T_ZBEE_NWK_DST: node.addr,\
+                T_ZBEE_ZCL_CMD_TSN: params[1],\
             }
         elif msg_type == MessageType.JOINING.name:
             report = {\
@@ -160,18 +166,18 @@ class ZigbeeProtocol(Protocol):
             return None
         elif params[0] == 'Network':
             return None
-        elif params[0] == PROT.GETUID:
+        elif params[0] == PROTO.GETUID:
             node.uid = params[1]
-        elif params[0] == PROT.GETNETWORKADDRESS:
+        elif params[0] == PROTO.GETNETWORKADDRESS:
             node.addr = data[-6:]
-        elif params[0] == PROT.RESET_CONF:
+        elif params[0] == PROTO.RESET_CONF:
             return None
-        elif params[0] == PROT.DGN:
+        elif params[0] == PROTO.DGN:
             report = {
                 T_MSG_TYPE: MessageType.RECV.name,\
                 T_TRAFFIC_TYPE: TrafficType.SCMD.name,\
                 T_NODE: node.addr,\
-                T_TYPE: PROT.MsgType.dgn.name,
+                T_TYPE: PROTO.MsgType.dgn.name,
                 T_ZBEE_NWK_ADDR: node.addr,\
                 T_AVGMACRETRY: params[1],\
                 T_LASTMSGLQI: params[2],\
@@ -221,7 +227,7 @@ class ZigbeeProtocol(Protocol):
             T_MSG_TYPE: MessageType.SEND.name,
             T_TRAFFIC_TYPE: TrafficType.SCMD.name,\
             T_NODE: node.addr,
-            T_TYPE: PROT.ReqType.snd_req.name,
+            T_TYPE: PROTO.ReqType.snd_req.name,
             T_ZBEE_NWK_SRC: request.get(T_SRC),#node.addr,
             T_ZBEE_NWK_DST: request.get(T_DEST),
             T_ACK: request.get(T_RSP) == 1 and 'y' or 'n',

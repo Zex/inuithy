@@ -17,39 +17,40 @@ class BleProtocol(Protocol):
     LEAVEGRP = "leavegrp"
     SETADDR = "setaddr"
     GETADDR = "getaddr"
+    GETFWVER = "getfwver"
 
     @staticmethod
-    def joingrp(params):
+    def joingrp(params=None):
         """Join group command builder"""
         grpid = params.get(T_PANID)
         return " ".join([BleProtocol.JOINGRP, grpid, Protocol.EOL])
 
     @staticmethod
-    def leavegrp(params):
+    def leavegrp(params=None):
         """Leave group command builder"""
         grpid = params.get(T_PANID)
         return " ".join([BleProtocol.LEAVEGRP, grpid, Protocol.EOL])
 
     @staticmethod
-    def lighton(params):
+    def lighton(params=None):
         """Light on command builder"""
         raddr = params.get(T_DEST)
         return " ".join([BleProtocol.LIGHTON, raddr, Protocol.EOL])
 
     @staticmethod
-    def lightoff(params):
+    def lightoff(params=None):
         """Light off command builder"""
         raddr = params.get(T_DEST)
         return " ".join([BleProtocol.LIGHTOFF, raddr, Protocol.EOL])
 
     @staticmethod
-    def setaddr(params):
+    def setaddr(params=None):
         """Set address command builder"""
         raddr = params.get(T_ADDR)
         return " ".join([BleProtocol.SETADDR, raddr, Protocol.EOL])
 
     @staticmethod
-    def getaddr(params):
+    def getaddr(params=None):
         """Get address command builder"""
         return " ".join([BleProtocol.GETADDR, Protocol.EOL])
 
@@ -78,6 +79,11 @@ class BleProtocol(Protocol):
         report[T_TRAFFIC_TYPE] = msg_type == TrafficType.JOIN.value\
             and TrafficType.JOIN.name or TrafficType.SCMD.name
         return report
+
+    @staticmethod
+    def getfwver(params=None):
+        """Get firmware version command builder"""
+        return " ".join([PROTO.GETFWVER, Protocol.EOL])
 
     @staticmethod
     def parse_wbuf(data, node, request):
