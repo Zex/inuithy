@@ -58,20 +58,21 @@ class PandasPlugin(object):
                 addr_grp = pdata.groupby([T_ZBEE_NWK_ADDR], as_index=False)
                 nodes = addr_grp.groups.keys()
 
+            xindex = pdata[T_TIME].diff()
             
             for addr in nodes:
                 if df is None:
-                    df = pd.DataFrame({addr: pd.Timedelta(pdata[item][pdata[T_ZBEE_NWK_ADDR]==addr])})
+                    df = pd.DataFrame({addr: pdata[item][pdata[T_ZBEE_NWK_ADDR]==addr].diff()})
                 else:
                     df = df.join(pd.DataFrame({addr:pdata[item][pdata[T_ZBEE_NWK_ADDR]==addr]}), how='outer')
-                
             if df is not None and not df.empty:
                 df = df.fillna(value=0)
+                print(len(df))
                 if iloc_range is not None:
                     df = df.iloc[iloc_range[0]:iloc_range[1]]
                 if title is None or len(title) == 0:
                     title = string_write("{} by {}", item, T_ZBEE_NWK_ADDR)
-                df.plot(grid=False, xticks=[], figsize=(28, 7))
+                df.plot(grid=False, xticks=[], figsize=(28, 7), lw=2.0)
                 plt.ylabel(item)
                 plt.title(title)
                 pdf_pg.savefig()
@@ -121,27 +122,26 @@ class PandasPlugin(object):
     def gen_report(header, csv_path, pdf_path, cfg):
 
 #        pdata = pd.read_csv(csv_path, index_col=False, names=list(header), header=None)
-#        pdata = pd.read_csv('docs/UID1478067701.csv', index_col=False, names=list(header), header=None)
-        pdata = pd.read_csv('docs/UID1470021754.csv', index_col=False, names=list(header), header=None)
+        pdata = pd.read_csv('docs/UID1478067701.csv', index_col=False, names=list(header), header=None)
+#        pdata = pd.read_csv('docs/UID1470021754.csv', index_col=False, names=list(header), header=None)
         console_write(pdata.info())
-        pdata[T_TIME] = pdata[T_TIME].astype(str)
-        pdata.index = [pdata[T_TIME]]
-
-#        nodes=['0x0000', '0x0001', '0x0102', '0x0103', '0x0205', '0x0206', '0x0303', '0x0304', '0x0400', '0x0401']
-#        gw = '0x0207'
-#        irange = (70, 150)
+#        pdata[T_TIME] = pdata[T_TIME].astype(str)
+        pdata.index = pdata[T_TIME].diff()
+#        print(pdata[T_TIME].diff())
+        nodes=['0x0000', '0x0001', '0x0102', '0x0103', '0x0205', '0x0206', '0x0303', '0x0304', '0x0400', '0x0401']
+        gw = '0x0207'
+        irange = None #(70, 150)
+        """
         nodes = None
         gw = '0x0303' 
         irange = None
-
-        help(pd.DataFrame)
+        """
         with PdfPages(pdf_path) as pdf_pg:
-#            for item in header[2:]:
-#                PandasPlugin.item_based(pdata, item, pdf_pg, [gw],
-#                    title = string_write("{} by gateway", item))
             for item in header[2:]:
-                PandasPlugin.item_based(pdata, item, pdf_pg, nodes, (40, 90))
-                break
+                PandasPlugin.item_based(pdata, item, pdf_pg, [gw],
+                    title = string_write("{} by gateway", item))
+            for item in header[2:]:
+                PandasPlugin.item_based(pdata, item, pdf_pg, nodes, irange)#, (40, 90))
 
 if __name__ == '__main__':
 
@@ -150,9 +150,9 @@ if __name__ == '__main__':
 #    PandasPlugin.gen_report(genid='1478585096')
     
     import sys
-    ts = [1470023287.241, 1470023287.370, 1470023289.550]
-    [print(pd.Timedelta(t).delta) for t in ts]
-    sys.exit(1)
+#    ts = [1470023287.241, 1470023287.370, 1470023289.550]
+#    [print(pd.Timedelta(t).delta) for t in ts]
+#    sys.exit(1)
     if len(sys.argv) > 1:
         header, csv_path, pdf_path, cfg = PandasPlugin.prep_info(genid=sys.argv[1])
 #       PandasPlugin.gen_csv(genid=sys.argv[1])
