@@ -71,23 +71,23 @@ class ManualController(ControllerBase):
         self.teardown()
         self.lgr.info(string_write("ManualController terminated"))
 
-    def teardown(self):
-        """Cleanup"""
-        try:
-            if ManualController.initialized:
-                ManualController.initialized = False
-#                self.lgr.info("Stop agents")
-#                stop_agents(self._mqclient, self.tcfg.mqtt_qos)
-                if self.traffic_state:
-                    self.traffic_state.running = False
-                if self._traffic_timer:
-                    self._traffic_timer.cancel()
-                if self.storage:
-                    self.storage.close()
-                if self.mqclient:
-                    self.mqclient.disconnect()
-        except Exception as ex:
-            self.lgr.error(string_write("Exception on teardown: {}", ex))
+#    def teardown(self):
+#        """Cleanup"""
+#        try:
+#            if ManualController.initialized:
+#                ManualController.initialized = False
+##                self.lgr.info("Stop agents")
+##                stop_agents(self._mqclient, self.tcfg.mqtt_qos)
+#                if self.traffic_state:
+#                    self.traffic_state.running = False
+#                if self._traffic_timer:
+#                    self._traffic_timer.cancel()
+#                if self.storage:
+#                    self.storage.close()
+#                if self.mqclient:
+#                    self.mqclient.disconnect()
+#        except Exception as ex:
+#            self.lgr.error(string_write("Exception on teardown: {}", ex))
 
     def on_topic_heartbeat(self, message):
         """Heartbeat message format:
@@ -111,7 +111,7 @@ class ManualController(ControllerBase):
         try:
             self.del_agent(agentid)
             self.lgr.info(string_write("Available Agents({}): {}",\
-                len(self.chk.available_agents), self.chk.available_agents))
+                len(self.available_agents), self.available_agents))
         except Exception as ex:
             self.lgr.error(string_write("Exception on unregistering agent {}: {}", agentid, ex))
 

@@ -9,6 +9,7 @@ from inuithy.util.cmd_helper import pub_ctrlcmd
 from inuithy.util.traffic_state import TrafficState
 from inuithy.storage.storage import Storage
 from inuithy.common.agent_info import AgentInfo
+from inuithy.util.worker import Worker
 from inuithy.util.config_manager import create_inuithy_cfg, create_traffic_cfg,\
 create_network_cfg
 import threading
@@ -20,7 +21,9 @@ lconf.fileConfig(INUITHY_LOGCONFIG)
 class ControllerBase(object):
     """Base of controllers
     """
+    """General mutex"""
     __mutex = threading.Lock()
+    """Message mutex"""
     __mutex_msg = threading.Lock()
 
     @property
@@ -91,33 +94,33 @@ class ControllerBase(object):
     def available_agents(self):
         """Available agent, agentid => AgentInfo"""
         return self.traffic_state.chk.available_agents
-    @available_agents.setter
-    def available_agents(self, val):
-        pass
+#    @available_agents.setter
+#    def available_agents(self, val):
+#        pass
 
     @property
     def expected_agents(self):
         """List of expected agents"""
         return self.traffic_state.chk.expected_agents
-    @expected_agents.setter
-    def expected_agents(self, val):
-        pass
+#    @expected_agents.setter
+#    def expected_agents(self, val):
+#        pass
 
     @property
     def node2host(self):
         """Node address => connected host"""
         return self.traffic_state.chk.node2host
-    @node2host.setter
-    def node2host(self, val):
-        pass
+#    @node2host.setter
+#    def node2host(self, val):
+#        pass
 
     @property
     def node2aid(self):
         """Node address => connected host"""
         return self.traffic_state.chk.node2aid
-    @node2aid.setter
-    def node2aid(self, val):
-        pass
+#    @node2aid.setter
+#    def node2aid(self, val):
+#        pass
 
 #    @property
 #    def host2aid(self):
@@ -166,6 +169,7 @@ class ControllerBase(object):
         self._current_nwlayout = ('', '')
         self._host = socket.gethostname()
         self._clientid = string_write(INUITHYCONTROLLER_CLIENT_ID, self.host)
+        self.worker = Worker(2, self.lgr)
         if self.load_configs(inuithy_cfgpath, traffic_cfgpath):
             self._traffic_state = TrafficState(self, self.lgr)
             self._traffic_timer = threading.Timer(delay, self.traffic_state.start)
@@ -239,11 +243,11 @@ class ControllerBase(object):
 
     def add_agent(self, agentid, host, nodes):
         """Register started agent"""
-        if self.traffic_state.chk.available_agents.get(agentid) is None:
-            self.traffic_state.chk.available_agents[agentid] = AgentInfo(agentid, host, AgentStatus.ONLINE, nodes)
+        if self.available_agents.get(agentid) is None:
+            self.available_agents[agentid] = AgentInfo(agentid, host, AgentStatus.ONLINE, nodes)
             self.lgr.info(string_write("Agent {} added", agentid))
         else:
-            self.traffic_state.chk.available_agents[agentid].nodes = nodes
+            self.available_agents[agentid].nodes = nodes
             self.lgr.info(string_write("Agent {} updated", agentid))
 #        self.traffic_state.chk.host2aid.__setitem__(host, agentid)
         [self.traffic_state.chk.node2aid.__setitem__(node, agentid) for node in nodes]
@@ -251,8 +255,8 @@ class ControllerBase(object):
 
     def del_agent(self, agentid):
         """Unregister started agent"""
-        if self.traffic_state.chk.available_agents.get(agentid):
-            del self.traffic_state.chk.available_agents[agentid]
+        if self.available_agents.get(agentid):
+            del self.available_agents[agentid]
             self.lgr.info(string_write("Agent {} removed", agentid))
 
     def _do_init(self):
@@ -265,7 +269,7 @@ class ControllerBase(object):
             self.node_to_host()
             for aname in self.trcfg.target_agents:
                 agent = self.nwcfg.agent_by_name(aname)
-                self.traffic_state.chk.expected_agents.append(agent.get(T_HOST))
+                self.expected_agents.append(agent.get(T_HOST))
             self.register_routes()
             self.create_mqtt_client(*self.tcfg.mqtt)
             ControllerBase.initialized = True
@@ -318,3 +322,23 @@ class ControllerBase(object):
         except Exception as ex:
             self.lgr.error(string_write("Failed to load plugin: {}", ex))
 
+    def teardown(self):
+        """Cleanup"""
+        try:
+            if ControllerBase.initialized:
+                ControllerBase.initialized = False
+#                self.lgr.info("Stop agents")
+#                stop_agents(self._mqclient, self.tcfg.mqtt_qos)
+                if self.traffic_state:
+                    self.traffic_state.traf_running = False
+                if self._traffic_timer:
+                    self._traffic_timer.cancel()
+                if self.storage:
+                    self.storage.close()
+                if self.worker:
+                    self.worker.stop()
+                if self.mqclient:
+                    self.mqclient.disconnect()
+                self.traffic_state.chk.done.set()
+        except Exception as ex:
+            self.lgr.error(string_write("Exception on teardown: {}", ex))

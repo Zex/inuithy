@@ -4,8 +4,8 @@
 from inuithy.common.version import INUITHY_VERSION
 from inuithy.common.predef import T_CLIENTID, T_TRAFFIC_TYPE, T_PANID,\
 T_NODE, T_HOST, T_NODES, INUITHY_TOPIC_HEARTBEAT, T_TID, T_MSG, T_SPANID,\
-T_TRAFFIC_STATUS, TrafficStatus, TrafficType, string_write, MessageType,\
-TRAFFIC_CONFIG_PATH, INUITHY_CONFIG_PATH, INUITHY_TITLE, T_SRC,\
+T_TRAFFIC_STATUS, TrafficStatus, TrafficType, string_write, console_write,\
+MessageType, TRAFFIC_CONFIG_PATH, INUITHY_CONFIG_PATH, INUITHY_TITLE, T_SRC,\
 INUITHY_TOPIC_UNREGISTER, INUITHY_LOGCONFIG, T_DEST, T_MSG_TYPE,\
 INUITHY_TOPIC_STATUS, INUITHY_TOPIC_REPORTWRITE, INUITHY_TOPIC_NOTIFICATION
 from inuithy.mode.base import ControllerBase
@@ -14,7 +14,6 @@ import paho.mqtt.client as mqtt
 import logging
 import logging.config as lconf
 import time
-import threading
 
 lconf.fileConfig(INUITHY_LOGCONFIG)
 
@@ -59,39 +58,23 @@ class AutoController(ControllerBase):
             return
         try:
             self.lgr.info(string_write("Expected Agents({}): {}",\
-                len(self.traffic_state.chk.expected_agents), self.traffic_state.chk.expected_agents))
+                len(self.expected_agents), self.expected_agents))
             if self._traffic_timer is not None:
                 self._traffic_timer.start()
+            if self.worker is not None:
+                self.worker.start()
             self.alive_notification()
             self._mqclient.loop_forever()
         except KeyboardInterrupt:
             self.lgr.info(string_write("AutoController received keyboard interrupt"))
+            self.traffic_state.chk.done.set()
         except NameError as ex:
             self.lgr.error(string_write("ERR: {}", ex))
             self.teardown()
         except Exception as ex:
             self.lgr.error(string_write("Exception on AutoController: {}", ex))
-        self.traffic_state.finish()
+            raise
         self.lgr.info(string_write("AutoController terminated"))
-
-    def teardown(self):
-        """Cleanup"""
-        try:
-            if AutoController.initialized:
-                AutoController.initialized = False
-#                self.lgr.info("Stop agents")
-#                stop_agents(self._mqclient, self.tcfg.mqtt_qos)
-                if self.traffic_state:
-                    self.traffic_state.running = False
-#                    self.traffic_state.chk.done.set()
-                if self._traffic_timer:
-                    self._traffic_timer.cancel()
-                if self.storage:
-                    self.storage.close()
-                if self.mqclient:
-                    self.mqclient.disconnect()
-        except Exception as ex:
-            self.lgr.error(string_write("Exception on teardown: {}", ex))
 
     def on_topic_heartbeat(self, message):
         """Heartbeat message format:
@@ -116,7 +99,7 @@ class AutoController(ControllerBase):
         try:
             self.del_agent(agentid)
             self.lgr.info(string_write("Available Agents({}): {}",\
-                len(self.traffic_state.chk.available_agents), self.traffic_state.chk.available_agents))
+                len(self.available_agents), self.available_agents))
             if len(self.available_agents) == 0:
                 self.traffic_state.chk.done.set()
         except Exception as ex:
@@ -126,8 +109,7 @@ class AutoController(ControllerBase):
         """Status topic handler"""
         self.lgr.info(string_write("On topic status"))
         data = extract_payload(message.payload)
-        thr = threading.Thread(target=self.status_handler, args=(data,))
-        thr.start()
+        self.worker.add_job(self.status_handler, data)
 
     def status_handler(self, data):
         """Status handler routine"""
@@ -155,9 +137,13 @@ class AutoController(ControllerBase):
         """Report-written topic handler"""
 #        self.lgr.info(string_write("On topic reportwrite"))
         data = extract_payload(message.payload)
+        self.worker.add_job(self.reportwrite_handler, data)
+
+    def reportwrite_handler(self, data):
+        """Reportwrite handler routine"""
         try:
             if data.get(T_TRAFFIC_TYPE) == TrafficType.JOIN.name:
-                self.lgr.info(string_write("JOINING: {}", data.get(T_NODE)))
+                self.lgr.debug(string_write("JOINING: {}", data.get(T_NODE)))
             elif data.get(T_TRAFFIC_TYPE) == TrafficType.SCMD.name:
             # Record traffic only
                 self.lgr.debug(string_write("REPORT: {}", data))
@@ -171,8 +157,7 @@ class AutoController(ControllerBase):
         """Report-read topic handler"""
 #       self.lgr.info(string_write("On topic notification"))
         data = extract_payload(message.payload)
-        thr = threading.Thread(target=self.notification_handler, args=(data,))
-        thr.start()
+        self.worker.add_job(self.notification_handler, data)
 
     def notification_handler(self, data):
         """Notification handler routine"""
