@@ -2,7 +2,7 @@
  @author: Zex Li <top_zlynch@yahoo.com>
 """
 from inuithy.common.predef import DEV_TTYUSB, DEV_TTYS, DEV_TTY,\
-string_write, T_EVERYONE
+string_write, T_EVERYONE, INUITHY_LOGCONFIG
 from inuithy.common.node import NodeBLE, NodeZigbee, NodeType
 from inuithy.protocol.ble_proto import BleProtocol as BleProt
 from inuithy.protocol.zigbee_proto import ZigbeeProtocol as ZbeeProt

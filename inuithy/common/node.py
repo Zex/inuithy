@@ -1,12 +1,12 @@
 """ General node definition
  @author: Zex Li <top_zlynch@yahoo.com>
 """
-from inuithy.common.predef import TrafficType, T_MSG,\
+from inuithy.common.predef import TrafficType, T_MSG, T_GENID,\
 INUITHY_LOGCONFIG, string_write, T_TYPE, T_ADDR, T_PORT
 from inuithy.util.cmd_helper import pub_reportwrite, pub_notification
 from inuithy.protocol.ble_proto import BleProtocol as BleProt
 from inuithy.protocol.zigbee_proto import ZigbeeProtocol as ZbeeProt
-from inuithy.protocol.zigbee_proto import T_ACK
+from inuithy.protocol.zigbee_proto import T_RSP
 from inuithy.protocol.bzcombo_proto import BzProtocol as BZProt
 
 import logging.config as lconf
@@ -114,7 +114,7 @@ class SerialNode(object):
 
     def report_write(self, data=None, request=None):
         """"Report writen data"""
-        if self.reporter is None or self.genid is None:
+        if self.reporter is None or self.genid is None or request is None:
             return
 #TODO: uncomment
 #       if data is None or len(data) == 0:
@@ -128,8 +128,8 @@ class NodeBLE(SerialNode):
     @addr Node address in network
     @port Serial port path
     """
-    def __init__(self, port='', addr='', reporter=None):
-        super(NodeBLE, self).__init__(NodeType.BLE, port, reporter)
+    def __init__(self, port='', addr='', reporter=None, lgr=None):
+        super(NodeBLE, self).__init__(NodeType.BLE, port, reporter, lgr)
         self.addr = addr
         self.port = port
         self.prot = BleProt
@@ -187,8 +187,8 @@ class NodeBLE(SerialNode):
 class NodeZigbee(SerialNode):
     """Zigbee node definition
     """
-    def __init__(self, port='', addr='', reporter=None):
-        super(NodeZigbee, self).__init__(NodeType.Zigbee, port, reporter)
+    def __init__(self, port='', addr='', reporter=None, lgr=None):
+        super(NodeZigbee, self).__init__(NodeType.Zigbee, port, reporter, lgr)
         #TODO
         self.addr = addr
         self.uid = None
@@ -228,8 +228,8 @@ class NodeZigbee(SerialNode):
 class NodeBz(SerialNode):
     """BLE-Zigbee node definition
     """
-    def __init__(self, port='', addr='', reporter=None):
-        super(NodeBz, self).__init__(NodeType.Zigbee, port, reporter)
+    def __init__(self, port='', addr='', reporter=None, lgr=None):
+        super(NodeBz, self).__init__(NodeType.Zigbee, port, reporter, lgr)
         #TODO
         self.addr = addr
         self.uid = None

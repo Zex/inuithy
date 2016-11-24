@@ -48,10 +48,10 @@ class Traffic(object):
     def dest(self, val):
         self.__dest = val
 
-    def __init__(self, psize=1, src=None, recv=None):
+    def __init__(self, psize=1, src=None, dest=None):
         self.__pkgsize = psize
         self.__src = src
-        self.__dest = recv
+        self.__dest = dest
 
     def __str__(self):
         return string_write(
@@ -120,8 +120,8 @@ class TrafficGenerator(object):
             time.clock_gettime(time.CLOCK_REALTIME), self.nwlayoutid, trname)
 
     def __str__(self):
-        return string_write("layout:{},traffic:{},rate:{}/s,dur:{}s,",\
-            self.nwlayoutid, self.traffic_name, self.pkgrate, self.duration)
+        return string_write("genid:{},layout:{},traffic:{},rate:{}/s,dur:{}s,",\
+            self.genid, self.nwlayoutid, self.traffic_name, self.pkgrate, self.duration)
 
     @staticmethod
     def parse_srcs(tr, nwcfg):
