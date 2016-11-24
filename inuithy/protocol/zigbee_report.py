@@ -23,7 +23,7 @@ import logging.config as lconf
 #from bson.objectid import ObjectId
 import json
 import sys
-import os
+from os import path, mkdir
 
 mplib.style.use('ggplot')
 #lconf.fileConfig(INUITHY_LOGCONFIG)
@@ -112,7 +112,8 @@ class ZbeeReport(object):
             T_MACRXUCAST, T_NEIGHBORADDED, T_NEIGHBORRMED, T_NEIGHBORSTALE, T_AVGMACRETRY,\
             T_RTDISCINIT, T_RELAYEDUCAST, T_PKGBUFALLOCFAIL, T_APSTXBCAST, T_APSTXUCASTSUCCESS,\
             T_APSTXUCASTFAIL, T_APSTXUCASTRETRY, T_APSRXBCAST, T_APSRXUCAST)
-        os.mkdir(ginfo.fig_base) 
+        if not path.isdir(ginfo.fig_base):
+            mkdir(ginfo.fig_base)
         return ginfo
 
     @staticmethod
@@ -136,28 +137,18 @@ class ZbeeReport(object):
                 [fd.write(line + '\n') for line in csv_data]
 
     @staticmethod
-    def gen_report(ginfo):
+    def gen_report(ginfo, gw=None, interet_nodes=None, irange=None):
         """Report generation helper"""
         pdata = pd.read_csv(ginfo.csv_path, index_col=False, names=list(ginfo.header), header=None)
         console_write(pdata.info())
 #       pdata[T_TIME] = pdata[T_TIME].astype(str)
         pdata.index = pdata[T_TIME]#.diff()
-        nodes = ['0x0000', '0x0001', '0x0102', '0x0103',\
-                 '0x0205', '0x0206', '0x0303', '0x0304',\
-                 '0x0400', '0x0401']
-        gw = '0x0207'
-        irange = None #(70, 150)
-        """
-        nodes = None
-        gw = '0x0303'
-        irange = None
-        """
         with PdfPages(ginfo.pdf_path) as pdf_pg:
             for item in ginfo.header[2:]:
                 ZbeeReport.item_based(pdata, item, pdf_pg, [gw],\
                     title = string_write("{} by gateway", item), fig_base=ginfo.fig_base)
             for item in ginfo.header[2:]:
-                ZbeeReport.item_based(pdata, item, pdf_pg, nodes, irange, fig_base=ginfo.fig_base)#, (40, 90))
+                ZbeeReport.item_based(pdata, item, pdf_pg, nodes, irange, fig_base=ginfo.fig_base)
 
 if __name__ == '__main__':
 
@@ -167,11 +158,24 @@ if __name__ == '__main__':
 
     if len(sys.argv) > 1:
         ginfo = ZbeeReport.prep_info(sys.argv[1])
+        nodes, gw, irange = None, None, None
+        """
+        nodes = ['0x0000', '0x0001', '0x0102', '0x0103',\
+                 '0x0205', '0x0206', '0x0303', '0x0304',\
+                 '0x0400', '0x0401']
+        gw = '0x0207'
+        irange = None #(70, 150)
+        """
+        """
+        nodes = None
+        gw = '0x0303'
+        irange = None
+        """
 #TODO: uncomment
-#       ZbeeReport.gen_csv(genid=sys.argv[1], ginfo)
-        ginfo.csv_path = 'docs/UID1478067701.csv'
+        ZbeeReport.gen_csv(genid=sys.argv[1], ginfo)
+#       ginfo.csv_path = 'docs/UID1478067701.csv'
 #       ginfo.csv_path = 'docs/UID1470021754.csv'
-        ZbeeReport.gen_report(ginfo)
+        ZbeeReport.gen_report(ginfo, gw, nodes, irange)
     else:
         console_write("Genid not given")
 

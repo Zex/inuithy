@@ -221,6 +221,9 @@ class ZigbeeProtocol(Protocol):
         @request Dict request information
         @return Dict report for sending to controller
         """
+        if request.get(T_SRC) is None or request.get(T_DEST) is None:
+            return None
+
         report = {
             T_GENID: node.genid,
             T_TIME: time.time(),
