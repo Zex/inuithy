@@ -31,6 +31,7 @@ traffic_config_chk: inuithy/common/traffic.py
 run_controller: inuithy/controller.py
 	$(ECHO) "" > $(LOGPATH)
 	$(ULIMIT) -u unlimited
+	$(MAKE) all
 	$(PYTHON) $<
 
 run_tsh: inuithy/controller.py
