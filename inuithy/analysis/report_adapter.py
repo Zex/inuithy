@@ -6,11 +6,6 @@ MessageType, T_HOST, StorageType, T_NODE, T_MSG, T_TRAFFIC_TYPE,\
 T_RECORDS, T_MSG_TYPE, T_TIME, T_GENID, T_CLIENTID,\
 T_SRC, T_DEST, T_PKGSIZE, T_REPORTDIR, T_PATH, T_GATEWAY, T_TIME,\
 console_write, string_write
-#from inuithy.protocol.zigbee_proto import T_ZBEE_NWK_ADDR, T_MACTXBCAST,\
-#T_MACTXUCASTRETRY, T_MACTXUCASTFAIL, T_MACTXUCAST, T_MACRXUCAST,\
-#T_NEIGHBORADDED, T_NEIGHBORRMED, T_NEIGHBORSTALE, T_AVGMACRETRY,\
-#T_RTDISCINIT, T_RELAYEDUCAST, T_PKGBUFALLOCFAIL, T_APSTXBCAST,\
-#T_APSTXUCASTSUCCESS, T_APSTXUCASTFAIL, T_APSTXUCASTRETRY, T_APSRXBCAST, T_APSRXUCAST
 from inuithy.storage.storage import Storage
 from inuithy.util.config_manager import create_inuithy_cfg, create_traffic_cfg
 import matplotlib.pyplot as plt
@@ -28,7 +23,7 @@ mplib.style.use('ggplot')
 lconf.fileConfig(INUITHY_LOGCONFIG)
 lgr = logging
 
-#class PandasPlugin(object):
+#class ReportAdapter(object):
 #    """Analysis helper"""
 #    @staticmethod
 #    def insert_data(n, t, index, data):
@@ -75,11 +70,11 @@ lgr = logging
 #                n, t = rec.get(T_NODE), rec.get(T_TIME)
 #                if n is None or t is None:
 #                    continue
-#                PandasPlugin.insert_data(n, t, index, data)
+#                ReportAdapter.insert_data(n, t, index, data)
 #            cache = list(index)
 #            cache.sort()
 #            index = cache
-#            repo = PandasPlugin.build_report_data(index, data)
+#            repo = ReportAdapter.build_report_data(index, data)
 #    
 #            if len(repo) > 0:
 #                df = pd.DataFrame(repo, index=range(len(index)), columns=repo.keys())
@@ -104,11 +99,11 @@ lgr = logging
 #                n, t = rec.get(T_NODE), rec.get(T_TIME)
 #                if n is None or t is None:
 #                    continue
-#                PandasPlugin.insert_data(n, t, index, data)
+#                ReportAdapter.insert_data(n, t, index, data)
 #            cache = list(index)
 #            cache.sort()
 #            index = cache
-#            repo = PandasPlugin.build_report_data(index, data)
+#            repo = ReportAdapter.build_report_data(index, data)
 ##        print(repo)
 #            if len(repo) > 0:
 #                df = pd.DataFrame(repo, index=range(len(index)), columns=repo.keys())
@@ -130,11 +125,11 @@ lgr = logging
 #                n, t, g = v.get(T_NODE), v.get(T_TIME), v.get(T_GATEWAY)
 #                if n is None or t is None or n != g:
 #                    continue
-#                PandasPlugin.insert_data(n, t, index, data)
+#                ReportAdapter.insert_data(n, t, index, data)
 #            cache = list(index)
 #            cache.sort()
 #            index = cache
-#            repo = PandasPlugin.build_report_data(index, data)
+#            repo = ReportAdapter.build_report_data(index, data)
 #    
 #            if len(repo) > 0:
 #                df = pd.DataFrame(data, index=range(len(index)), columns=data.keys())
@@ -212,7 +207,7 @@ lgr = logging
 ##                    fd.write(str(r)+'\n')
 #
 ##            header = (T_TIME, T_NODE, T_SRC, T_DEST, T_MSG_TYPE, T_TRAFFIC_TYPE, T_CLIENTID, T_HOST, T_GENID)
-#            csv_data = PandasPlugin.create_csv(recs, header, genid)
+#            csv_data = ReportAdapter.create_csv(recs, header, genid)
 #            with open(string_write('{}/{}.csv', cfg.config[T_REPORTDIR][T_PATH], genid), 'w') as fd:
 #                fd.write(','.join(h for h in header) + '\n')
 #                [fd.write(line + '\n') for line in csv_data]
@@ -222,28 +217,31 @@ lgr = logging
 ##            print("=========================================================")
 ##            continue
 #            with PdfPages(string_write('{}/{}.pdf', cfg.config[T_REPORTDIR][T_PATH], genid)) as pdf_pg:
-#                [PandasPlugin.groupby(pdata, T_TIME, pdf_pg) for item in header] 
-#                PandasPlugin.gen_total_pack(recs, genid, pdf_pg) 
-#                PandasPlugin.gen_src_pack(recs, genid, pdf_pg) 
-#                PandasPlugin.gen_dest_pack(recs, genid, pdf_pg) 
-#                PandasPlugin.gen_total_gwpack(recs, genid, pdf_pg)
+#                [ReportAdapter.groupby(pdata, T_TIME, pdf_pg) for item in header] 
+#                ReportAdapter.gen_total_pack(recs, genid, pdf_pg) 
+#                ReportAdapter.gen_src_pack(recs, genid, pdf_pg) 
+#                ReportAdapter.gen_dest_pack(recs, genid, pdf_pg) 
+#                ReportAdapter.gen_total_gwpack(recs, genid, pdf_pg)
 #
 class ReportAdapter(object):
     """Analysis helper"""
     #TODO
-    pass
+    @staticmethod
+    def gen_report(inuithy_cfgpath=INUITHY_CONFIG_PATH, genid=None):
+        pass
+
 
 if __name__ == '__main__':
 
-#    PandasPlugin.gen_report(genid='581fdfe3362ac719d1c96eb3')
-#    PandasPlugin.gen_report(genid='1478508817')
-#    PandasPlugin.gen_report(genid='1478585096')
+#    ReportAdapter.gen_report(genid='581fdfe3362ac719d1c96eb3')
+#    ReportAdapter.gen_report(genid='1478508817')
+#    ReportAdapter.gen_report(genid='1478585096')
     import sys
     if len(sys.argv) > 1:
-        header, csv_path, pdf_path, cfg = PandasPlugin.prep_info(genid=sys.argv[1])
+        header, csv_path, pdf_path, cfg = ReportAdapter.prep_info(genid=sys.argv[1])
 #TODO: uncomment
-#       PandasPlugin.gen_csv(genid=sys.argv[1])
-        PandasPlugin.gen_report(header, csv_path, pdf_path, cfg)
+#       ReportAdapter.gen_csv(genid=sys.argv[1])
+        ReportAdapter.gen_report(header, csv_path, pdf_path, cfg)
     else:
         print("Genid not given")
         sys.exit(1)
