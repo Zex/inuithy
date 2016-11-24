@@ -46,14 +46,14 @@ def start_controller(tcfg, trcfg):
     if mode_route.get(cfg.workmode) is None:
         lgr.error("Unknown work mode")
         return
-    try:
-        mode_route[cfg.workmode](tcfg, trcfg)
-    except KeyboardInterrupt:
-        lgr.info(string_write("Controller received keyboard interrupt"))
-    except Exception as ex:
-        lgr.error(string_write("Exception on Controller: {}", ex))
-    finally:
-        lgr.info("Bye~")
+#    try:
+    mode_route[cfg.workmode](tcfg, trcfg)
+#    except KeyboardInterrupt:
+#        lgr.info(string_write("Controller received keyboard interrupt"))
+#    except Exception as ex:
+#        lgr.error(string_write("Exception on Controller: {}", ex))
+#    finally:
+    lgr.info("Bye~")
 
 if __name__ == '__main__':
     lgr = logging.getLogger('InuithyController')
