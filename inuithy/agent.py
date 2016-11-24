@@ -44,7 +44,9 @@ class Agent(object):
                         unregister
         Agent -------------------------> Controller
     """
+    """General mutex"""
     __mutex = threading.Lock()
+    """Message mutex"""
     __mutex_msg = threading.Lock()
 
     @property
@@ -124,7 +126,6 @@ class Agent(object):
 #            message.topic))
         try:
             userdata.topic_routes[message.topic](message)
-#            threading.Thread(target=userdata.topic_routes[message.topic], args=(message,)).start()
         except Exception as ex:
             msg = string_write("Exception on MQ message dispatching: {}", ex)
             userdata.lgr.error(msg)
@@ -301,6 +302,7 @@ class Agent(object):
         self.set_host()
         self.__addr2node = {}
         self.__clientid = self.get_clientid(cid_surf)
+#        self.worker = Worker(2, self.lgr)
         if self.__inuithy_cfg is None:
             self.lgr.error(string_write("Failed to load configure"))
         else:
@@ -355,9 +357,9 @@ class Agent(object):
                     '11e1', '11e2', '11e3', '11e4',
                     '11f1', '11f2', '11f3', '11f4',
                 ]
-        [self.__addr2node.__setitem__(addr, n) for addr, n in zip(samples, self.__sad.nodes)]
         [n.__setattr__(T_ADDR, addr) for addr, n in zip(samples, self.__sad.nodes)]
-        [str(n) for n in self.__sad.nodes]
+        [self.__addr2node.__setitem__(addr, n) for addr, n in zip(samples, self.__sad.nodes)]
+#        [str(n) for n in self.__sad.nodes]
 
     def start(self):
         """Start Agent routine"""
@@ -372,6 +374,8 @@ class Agent(object):
             self.lgr.info(string_write("Connected nodes: [{}]", len(self.__sad.nodes)))
             self.addr_to_node()
             self.register()
+#            if self.worker:
+#                self.worker.start()
             self.mqclient.loop_forever()
         except KeyboardInterrupt:
             status_msg = string_write("Agent received keyboard interrupt")
@@ -404,14 +408,28 @@ class Agent(object):
             self.lgr.error(string_write("Exception on updating config: {}", ex))
 
     def on_traffic_join(self, data):
-        """Traffic join command handler"""
+        """Traffic join command handler
+         data[T_CLIENTID] = aid
+         data[T_HOST] = target_host
+         data[T_GENID] = self.current_tg.genid
+         data[T_NODE] = node
+         data[T_TRAFFIC_TYPE] = TrafficType.JOIN.name
+        """
         self.lgr.info(string_write("Join request"))
         naddr = data.get(T_NODE)
+        if naddr is None:
+            self.lgr.error(string_write("JOIN: Incorrect command {}", data))
+            return
+
         node = self.addr2node.get(naddr)
-        self.lgr.debug(string_write("Found node: {}", node))
-#        data[T_CLIENTID] = self.clientid
-#        data[T_HOST] = self.host
-        if node is not None:
+        if node is None:
+            self.lgr.error(string_write("JOIN: Node {} not connected", naddr))
+            return
+
+        if node.addr:
+            self.lgr.debug(string_write("JOIN: Found node: {}", node))
+#           data[T_CLIENTID] = self.clientid
+#           data[T_HOST] = self.host
             node.join(data)
         else: # DEBUG
             self.lgr.error(string_write("{}: Node [{}] not found", self.clientid, naddr))
@@ -429,10 +447,17 @@ class Agent(object):
         """
         self.lgr.info(string_write("SCMD request"))
         naddr = data.get(T_NODE)
+        if naddr is None:
+            self.lgr.error(string_write("TRAFFIC: Incorrect command {}", data))
+            return
+
         node = self.addr2node.get(naddr)
-        if None != node:
-            self.lgr.debug(string_write("Found node: {}", node))
-#            cmd = node.prot.traffic(data.get(T_DEST))
+        if node is None:
+            self.lgr.error(string_write("TRAFFIC: Node {} not connected", naddr))
+            return
+
+        if node.addr and node.addr == data.get(T_SRC):
+            self.lgr.debug(string_write("TRAFFIC: Found node: {}", node))
             request = {
                 T_HOST: self.host,
                 T_CLIENTID: self.clientid,
