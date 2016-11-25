@@ -147,7 +147,8 @@ class AutoController(ControllerBase):
             elif data.get(T_TRAFFIC_TYPE) == TrafficType.SCMD.name:
             # Record traffic only
                 self.lgr.debug(string_write("REPORT: {}", data))
-                if data.get(T_MSG_TYPE) == MessageType.SEND.name and data.get(T_NODE) is not None:
+#                if data.get(T_MSG_TYPE) == MessageType.SEND.name and data.get(T_NODE) is not None:
+                if data.get(T_NODE) is not None:
                     self.storage.insert_record(data)
         except Exception as ex:
             self.lgr.error(string_write("Failed to handle report write message: {}", ex))
@@ -169,7 +170,8 @@ class AutoController(ControllerBase):
                     self.traffic_state.check("is_network_layout_done")
             elif data.get(T_TRAFFIC_TYPE) == TrafficType.SCMD.name:
             # Record traffic only
-                if data.get(T_MSG_TYPE) == MessageType.RECV.name and data.get(T_NODE) is not None:
+#                if data.get(T_MSG_TYPE) == MessageType.RECV.name and data.get(T_NODE) is not None:
+                if data.get(T_NODE) is not None:
                     self.storage.insert_record(data)
             else:
                 self.storage.insert_record(data)
