@@ -200,7 +200,6 @@ class Duration(object):
 class TrafficExecutor(threading.Thread):
     """ Traffic trigger
     @node       Source node
-    @command    Command to send
     @interval   Traffic trigger interval, in second
     @duration   Stop traffic after given duration, in second
     """
@@ -220,7 +219,6 @@ class TrafficExecutor(threading.Thread):
         self.duration = duration
         self.node = node
         self.request = request
-#        self.command = command
         self.stop_timer = threading.Timer(duration, self.stop_trigger)
         self.mqclient = mqclient
         self.tid = tid
@@ -232,8 +230,6 @@ class TrafficExecutor(threading.Thread):
         self.stop_timer.start()
 
         while self.running: # TODO debug check
-#            console_write(self.command, self.data)
-#            self.node.write(self.command, self.request)
             self.node.traffic(self.request)
             self.done.wait(self.interval)
             self.done.clear()
@@ -251,8 +247,6 @@ class TrafficExecutor(threading.Thread):
     def __str__(self):
         return string_write("tid[{}]: intv:{}, dur:{}, node:[{}]",\
             self.tid, self.interval, self.duration, str(self.node))
-        #, cmd:{} ",\
-        #, self.command)
 
 def create_traffics(trcfg, nwcfg):
     """Create traffic generators for targe traffics
