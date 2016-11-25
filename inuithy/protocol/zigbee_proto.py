@@ -52,13 +52,11 @@ class ZigbeeProtocol(Protocol):
     DGN = 'Dgn'
     GETFWVER = "getFWName"
 
-    ReqType = Enum('ReqType', [\
-        'snd_req',\
-    ])
     MsgType = Enum('MsgType', [\
         'snd',\
         'rcv',\
         'dgn',\
+        'snd_req',\
     ])
 
     @staticmethod
@@ -130,11 +128,10 @@ class ZigbeeProtocol(Protocol):
                 report = {\
                     T_TIME: time.time(),\
                     T_TRAFFIC_TYPE: TrafficType.SCMD.name,\
-                    T_NODE: node.addr,
                     T_MSG_TYPE: MessageType.RECV.name,
+                    T_TYPE: PROTO.MsgType.snd.name,\
                     T_ZBEE_NWK_SRC: node.addr,\
                     T_ZBEE_NWK_DST: params[4],\
-                    T_TYPE: PROTO.MsgType.snd.name,\
                     T_ZBEE_ZCL_CMD_TSN: params[1],\
                     T_STATUS: params[5],\
                     T_SND_SEQ_NR: node.sequence_nr,\
@@ -148,7 +145,6 @@ class ZigbeeProtocol(Protocol):
             report = {\
                 T_TRAFFIC_TYPE: TrafficType.SCMD.name,\
                 T_MSG_TYPE: MessageType.RECV.name,
-                T_NODE: node.addr,
                 T_TYPE: PROTO.MsgType.rcv.name,\
                 T_ZBEE_NWK_SRC: params[3],\
                 T_ZBEE_NWK_DST: node.addr,\
@@ -158,7 +154,6 @@ class ZigbeeProtocol(Protocol):
             report = {\
                 T_TRAFFIC_TYPE: TrafficType.JOIN.name,\
                 T_MSG_TYPE: MessageType.RECV.name,\
-                T_NODE: node.addr,\
             }
             #DEBUG data
             node.joined = True
@@ -176,7 +171,6 @@ class ZigbeeProtocol(Protocol):
             report = {
                 T_MSG_TYPE: MessageType.RECV.name,\
                 T_TRAFFIC_TYPE: TrafficType.SCMD.name,\
-                T_NODE: node.addr,\
                 T_TYPE: PROTO.MsgType.dgn.name,
                 T_ZBEE_NWK_ADDR: node.addr,\
                 T_AVGMACRETRY: params[1],\
@@ -204,13 +198,13 @@ class ZigbeeProtocol(Protocol):
         else:
             report = {\
                 T_MSG_TYPE: MessageType.RECV.name,\
-                T_NODE: node.addr,\
                 T_UNKNOWN_RESP: T_YES,\
                 T_ZBEE_NWK_ADDR: ' '.join([node.addr, data]),\
             }
 
         report[T_GENID] = node.genid
         report[T_TIME] = time.time()
+        report[T_NODE] = node.addr
         return report
 
     @staticmethod
@@ -228,9 +222,9 @@ class ZigbeeProtocol(Protocol):
             T_GENID: node.genid,
             T_TIME: time.time(),
             T_MSG_TYPE: MessageType.SEND.name,
-            T_TRAFFIC_TYPE: TrafficType.SCMD.name,\
+            T_TRAFFIC_TYPE: TrafficType.SCMD.name,
             T_NODE: node.addr,
-            T_TYPE: PROTO.ReqType.snd_req.name,
+            T_TYPE: PROTO.MsgType.snd_req.name,
             T_ZBEE_NWK_SRC: request.get(T_SRC),#node.addr,
             T_ZBEE_NWK_DST: request.get(T_DEST),
             T_ACK: request.get(T_RSP) == 1 and 'y' or 'n',

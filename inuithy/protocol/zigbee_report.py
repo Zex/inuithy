@@ -4,7 +4,7 @@
 from inuithy.common.predef import INUITHY_LOGCONFIG, INUITHY_CONFIG_PATH,\
 T_NODE, T_RECORDS, T_MSG_TYPE, T_TIME, T_GENID, T_REPORTDIR, T_PATH,\
 T_GATEWAY, console_write, string_write, MessageType, T_HOST, StorageType,\
-GenInfo
+GenInfo, T_TYPE
 from inuithy.protocol.zigbee_proto import T_ZBEE_NWK_ADDR, T_MACTXBCAST,\
 T_MACTXUCASTRETRY, T_MACTXUCASTFAIL, T_MACTXUCAST, T_MACRXUCAST,\
 T_NEIGHBORADDED, T_NEIGHBORRMED, T_NEIGHBORSTALE, T_AVGMACRETRY,\
@@ -13,6 +13,7 @@ T_APSTXUCASTSUCCESS, T_APSTXUCASTFAIL, T_APSTXUCASTRETRY, T_APSRXBCAST,\
 T_APSRXUCAST, T_MACRXBCAST
 from inuithy.storage.storage import Storage
 from inuithy.util.config_manager import create_inuithy_cfg, create_traffic_cfg
+from inuithy.protocol.zigbee_proto import ZigbeeProtocol as ZbeeProto
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib as mplib
@@ -66,8 +67,7 @@ class ZbeeReport(object):
             if nodes is None or len(nodes) == 0:
                 addr_grp = pdata.groupby([T_ZBEE_NWK_ADDR], as_index=False)
                 nodes = addr_grp.groups.keys()
-
-            xindex = pdata[T_TIME]#.diff()
+#            xindex = pdata[T_TIME]#.diff()
 
             for addr in nodes:
                 ser = pdata[item][pdata[T_ZBEE_NWK_ADDR] == addr].diff()
@@ -75,13 +75,14 @@ class ZbeeReport(object):
                     df = pd.DataFrame({addr: ser})
                 else:
                     df = df.join(pd.DataFrame({addr: ser}), how='outer')
+
             if df is not None and not df.empty:
                 df = df.fillna(value=0)
                 if iloc_range is not None:
                     df = df.iloc[iloc_range[0]:iloc_range[1]]
                 if title is None or len(title) == 0:
                     title = string_write("{} by {}", item, T_ZBEE_NWK_ADDR)
-                df.plot(grid=False, xticks=[], figsize=(28, 7), lw=2.0)
+                df.plot(grid=False, xticks=[], figsize=(28, 10), lw=2.0)
                 plt.ylabel(item)
                 plt.title(title)
                 if fig_base is not None:
@@ -92,6 +93,42 @@ class ZbeeReport(object):
                 lgr.warning("WARN: DataFrame is empty")
         except Exception as ex:
             lgr.error(string_write("Exception on creating item based figure: {}", ex))
+            raise
+
+    @staticmethod
+    def total_pack(pdata, pdf_pg, title=None, fig_base=None):
+        """Create package sent/recv summary"""
+        lgr.info("Create package summary")
+
+        try:
+            total_send = len(pdata[T_TYPE][pdata.type==ZbeeProto.MsgType.snd.name])
+            total_recv = len(pdata[T_TYPE][pdata.type==ZbeeProto.MsgType.rcv.name])
+            total_dgn = len(pdata[T_TYPE][pdata.type==ZbeeProto.MsgType.dgn.name])
+            total_snd_req = len(pdata[T_TYPE][pdata.type==ZbeeProto.MsgType.snd_req.name])
+    
+            data = {
+                ZbeeProto.MsgType.snd.name: total_send,
+                ZbeeProto.MsgType.rcv.name: total_recv,
+                ZbeeProto.MsgType.dgn.name: total_dgn,
+                ZbeeProto.MsgType.snd_req.name: total_snd_req,
+            }
+            df = pd.DataFrame(list(data.values()), index=data.keys(), columns=[T_TYPE])
+
+            if df is not None and not df.empty:
+                df = df.fillna(value=0)
+                if title is None or len(title) == 0:
+                    title = string_write("Package summary")
+                df.plot(kind='bar', colormap='Accent', grid=False, figsize=(28, 10))
+#                plt.ylabel(item)
+                plt.title(title)
+                if fig_base is not None:
+                    plt.savefig(string_write("{}/{}.png", fig_base, title))
+                if pdf_pg is not None:
+                    pdf_pg.savefig()
+            else:
+                lgr.warning("WARN: DataFrame is empty")
+        except Exception as ex:
+            lgr.error(string_write("Exception on creating package summary figure: {}", ex))
             raise
 
     @staticmethod
@@ -145,34 +182,40 @@ class ZbeeReport(object):
             }):
             recs = r.get(T_RECORDS)
             #csv_data = ZbeeReport.create_csv(recs, ginfo)
-            pdata = pd.DataFrame.from_records(recs)
-            pdata = pdata[pd.notnull(pdata[ginfo.header[2]])]
-#            print(pdata)
+            raw = pd.DataFrame.from_records(recs)
+            pdata = pd.DataFrame(raw[pd.notnull(raw[ginfo.header[2]])])
 #            pdata = pdata.fillna(value=0)
             [pdata.__setitem__(item, pdata[item].astype(int)) for item in ginfo.header[2:]]
             pdata.to_csv(ginfo.csv_path, columns=ginfo.header, index=False)
-            return pdata
+            return raw, pdata
             
 #            with open(ginfo.csv_path, 'w') as fd:
 #                fd.write(','.join(h for h in ginfo.header) + '\n')
 #                [fd.write(line + '\n') for line in csv_data]
 
     @staticmethod
-    def gen_report(pdata, ginfo, gw=None, interest_nodes=None, irange=None):
+    def gen_report(raw, pdata, ginfo, gw=None, interest_nodes=None, irange=None):
         """Report generation helper"""
         lgr.info(string_write("Generate report with gw=[{}], nodes=[{}] irange={}", gw, interest_nodes, irange))
+        if raw is None or len(raw[T_TIME]) == 0:
+            lgr.warning(string_write("No time-based records found"))
+            return
 #        pdata = pd.read_csv(ginfo.csv_path, index_col=False, names=ginfo.header, header=None)
-        pdata.info(verbose=True)
 #        pdata[T_TIME] = pdata[T_TIME].astype()
+        pdata.info(verbose=True)
         pdata.index = pdata[T_TIME]#.diff()
         with PdfPages(ginfo.pdf_path) as pdf_pg:
-            if gw is not None and len(gw) > 0:
-                for gwnode in gw: # Each subnet
-                    for item in ginfo.header[2:]:
-                        ZbeeReport.item_based(pdata, item, pdf_pg, gwnode,\
-                        title = string_write("{} by gateway", item), fig_base=ginfo.fig_base)
-            for item in ginfo.header[2:]:
-                ZbeeReport.item_based(pdata, item, pdf_pg, interest_nodes, irange, fig_base=ginfo.fig_base)
+            try:
+                ZbeeReport.total_pack(raw, pdf_pg, fig_base=ginfo.fig_base)
+                if gw is not None and len(gw) > 0:
+                    for gwnode in gw: # Each subnet
+                        for item in ginfo.header[2:]:
+                            ZbeeReport.item_based(pdata, item, pdf_pg, gwnode,\
+                            title = string_write("{} by gateway", item), fig_base=ginfo.fig_base)
+                for item in ginfo.header[2:]:
+                    ZbeeReport.item_based(pdata, item, pdf_pg, interest_nodes, irange, fig_base=ginfo.fig_base)
+            except Exception as ex:
+                lgr.error(string_write("Exception on saving report: {}", ex))
 
     @staticmethod
     def generate(genid, gw=None, nodes=None, irange=None, cfgpath=INUITHY_CONFIG_PATH):
@@ -192,10 +235,10 @@ class ZbeeReport(object):
             irange = None
             """
 #TODO: uncomment
-            pdata = ZbeeReport.gen_csv(ginfo)
+            raw, pdata = ZbeeReport.gen_csv(ginfo)
 #           ginfo.csv_path = 'docs/UID1478067701.csv'
 #           ginfo.csv_path = 'docs/UID1470021754.csv'
-            ZbeeReport.gen_report(pdata, ginfo, gw, nodes, irange)
+            ZbeeReport.gen_report(raw, pdata, ginfo, gw, nodes, irange)
         except Exception as ex:
             lgr.error(string_write("Exception on generate reports: {}", ex))
 
