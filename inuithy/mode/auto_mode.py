@@ -67,7 +67,7 @@ class AutoController(ControllerBase):
             self._mqclient.loop_forever()
         except KeyboardInterrupt:
             self.lgr.info(string_write("AutoController received keyboard interrupt"))
-            self.traffic_state.chk.done.set()
+#            self.traffic_state.chk.done.set()
         except NameError as ex:
             self.lgr.error(string_write("ERR: {}", ex))
             self.teardown()
@@ -101,7 +101,7 @@ class AutoController(ControllerBase):
             self.lgr.info(string_write("Available Agents({}): {}",\
                 len(self.available_agents), self.available_agents))
             if len(self.available_agents) == 0:
-                self.traffic_state.chk.done.set()
+                self.traffic_state.chk._is_traffic_all_unregistered.set()
         except Exception as ex:
             self.lgr.error(string_write("Exception on unregistering agent {}: {}", agentid, ex))
 
