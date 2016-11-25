@@ -2,14 +2,14 @@
  @author: Zex Li <top_zlynch@yahoo.com>
 """
 from inuithy.common.predef import T_TID, T_GENID, T_TRAFFIC_TYPE,\
-T_CLIENTID, T_NODE, T_HOST, T_DURATION, T_INTERVAL, T_SRC,\
+T_CLIENTID, T_NODE, T_HOST, T_DURATION, T_INTERVAL, T_GATEWAY, T_SRC,\
 T_DEST, T_PKGSIZE, T_NODES, T_PATH, T_NWLAYOUT, T_PANID, T_SPANID,\
 console_write, string_write, TrafficType, T_TRAFFIC_FINISH_DELAY,\
 TrafficStorage, StorageType, INUITHY_CONFIG_PATH, TrafficStatus
 from inuithy.util.helper import getnwlayoutname
 from inuithy.util.cmd_helper import pub_traffic, start_agents,\
 stop_agents, force_stop_agents
-from inuithy.common.traffic import create_traffics
+from inuithy.common.traffic import create_traffics, TRAFFIC_BROADCAST_ADDRESS
 from inuithy.analysis.report_adapter import ReportAdapter
 from inuithy.util.task_manager import ProcTaskManager
 from state_machine import State, Event, acts_as_state_machine,\
@@ -47,6 +47,7 @@ class TrafStatChk(object):
         self._is_traffic_all_registered = threading.Event()
         self._is_traffic_all_fired = threading.Event()
         self._is_traffic_finished = threading.Event()
+        self._is_traffic_all_unregistered = threading.Event()
 
     def create_nwlayout(self, nwinfo):#nwid, nodes):
         """Create map of network layout configure"""
@@ -235,6 +236,7 @@ class TrafficState:
         self.chk_delay = 10
         self.trgens = []
         self.chk = TrafStatChk()
+        self.interest_nodes = {}
 
     def record_genid(self, genid):
         """Record running generator ID"""
@@ -353,16 +355,21 @@ class TrafficState:
         except Exception as ex:
             self.lgr.error(string_write("Traffic state transition failed: {}", str(ex)))
 
+
     def config_network(self, nwlayoutname):
         """Configure network by given network layout"""
         self.lgr.info(string_write("Config network: [{}]", nwlayoutname))
         if not self.traf_running:
             return
+        self.interest_nodes[T_GATEWAY] = set()
+        self.interest_nodes[T_NWLAYOUT] = set()
         for subnet in self.ctrl.nwcfg.config.get(nwlayoutname).values():
+            self.interest_nodes[T_GATEWAY].add(subnet.get(T_GATEWAY))
             data = deepcopy(subnet)
-            del data[T_NODES]
+            del data[T_NODES] # Remove additional info
             self.chk.create_nwlayout(subnet)
             for node in subnet.get(T_NODES):
+                self.interest_nodes[T_NWLAYOUT].add(node)
                 target_host = self.chk.node2host.get(node)
                 if target_host is None:
                     raise ValueError(string_write("Node [{}] not found on any agent", node))
@@ -433,10 +440,24 @@ class TrafficState:
                         self.chk.traffic_stat[tid] = TrafficStatus.REGISTERING
                         break
                 self.lgr.debug(string_write("Total traffic: [{}]", len(self.chk.traffic_stat)))
+                self.add_interest_nodes(data)
             except Exception as ex:
                 self.lgr.error(string_write(
                     "Exception on registering traffic, network [{}], traffic [{}]: {}",
                     tg.nwlayoutid, tg.traffic_name, str(ex)))
+
+    def add_interest_nodes(self, data):
+        """Nodes we interested in"""
+        if self.interest_nodes.get(T_NODES) is None:
+            self.interest_nodes[T_NODES] = set([data.get(T_SRC)])
+        else:
+            self.interest_nodes[T_NODES].add(data.get(T_SRC))
+        
+        if data.get(T_DEST) != TRAFFIC_BROADCAST_ADDRESS:
+            self.interest_nodes[T_NODES].add(data.get(T_DEST))
+        else:
+            [self.interest_nodes[T_NODES].add(x) for x in \
+                self.interest_nodes.get(T_NWLAYOUT)]
 
     @after('fire')
     def do_fire(self):
@@ -468,7 +489,8 @@ class TrafficState:
             (TrafficStorage.DB.name, StorageType.MongoDB.name),]:
             if self.current_genid is not None:
                 tmg = ProcTaskManager()
-                tmg.create_task(ReportAdapter.gen_report, (INUITHY_CONFIG_PATH, self.current_genid,))
+                tmg.create_task(ReportAdapter.generate, (self.current_genid,
+                    list(self.interest_nodes.get(T_GATEWAY)), list(self.interest_nodes.get(T_NODES))))
                 tmg.waitall()
         else:
             self.lgr.info(string_write("Unsupported storage type: {}", str(self.ctrl.tcfg.storagetype)))
@@ -477,17 +499,16 @@ class TrafficState:
     def do_finish(self):
         """All traffic finished"""
         self.lgr.info(string_write("All finished: {}", str(self.current_state)))
-        if not self.traf_running:
-            return
+#        if not self.traf_running:
+#            return
 
         try:
             self.lgr.info("Stopping agents ...")
-            console_write("Stopping agents ...")
             self.trgens.clear()
             stop_agents(self.ctrl.mqclient, self.ctrl.tcfg.mqtt_qos)
             self.lgr.info("Wait for last notifications")
-            self.chk.done.wait()
-            self.chk.done.clear()
+            self.chk._is_traffic_all_unregistered.wait()
+            self.chk._is_traffic_all_unregistered.clear()
             self.lgr.info("Agents stopped")
         except Exception as ex:
             self.lgr.error(string_write("Exception on stopping agents: {}", ex))
