@@ -3,8 +3,8 @@ target_agents: [agent_0, agent_1, agent_2, agent_3,
                 agent_4, agent_5, agent_6, agent_7,
                 agent_8, agent_9, agent_a, agent_b,
                 agent_c, agent_d, agent_e, agent_f,]
-target_traffics: [traffic_3]
-traffin_delay: 30
+target_traffics: [traffic_3, traffic_2]
+traffin_delay: 10
 traffic_0:
   duration: 5
   nwlayout: network_0
