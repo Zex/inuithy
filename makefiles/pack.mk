@@ -36,6 +36,7 @@ $(VERSION_PATH):
 	$(ECHO) "" >> $@
 
 grab_logs: $(BUILD)
-	$(ECHO) "\033[01;36m[Packing log]\033[00m"
+	$(ECHO) "\033[01;36m[Packing log $(OUTPUT_LOGTAR_PATH)]\033[00m"
 	$(shell cd $(LOGBASE); tar cfj $(OUTPUT_LOGTAR_PATH) . --total -l)
+
 

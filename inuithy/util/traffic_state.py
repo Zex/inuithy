@@ -399,6 +399,8 @@ class TrafficState:
         if self.ctrl.current_nwlayout != tg.nwlayoutid:
             self.config_network(getnwlayoutname(tg.nwlayoutid))
             self.ctrl.current_nwlayout = tuple(tg.nwlayoutid.split(':'))
+        else:
+            self.chk._is_network_layout_done.set()
         self.lgr.info(string_write("Current network layout: {}", self.ctrl.current_nwlayout))
 
     @after('register')
@@ -407,6 +409,7 @@ class TrafficState:
         self.lgr.info(string_write("Register traffic task: {}", str(self.current_state)))
         tg = self.current_tg
         self.lgr.info(string_write("Register traffic: [{}]", str(tg)))
+        self.chk.traffic_stat.clear()
         for tr in tg.traffics:
             try:
                 target_host = self.chk.node2host.get(tr.src)
