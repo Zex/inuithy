@@ -257,7 +257,6 @@ class TrafficState:
         self.lgr.info(string_write("Current state: {}, check for: {}", str(self.current_state), cond))
         if hasattr(self.chk, cond) and getattr(self.chk, cond)():
             getattr(self.chk, "_"+cond).set()
-#            self.chk.done.set()
 
     @after('wait_agent')
     def do_waitfor_agent_all_up(self):
@@ -361,6 +360,7 @@ class TrafficState:
         self.lgr.info(string_write("Config network: [{}]", nwlayoutname))
         if not self.traf_running:
             return
+        self.interest_nodes.clear()
         self.interest_nodes[T_GATEWAY] = set()
         self.interest_nodes[T_NWLAYOUT] = set()
         for subnet in self.ctrl.nwcfg.config.get(nwlayoutname).values():
@@ -515,7 +515,7 @@ class TrafficState:
 
         self.lgr.info("Stopping controller ...")
         self.ctrl.teardown()
-        self.chk.done.wait(self.ctrl.tcfg.config.get(T_TRAFFIC_FINISH_DELAY))
+        self.chk.done.wait(self.ctrl.trcfg.config.get(T_TRAFFIC_FINISH_DELAY))
         self.chk.done.clear()
 
         try:
