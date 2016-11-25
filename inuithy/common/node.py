@@ -70,6 +70,7 @@ class SerialNode(object):
             written = self.__serial.write(data)
         #TODO -->
         self.report_write(data, request)
+        self.done.set()
 
     def start_listener(self):
         """Start listening incoming package"""
@@ -83,7 +84,7 @@ class SerialNode(object):
         while self.run_listener:
             try:
                 if self.__serial is None: #DEBUG
-                    self.done.wait(random.randint(1, 5))#30, 50))
+                    self.done.wait()#random.randint(30, 50))
                 self.read()
                 self.done.clear()
             except Exception as ex:
@@ -92,6 +93,7 @@ class SerialNode(object):
     def stop_listener(self):
         """Stop running listener"""
         self.run_listener = False
+        self.done.set()
 
     def join(self, data):
         """General join adapter"""
