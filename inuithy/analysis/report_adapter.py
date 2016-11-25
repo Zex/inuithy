@@ -2,24 +2,23 @@
  @uthor: Zex Li <top_zlynch@yahoo.com>
 """
 from inuithy.common.predef import INUITHY_LOGCONFIG, INUITHY_CONFIG_PATH,\
-MessageType, T_HOST, StorageType, T_NODE, T_MSG, T_TRAFFIC_TYPE,\
-T_RECORDS, T_MSG_TYPE, T_TIME, T_GENID, T_CLIENTID,\
-T_SRC, T_DEST, T_PKGSIZE, T_REPORTDIR, T_PATH, T_GATEWAY, T_TIME,\
 console_write, string_write
-from inuithy.storage.storage import Storage
-from inuithy.util.config_manager import create_inuithy_cfg, create_traffic_cfg
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_pdf import PdfPages
-import matplotlib as mplib
-import pandas as pd
-import numpy as np
+#MessageType, T_HOST, StorageType, T_NODE, T_MSG, T_TRAFFIC_TYPE,\
+#T_RECORDS, T_MSG_TYPE, T_TIME, T_GENID, T_CLIENTID,\
+#T_SRC, T_DEST, T_PKGSIZE, T_REPORTDIR, T_PATH, T_GATEWAY,\
+from inuithy.protocol.zigbee_report import ZbeeReport
+#from inuithy.storage.storage import Storage
+#from inuithy.util.config_manager import create_inuithy_cfg, create_traffic_cfg
+#import matplotlib.pyplot as plt
+#from matplotlib.backends.backend_pdf import PdfPages
+#import matplotlib as mplib
+#import pandas as pd
+#import numpy as np
 import logging
 import logging.config as lconf
-from bson.objectid import ObjectId
-from datetime import datetime as dt
-import json
+#from bson.objectid import ObjectId
+import sys
 
-mplib.style.use('ggplot')
 lconf.fileConfig(INUITHY_LOGCONFIG)
 lgr = logging
 
@@ -75,7 +74,7 @@ lgr = logging
 #            cache.sort()
 #            index = cache
 #            repo = ReportAdapter.build_report_data(index, data)
-#    
+#
 #            if len(repo) > 0:
 #                df = pd.DataFrame(repo, index=range(len(index)), columns=repo.keys())
 #                df.plot.line(grid=False, colormap='rainbow', figsize=(30, 30))
@@ -130,7 +129,7 @@ lgr = logging
 #            cache.sort()
 #            index = cache
 #            repo = ReportAdapter.build_report_data(index, data)
-#    
+#
 #            if len(repo) > 0:
 #                df = pd.DataFrame(data, index=range(len(index)), columns=data.keys())
 #                df.plot.line(grid=False, colormap='rainbow', figsize=(30, 30))
@@ -141,7 +140,7 @@ lgr = logging
 #
 #    @staticmethod
 #    def gen_total_pack(recs, genid, pdf_pg):
-#       
+#
 #        try:
 #            repo = {
 #                MessageType.SEND.name: 0,
@@ -149,7 +148,7 @@ lgr = logging
 #                }
 #            for v in recs:
 #                repo[v.get(T_MSG_TYPE)] += 1
-#    
+#
 #            df = pd.DataFrame(list(repo.values()), index=list(repo.keys()))
 #            df.plot(kind='bar', colormap='plasma', grid=False)
 #            plt.title("Total of requested and received packets")
@@ -189,7 +188,7 @@ lgr = logging
 #
 #    @staticmethod
 #    def gen_report(inuithy_cfgpath=INUITHY_CONFIG_PATH, genid=None):
-#    
+#
 #        cfg = create_inuithy_cfg(inuithy_cfgpath)
 #        if cfg is None:
 #            lgr.error(string_write("Failed to load inuithy configure"))
@@ -217,32 +216,42 @@ lgr = logging
 ##            print("=========================================================")
 ##            continue
 #            with PdfPages(string_write('{}/{}.pdf', cfg.config[T_REPORTDIR][T_PATH], genid)) as pdf_pg:
-#                [ReportAdapter.groupby(pdata, T_TIME, pdf_pg) for item in header] 
-#                ReportAdapter.gen_total_pack(recs, genid, pdf_pg) 
-#                ReportAdapter.gen_src_pack(recs, genid, pdf_pg) 
-#                ReportAdapter.gen_dest_pack(recs, genid, pdf_pg) 
+#                [ReportAdapter.groupby(pdata, T_TIME, pdf_pg) for item in header]
+#                ReportAdapter.gen_total_pack(recs, genid, pdf_pg)
+#                ReportAdapter.gen_src_pack(recs, genid, pdf_pg)
+#                ReportAdapter.gen_dest_pack(recs, genid, pdf_pg)
 #                ReportAdapter.gen_total_gwpack(recs, genid, pdf_pg)
 #
 class ReportAdapter(object):
     """Analysis helper"""
     #TODO
     @staticmethod
-    def gen_report(inuithy_cfgpath=INUITHY_CONFIG_PATH, genid=None):
+    def create_csv(recs, ginfo):
+        """Create CSV format from records"""
         pass
 
+    @staticmethod
+    def gen_report(inuithy_cfgpath=INUITHY_CONFIG_PATH, genid=None):
+        """Report generation helper"""
+        pass
+
+    @staticmethod
+    def gen_csv(ginfo):
+        """Generate CSV file"""
+        pass
+
+    @staticmethod
+    def generate(genid, gw=None, nodes=None, irange=None, cfgpath=INUITHY_CONFIG_PATH):
+        """Generate CSV data and traffic analysis figures"""
+        ZbeeReport.generate(genid, gw, nodes, irange, cfgpath)
 
 if __name__ == '__main__':
 
 #    ReportAdapter.gen_report(genid='581fdfe3362ac719d1c96eb3')
 #    ReportAdapter.gen_report(genid='1478508817')
 #    ReportAdapter.gen_report(genid='1478585096')
-    import sys
     if len(sys.argv) > 1:
-        header, csv_path, pdf_path, cfg = ReportAdapter.prep_info(genid=sys.argv[1])
-#TODO: uncomment
-#       ReportAdapter.gen_csv(genid=sys.argv[1])
-        ReportAdapter.gen_report(header, csv_path, pdf_path, cfg)
+        ReportAdapter.generate(sys.argv[1], gw=None, nodes=None, irange=None)
     else:
-        print("Genid not given")
-        sys.exit(1)
+        console_write("Genid not given")
 
