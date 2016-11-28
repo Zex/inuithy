@@ -28,7 +28,8 @@ sample_config: inuithy/util/config_manager.py
 traffic_config_chk: inuithy/common/traffic.py
 	$(PYTHON) $<
 
-run_controller: inuithy/controller.py
+#run_controller: inuithy/controller.py
+run_controller: inuithy/mode/auto_mode.py
 	$(ECHO) "" > $(LOGPATH)
 	$(ULIMIT) -u unlimited
 	$(MAKE) all
