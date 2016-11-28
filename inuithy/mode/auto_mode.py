@@ -6,7 +6,7 @@ from inuithy.common.predef import T_CLIENTID, T_TRAFFIC_TYPE, T_PANID,\
 T_NODE, T_HOST, T_NODES, INUITHY_TOPIC_HEARTBEAT, T_TID, T_MSG, T_SPANID,\
 T_TRAFFIC_STATUS, TrafficStatus, TrafficType, string_write, console_write,\
 MessageType, TRAFFIC_CONFIG_PATH, INUITHY_CONFIG_PATH, INUITHY_TITLE, T_SRC,\
-INUITHY_TOPIC_UNREGISTER, INUITHY_LOGCONFIG, T_DEST, T_MSG_TYPE,\
+INUITHY_TOPIC_UNREGISTER, INUITHY_LOGCONFIG, T_DEST, T_MSG_TYPE, T_VERSION,\
 INUITHY_TOPIC_STATUS, INUITHY_TOPIC_REPORTWRITE, INUITHY_TOPIC_NOTIFICATION
 from inuithy.mode.base import ControllerBase
 from inuithy.util.cmd_helper import stop_agents, extract_payload
@@ -79,10 +79,11 @@ class AutoController(ControllerBase):
     def on_topic_heartbeat(self, message):
         """Heartbeat message format:
         """
-        self.lgr.info(string_write("On topic heartbeat"))
         data = extract_payload(message.payload)
-        agentid, host, nodes = data.get(T_CLIENTID), data.get(T_HOST), data.get(T_NODES)
+        agentid, host, nodes, version = data.get(T_CLIENTID), data.get(T_HOST),\
+                data.get(T_NODES), data.get(T_VERSION)
         try:
+            self.lgr.info(string_write("On topic heartbeat: Agent Version {}", version))
             agentid = agentid.strip('\t\n ')
             self.add_agent(agentid, host, nodes)
             self.traffic_state.check("is_agents_all_up")
@@ -93,13 +94,12 @@ class AutoController(ControllerBase):
         """Unregister message format:
         <agentid>
         """
-        self.lgr.info(string_write("On topic unregister"))
         data = extract_payload(message.payload)
         agentid = data.get(T_CLIENTID)
+        self.lgr.info(string_write("On topic unregister: del {}", agentid))
+
         try:
             self.del_agent(agentid)
-            self.lgr.info(string_write("Available Agents({}): {}",\
-                len(self.available_agents), self.available_agents))
             if len(self.available_agents) == 0:
                 self.traffic_state.chk._is_traffic_all_unregistered.set()
         except Exception as ex:
@@ -109,10 +109,6 @@ class AutoController(ControllerBase):
         """Status topic handler"""
         self.lgr.info(string_write("On topic status"))
         data = extract_payload(message.payload)
-        self.worker.add_job(self.status_handler, data)
-
-    def status_handler(self, data):
-        """Status handler routine"""
         if data.get(T_TRAFFIC_STATUS) == TrafficStatus.REGISTERED.name:
             self.lgr.info(string_write("Traffic {} registered on {}",\
                 data.get(T_TID), data.get(T_CLIENTID)))
@@ -137,10 +133,6 @@ class AutoController(ControllerBase):
         """Report-written topic handler"""
 #        self.lgr.info(string_write("On topic reportwrite"))
         data = extract_payload(message.payload)
-        self.worker.add_job(self.reportwrite_handler, data)
-
-    def reportwrite_handler(self, data):
-        """Reportwrite handler routine"""
         try:
             if data.get(T_TRAFFIC_TYPE) == TrafficType.JOIN.name:
                 self.lgr.debug(string_write("JOINING: {}", data.get(T_NODE)))
@@ -158,10 +150,6 @@ class AutoController(ControllerBase):
         """Report-read topic handler"""
 #       self.lgr.info(string_write("On topic notification"))
         data = extract_payload(message.payload)
-        self.worker.add_job(self.notification_handler, data)
-
-    def notification_handler(self, data):
-        """Notification handler routine"""
         try:
             self.lgr.debug(string_write("NOTIFY: {}", data))
             if data.get(T_TRAFFIC_TYPE) == TrafficType.JOIN.name:
