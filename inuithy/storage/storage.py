@@ -101,7 +101,8 @@ class Storage(object):
 
     def close(self):
         self.lgr.info("Close storage")
-        self.__dbplugin.close()
+        if self.__dbplugin:
+            self.__dbplugin.close()
 
 if __name__ == '__main__':
     lgr = logging.getLogger('InuithyStorage')
