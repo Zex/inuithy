@@ -5,12 +5,13 @@ mqtt: {host: 127.0.0.1, port: 1883, qos: 0}
 inuithy_shell: {history: /var/log/inuithy/inuithy.cache}
 genid: {path: /var/log/inuithy/inuithy.genid}
 reportdir: {path: /var/log/inuithy/report}
-#traffic_storage: {passwd: '', path: '127.0.0.1:19713', type: 'DB:MongoDB', user: ''}
-traffic_storage: {passwd: '', path: '/var/log/inuithy/tid-{}.csv', type: 'FILE:CSV', user: ''}
+traffic_storage: {passwd: '', path: '127.0.0.1:19713', type: 'DB:MongoDB', user: ''}
+#traffic_storage: {passwd: '', path: '/var/log/inuithy/tid-{}.csv', type: 'FILE:CSV', user: ''}
 #traffic_storage: {passwd: '', path: '127.0.0.1:1737', type: 'DB:Splunk', user: ''}
 #traffic_storage: {passwd: '', path: '127.0.0.1:19713', type: 'DB:Cloud', user: ''}
 #traffic_storage: {passwd: '', path: '/var/log/inuithy/tid-{}.csv', type: 'FILE:CSV', user: ''}
 #traffic_storage: {passwd: '', path: '/var/log/inuithy/tid-{}.data', type: 'FILE:Protobuffer', user: ''}
-workmode: AUTO
+#workmode: AUTO
 #workmode: MORNITOR
-#workmode: MANUAL
+workmode: MANUAL
+heartbeat: {interval: 5}
