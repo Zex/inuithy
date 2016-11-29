@@ -11,7 +11,7 @@ include makefiles/pack.mk
 
 .PHONY: $(VERSION_PATH) $(OUTPUT_TAR_PATH) $(BUILD) clean version sample_config traffic_config_chk run_controller run_tsh $(LOGBASE) install run_agent run_mosquitto
 
-all: $(OUTPUT_TAR_PATH) install
+all: tar install
 
 version: $(VERSION_PATH)
 
@@ -28,8 +28,8 @@ sample_config: inuithy/util/config_manager.py
 traffic_config_chk: inuithy/common/traffic.py
 	$(PYTHON) $<
 
-#run_controller: inuithy/controller.py
-run_controller: inuithy/mode/auto_mode.py
+run_controller: inuithy/controller.py
+#run_controller: inuithy/mode/auto_mode.py
 	$(ECHO) "" > $(LOGPATH)
 	$(ULIMIT) -u unlimited
 	$(MAKE) all
@@ -88,3 +88,5 @@ pylint:
 	$(PYLINT) --files-output=y $(PROJECT_ALIAS)
 #	$(MV) pylint*.txt $(PYLINT_OUTPUT)
 
+
+tar: $(OUTPUT_TAR_PATH)
