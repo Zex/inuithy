@@ -105,39 +105,39 @@ def pub_heartbeat(publisher, qos=0, data=None):
     payload = json.dumps(data)
     publisher.publish(INUITHY_TOPIC_HEARTBEAT, payload, qos, False)
 
-class Heartbeat(threading.Thread):
-    """Heartbeat generator
-    """
-    __mutex = threading.Lock()
-
-    def __init__(self, interval=2, target=None, name="Heartbeat",\
-        daemon=True, *args, **kwargs):
-        threading.Thread.__init__(self, target=None, name=name,\
-        args=args, kwargs=kwargs, daemon=daemon)
-        self.__interval = interval
-        self.__running = False
-        self.__args = args
-        self.__kwargs = kwargs
-        self.__target = target
-        self.done = threading.Event()
-
-    def run(self):
-        if self.__target is None:
-            return # or self.__src is None: return
-        self.__running = True
-
-        while self.__running:
-            if Heartbeat.__mutex.acquire():
-                self.__target()
-                Heartbeat.__mutex.release()
-            self.done.wait(self.__interval)
-            self.done.clear()
-
-    def stop(self):
-        self.__running = False
-
-    def __del__(self):
-        self.stop()
+#class Heartbeat(threading.Thread):
+#    """Heartbeat generator
+#    """
+#    __mutex = threading.Lock()
+#
+#    def __init__(self, interval=2, target=None, name="Heartbeat",\
+#        daemon=True, *args, **kwargs):
+#        threading.Thread.__init__(self, target=None, name=name,\
+#        args=args, kwargs=kwargs, daemon=daemon)
+#        self.__interval = interval
+#        self.__running = False
+#        self.__args = args
+#        self.__kwargs = kwargs
+#        self.__target = target
+#        self.done = threading.Event()
+#
+#    def run(self):
+#        if self.__target is None:
+#            return # or self.__src is None: return
+#        self.__running = True
+#
+#        while self.__running:
+#            if Heartbeat.__mutex.acquire():
+#                self.__target()
+#                Heartbeat.__mutex.release()
+#            self.done.wait(self.__interval)
+#            self.done.clear()
+#
+#    def stop(self):
+#        self.__running = False
+#
+#    def __del__(self):
+#        self.stop()
 
 def start_agents(hosts):
     """Start agent remotely"""

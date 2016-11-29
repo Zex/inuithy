@@ -3,7 +3,7 @@
 """
 from inuithy.common.predef import INUITHY_LOGCONFIG, string_write,\
 INUITHY_TITLE, INUITHY_VERSION, INUITHY_CONFIG_PATH, T_ENABLE_LDEBUG,\
-T_MQTT, T_WORKMODE, T_ENABLE_MQDEBUG, T_TSH, T_HISTORY, T_QOS,\
+T_MQTT, T_WORKMODE, T_HEARTBEAT, T_ENABLE_MQDEBUG, T_TSH, T_HISTORY, T_QOS,\
 T_TARGET_AGENTS, T_NODES, T_PANID, T_SPANID, T_NWCONFIG_PATH, T_TYPE,\
 T_AGENTS, T_CONTROLLER, T_USER, T_TRAFFIC_STORAGE, T_GENID, T_PATH,\
 T_PORT, WorkMode, TrafficStorage, StorageType, T_PASSWD, T_CHANNEL,\
@@ -128,6 +128,10 @@ class InuithyConfig(Config):
     @workmode.setter
     def workmode(self, val):
         pass
+    
+    @property
+    def heartbeat(self):
+        return self.config[T_HEARTBEAT]
 
     @property
     def controller(self):
@@ -190,6 +194,9 @@ class InuithyConfig(Config):
         # - WorkMode.MANUAL
         # - WorkMode.MONITOR
         self.config[T_WORKMODE] = WorkMode.AUTO.name
+        self.config[T_HEARTBEAT] = {
+            T_INTERVAL: 5,
+        }
         self.config[T_CONTROLLER] = {
             T_HOST:'192.168.100.131',
         }

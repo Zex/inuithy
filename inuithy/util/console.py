@@ -14,15 +14,17 @@ from inuithy.util.cmd_helper import start_agents, stop_agents
 import multiprocessing as mp
 import socket
 import threading
-import logging
 import signal
 import sys
 import glob
 import os
 import os.path
+import logging
 import logging.config as lconf
 from random import randint
 import copy
+
+lconf.fileConfig(INUITHY_LOGCONFIG)
 
 DEFAULT_PROMPT = "inuithy@{}>"
 # Inuithy shell commands
@@ -169,11 +171,12 @@ class Console(threading.Thread):
         self.__host = socket.gethostname()#socket.gethostbyname(socket.gethostname())
         self.__setup_banner()
         self.__register_routes()
+        self.lgr = logging
         self.create_controller()
 
     def create_controller(self):
         """Run a Controller in manual mode"""
-        self.ctrl = ManualController(INUITHY_CONFIG_PATH, TRAFFIC_CONFIG_PATH)
+        self.ctrl = ManualController(INUITHY_CONFIG_PATH, TRAFFIC_CONFIG_PATH, lgr=self.lgr)
         self.ctrl_proc = threading.Thread(target=self.ctrl.start, name="Ctrl@InuithyShell")
         self.ctrl_proc.daemon = False
 
