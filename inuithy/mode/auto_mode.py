@@ -23,7 +23,6 @@ class AutoController(ControllerBase):
     def create_mqtt_client(self, host, port):
         self._mqclient = mqtt.Client(self.clientid, True, self)
         self._mqclient.on_connect = AutoController.on_connect
-#        self._mqclient.on_log = AutoController.on_log
         self._mqclient.on_message = AutoController.on_message
         self._mqclient.on_disconnect = AutoController.on_disconnect
         self._mqclient.connect(host, port)
@@ -34,15 +33,6 @@ class AutoController(ControllerBase):
             (INUITHY_TOPIC_REPORTWRITE, self.tcfg.mqtt_qos),
             (INUITHY_TOPIC_NOTIFICATION, self.tcfg.mqtt_qos),
         ])
-
-    def register_routes(self):
-        self.topic_routes = {
-            INUITHY_TOPIC_HEARTBEAT:      self.on_topic_heartbeat,
-            INUITHY_TOPIC_UNREGISTER:     self.on_topic_unregister,
-            INUITHY_TOPIC_STATUS:         self.on_topic_status,
-            INUITHY_TOPIC_REPORTWRITE:    self.on_topic_reportwrite,
-            INUITHY_TOPIC_NOTIFICATION:   self.on_topic_notification,
-        }
 
     def __init__(self, inuithy_cfgpath='config/inuithy.conf',\
         traffic_cfgpath='config/traffics.conf', lgr=None, delay=4):
@@ -75,97 +65,6 @@ class AutoController(ControllerBase):
             self.lgr.error(string_write("Exception on AutoController: {}", ex))
             raise
         self.lgr.info(string_write("AutoController terminated"))
-
-    def on_topic_heartbeat(self, message):
-        """Heartbeat message format:
-        """
-        data = extract_payload(message.payload)
-        agentid, host, nodes, version = data.get(T_CLIENTID), data.get(T_HOST),\
-                data.get(T_NODES), data.get(T_VERSION)
-        try:
-            self.lgr.info(string_write("On topic heartbeat: Agent Version {}", version))
-            agentid = agentid.strip('\t\n ')
-            self.add_agent(agentid, host, nodes)
-            self.traffic_state.check("is_agents_all_up")
-        except Exception as ex:
-            self.lgr.error(string_write("Exception on registering agent {}: {}", agentid, ex))
-
-    def on_topic_unregister(self, message):
-        """Unregister message format:
-        <agentid>
-        """
-        data = extract_payload(message.payload)
-        agentid = data.get(T_CLIENTID)
-        self.lgr.info(string_write("On topic unregister: del {}", agentid))
-
-        try:
-            self.del_agent(agentid)
-            if len(self.available_agents) == 0:
-                self.traffic_state.chk._is_traffic_all_unregistered.set()
-        except Exception as ex:
-            self.lgr.error(string_write("Exception on unregistering agent {}: {}", agentid, ex))
-
-    def on_topic_status(self, message):
-        """Status topic handler"""
-        self.lgr.info(string_write("On topic status"))
-        data = extract_payload(message.payload)
-        if data.get(T_TRAFFIC_STATUS) == TrafficStatus.REGISTERED.name:
-            self.lgr.info(string_write("Traffic {} registered on {}",\
-                data.get(T_TID), data.get(T_CLIENTID)))
-            self.traffic_state.update_stat(data.get(T_TID), TrafficStatus.REGISTERED, "is_traffic_all_registered")
-        elif data.get(T_TRAFFIC_STATUS) == TrafficStatus.RUNNING.name:
-            self.lgr.info(string_write("Traffic {} is running on {}",\
-                data.get(T_TID), data.get(T_CLIENTID)))
-            self.traffic_state.update_stat(data.get(T_TID), TrafficStatus.RUNNING)
-        elif data.get(T_TRAFFIC_STATUS) == TrafficStatus.FINISHED.name:
-            self.lgr.info(string_write("Traffic {} finished", data.get(T_TID)))
-            self.traffic_state.update_stat(data.get(T_TID), TrafficStatus.FINISHED, "is_traffic_finished")
-        elif data.get(T_TRAFFIC_STATUS) == TrafficStatus.INITFAILED.name:
-            self.lgr.error(string_write("Agent {} failed to initialize: {}",\
-                data.get(T_CLIENTID), data.get(T_MSG)))
-            self.teardown()
-        elif data.get(T_MSG) is not None:
-            self.lgr.info(data.get(T_MSG))
-        else:
-            self.lgr.debug(string_write("Unhandled status message {}", data))
-
-    def on_topic_reportwrite(self, message):
-        """Report-written topic handler"""
-#        self.lgr.info(string_write("On topic reportwrite"))
-        data = extract_payload(message.payload)
-        try:
-            if data.get(T_TRAFFIC_TYPE) == TrafficType.JOIN.name:
-                self.lgr.debug(string_write("JOINING: {}", data.get(T_NODE)))
-            elif data.get(T_TRAFFIC_TYPE) == TrafficType.SCMD.name:
-            # Record traffic only
-                self.lgr.debug(string_write("REPORT: {}", data))
-#                if data.get(T_MSG_TYPE) == MessageType.SEND.name and data.get(T_NODE) is not None:
-                if data.get(T_NODE) is not None:
-                    self.storage.insert_record(data)
-        except Exception as ex:
-            self.lgr.error(string_write("Failed to handle report write message: {}", ex))
-            self.teardown()
-
-    def on_topic_notification(self, message):
-        """Report-read topic handler"""
-#       self.lgr.info(string_write("On topic notification"))
-        data = extract_payload(message.payload)
-        try:
-            self.lgr.debug(string_write("NOTIFY: {}", data))
-            if data.get(T_TRAFFIC_TYPE) == TrafficType.JOIN.name:
-                if self.traffic_state.chk.nwlayout.get(data.get(T_NODE)) is not None:
-                    self.traffic_state.chk.nwlayout[data.get(T_NODE)] = True
-                    self.traffic_state.check("is_network_layout_done")
-            elif data.get(T_TRAFFIC_TYPE) == TrafficType.SCMD.name:
-            # Record traffic only
-#                if data.get(T_MSG_TYPE) == MessageType.RECV.name and data.get(T_NODE) is not None:
-                if data.get(T_NODE) is not None:
-                    self.storage.insert_record(data)
-            else:
-                self.storage.insert_record(data)
-        except Exception as ex:
-            self.lgr.error(string_write("Failed to handle notification message: {}", ex))
-            self.teardown()
 
 def start_controller(tcfg, trcfg, lgr=None):
     """Shortcut to start controller"""

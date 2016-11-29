@@ -34,15 +34,6 @@ class MonitorController(ControllerBase):
             (INUITHY_TOPIC_NOTIFICATION, self.tcfg.mqtt_qos),
         ])
 
-    def register_routes(self):
-        self.topic_routes = {
-            INUITHY_TOPIC_HEARTBEAT:      self.on_topic_heartbeat,
-            INUITHY_TOPIC_UNREGISTER:     self.on_topic_unregister,
-            INUITHY_TOPIC_STATUS:         self.on_topic_status,
-            INUITHY_TOPIC_REPORTWRITE:    self.on_topic_reportwrite,
-            INUITHY_TOPIC_NOTIFICATION:   self.on_topic_notification,
-        }
-
     def __init__(self, inuithy_cfgpath='config/inuithy.conf',\
         traffic_cfgpath='config/traffics.conf', lgr=None, delay=4):
         ControllerBase.__init__(self, inuithy_cfgpath, traffic_cfgpath, lgr, delay)
@@ -71,69 +62,6 @@ class MonitorController(ControllerBase):
             self.lgr.error(string_write("Exception on MonitorController: {}", ex))
         self.teardown()
         self.lgr.info(string_write("MonitorController terminated"))
-
-#    def teardown(self):
-#        """Cleanup"""
-#        try:
-#            if MonitorController.initialized:
-#                MonitorController.initialized = False
-#                pub_disable_hb(self.mqclient)
-#                self.lgr.info("Stop agents")
-#                stop_agents(self._mqclient, self.tcfg.mqtt_qos)
-#                if self.traffic_state:
-#                    self.traffic_state.running = False
-#                if self._traffic_timer:
-#                    self._traffic_timer.cancel()
-#                if self.storage:
-#                    self.storage.close()
-#                if self.mqclient:
-#                    self.mqclient.disconnect()
-#        except Exception as ex:
-#            self.lgr.error(string_write("Exception on teardown: {}", ex))
-
-    def on_topic_heartbeat(self, message):
-        """Heartbeat message format:
-        """
-        self.lgr.info(string_write("On topic heartbeat"))
-        data = extract_payload(message.payload)
-        agentid, host, nodes = data[T_CLIENTID], data[T_HOST], data[T_NODES]
-        try:
-            agentid = agentid.strip('\t\n ')
-            self.add_agent(agentid, host, nodes)
-        except Exception as ex:
-            self.lgr.error(string_write("Exception on registering agent {}: {}", agentid, ex))
-
-    def on_topic_unregister(self, message):
-        """Unregister message format:
-        <agentid>
-        """
-        self.lgr.info(string_write("On topic unregister"))
-        data = extract_payload(message.payload)
-        agentid = data[T_CLIENTID]
-        try:
-            self.del_agent(agentid)
-            self.lgr.info(string_write("Available Agents({}): {}",\
-                len(self.chk.available_agents), self.available_agents))
-        except Exception as ex:
-            self.lgr.error(string_write("Exception on unregistering agent {}: {}", agentid, ex))
-
-    def on_topic_status(self, message):
-        """Status topic handler"""
-        self.lgr.info(string_write("On topic status"))
-        data = extract_payload(message.payload)
-        self.lgr.info(string_write("STATUS: {}", data))
-
-    def on_topic_reportwrite(self, message):
-        """Report-written topic handler"""
-        self.lgr.info(string_write("On topic reportwrite"))
-        data = extract_payload(message.payload)
-        self.lgr.info(string_write("REPORT: {}", data))
-
-    def on_topic_notification(self, message):
-        """Report-read topic handler"""
-        self.lgr.info(string_write("On topic notification"))
-        data = extract_payload(message.payload)
-        self.lgr.info(string_write("NOTIFY: {}", data))
 
 def start_controller(tcfg, trcfg, lgr=None):
     """Shortcut to start controller"""
