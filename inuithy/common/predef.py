@@ -58,6 +58,7 @@ IFACEPATH = '/etc/network/interfaces'
 
 # Configure keywords
 T_WORKMODE = 'workmode'
+T_HEARTBEAT = 'heartbeat'
 T_MQTT = 'mqtt'
 T_HOST = 'host'
 T_PORT = 'port'
