@@ -26,7 +26,7 @@ import json
 import sys
 from os import path, mkdir
 from copy import deepcopy
-import argparse
+import argparse as ap
 
 mplib.style.use('ggplot')
 lconf.fileConfig(INUITHY_LOGCONFIG)
@@ -43,21 +43,6 @@ class ZbeeReport(object):
         df = df.fillna(value=0)
         data = df.to_csv(columns=ginfo.header, index=False)
         return data
-
-#        data = []
-#        index = set()
-#
-#        try:
-#            for rec in recs:
-#                if len([rec.get(k) for k in ginfo.header if rec.get(k) is not None]) != len(ginfo.header):
-#                    continue
-#                line = [rec.get(k) for k in ginfo.header if rec.get(k)]
-#                line_fmt = ('{},' * len(line)).strip(',')
-#                data.append(string_write(line_fmt, *tuple(line)))
-#        except Exception as ex:
-#            lgr.error("Exception on CSV creation: {}", ex)
-#            raise
-#        return data
 
     @staticmethod
     def item_based(ginfo, pdata, item, pdf_pg, nodes=None, iloc_range=None, title=None):
@@ -86,36 +71,37 @@ class ZbeeReport(object):
                     df = df.iloc[iloc_range[0]:iloc_range[1]]
                 if title is None or len(title) == 0:
                     title = string_write("{} by {}", item, T_ZBEE_NWK_ADDR)
-                df.plot(xticks=[], yticks=[df.min()[1], df.median()[1], df.max()[1]], figsize=ginfo.figsize, lw=1.5, colormap='Accent')
+                df.plot(xticks=[], figsize=ginfo.figsize, lw=1.5, colormap='Accent')
             else:
                 lgr.warning("WARN: DataFrame is empty")
-#            plt.autoscale(enable=False, axis='y', tight=False)
-            plt.ylim(0, df.max()[1])
+            plt.autoscale(enable=False, axis='y', tight=False)
+#            plt.ylim(0, df.max()[1])
 #            plt.ylim(df.min()[1], df.max()[1])
             plt.xlabel(T_TIME)
             plt.ylabel(item)
             plt.title(title)
             plt.legend(loc=2, bbox_to_anchor=(1, 1), borderpad=0.5, framealpha=0.0)
-            plt.grid(axis='y')
+            plt.grid(axis='x')
+            plt.yscale('linear')
 
             if ginfo.fig_base is not None:
-                plt.savefig(string_write("{}/{}.png", ginfo.fig_base, title), transparent=True)
+                plt.savefig(string_write("{}/{}.png", ginfo.fig_base, title), transparent=False, facecolor='w', edgecolor='b')
             if pdf_pg is not None:
-                pdf_pg.savefig(transparent=False, facecolor='w', edgecolor='k')
+                pdf_pg.savefig(transparent=False, facecolor='w', edgecolor='b')
         except Exception as ex:
             lgr.error(string_write("Exception on creating item based figure {}: {}", item, ex))
             raise
 
     @staticmethod
-    def total_pack(ginfo, pdata, pdf_pg, title=None):#fig_base=None):
+    def total_pack(ginfo, pdata, pdf_pg, title=None):
         """Create package sent/recv summary"""
         lgr.info("Create package summary")
 
         try:
-            total_send = len(pdata[T_TYPE][pdata.type==ZbeeProto.MsgType.snd.name])
-            total_recv = len(pdata[T_TYPE][pdata.type==ZbeeProto.MsgType.rcv.name])
-            total_dgn = len(pdata[T_TYPE][pdata.type==ZbeeProto.MsgType.dgn.name])
-            total_snd_req = len(pdata[T_TYPE][pdata.type==ZbeeProto.MsgType.snd_req.name])
+            total_send = len(pdata[T_TYPE][pdata.type == ZbeeProto.MsgType.snd.name])
+            total_recv = len(pdata[T_TYPE][pdata.type == ZbeeProto.MsgType.rcv.name])
+            total_dgn = len(pdata[T_TYPE][pdata.type == ZbeeProto.MsgType.dgn.name])
+            total_snd_req = len(pdata[T_TYPE][pdata.type == ZbeeProto.MsgType.snd_req.name])
     
             data = {
                 ZbeeProto.MsgType.snd.name: total_send,
@@ -144,7 +130,6 @@ class ZbeeReport(object):
                 pdf_pg.savefig()
         except Exception as ex:
             lgr.error(string_write("Exception on creating package summary figure: {}", ex))
-            raise
 
     @staticmethod
     def prep_info(genid, inuithy_cfgpath=INUITHY_CONFIG_PATH):
@@ -233,7 +218,7 @@ class ZbeeReport(object):
     @staticmethod
     def gen_report(raw, pdata, ginfo, gw=None, interest_nodes=None, irange=None):
         """Report generation helper"""
-        lgr.info(string_write("Generate report with gw=[{}], nodes=[{}] irange={}", gw, interest_nodes, irange))
+        lgr.info(string_write("Generate report with gw={}, nodes={} irange={}", gw, interest_nodes, irange))
         if raw is None or len(raw[T_TIME]) == 0:
             lgr.warning(string_write("No time-based records found"))
             return
@@ -241,7 +226,7 @@ class ZbeeReport(object):
         pdata.info(verbose=True)
         with PdfPages(ginfo.pdf_path) as pdf_pg:
             try:
-#                ZbeeReport.total_pack(raw, pdf_pg, fig_base=ginfo.fig_base)
+                ZbeeReport.total_pack(ginfo, raw, pdf_pg)
                 if gw is not None and len(gw) > 0:
                     for gwnode in gw: # Each subnet
                         for item in ginfo.header[2:]:
@@ -254,7 +239,7 @@ class ZbeeReport(object):
                 raise
 
     @staticmethod
-    def generate(genid, gw=None, nodes=None, irange=None, cfgpath=INUITHY_CONFIG_PATH):
+    def generate(genid, gw=None, nodes=None, irange=None, cfgpath=INUITHY_CONFIG_PATH, csv_path=None):
         """Generate CSV data and traffic analysis figures"""
         try:
             ginfo = ZbeeReport.prep_info(genid, cfgpath)
@@ -271,29 +256,54 @@ class ZbeeReport(object):
             irange = None
             gw = ['1122']
             nodes = ['11a1', '11a3', '11f2', '1131', '1174', '1132', '1181', '1172', '1182', '1134', '11e3', '11d4', '11f3', '11f4', '11e1', '1133', '11b3', '11b4', '1124', '1152', '11b1', '1142', '1193', '1113', '1164', '1153', '11c2', '1162', '1144', '1154', '1112', '11c4', '11f1', '1141', '1183', '1163', '1111', '1103', '1102', '11b2', '11d3', '11c1', '11a2', '11e2', '1173', '11d2', '1194', '1191', '1101', '1114', '11c3', '11e4', '11d1', '1123', '1104', '11a4', '1151', '1143', '1122', '1161', '1192', '1121']
-            """
             nodes = [
                 '0x0000', '0x0001', '0x0102', '0x0103',
-                '0x0205', '0x0206', '0x0303', '0x0304',
+                '0x0206', '0x0303', '0x0304',
                 '0x0401', '0x0400'
             ]
 #            nodes = ['0x0401', '0x0102',]
+            """
 #TODO: uncomment
-            ginfo.csv_path = 'docs/UID1478067701.csv'
-#           ginfo.csv_path = 'docs/UID1470021754.csv'
+            if csv_path is not None:
+                ginfo.csv_path = csv_path
+#               ginfo.csv_path = 'docs/UID1478067701.csv'
+#               ginfo.csv_path = 'docs/UID1470021754.csv'
             raw, pdata = ZbeeReport.gen_csv(ginfo)
             ZbeeReport.gen_report(raw, pdata, ginfo, gw, nodes, irange)
         except Exception as ex:
             lgr.error(string_write("Exception on generate reports: {}", ex))
             raise
 
+    @staticmethod
+    def handle_args():
+        """Arguments handler"""    
+        args = None
+        try:
+            parser = ap.ArgumentParser(description='Report generation tool')
+#           parser.add_mutually_exclusive_group()
+            parser.add_argument('-gid', '--genid', required=True, help='Traffic generation identifier')
+            parser.add_argument('-n', '--nodes', help='Nodes of interest', nargs="+")
+            parser.add_argument('-gw', '--gateways', help='Gateway node', nargs="+")
+            parser.add_argument('-csv', '--csv_path', help='Path to CSV data source')
+            args = parser.parse_args()
+    
+            console_write("GENID {}", args.genid)
+            console_write("Nodes of interest {}", args.nodes)
+#            [console_write(node) for node in args.nodes is not None and args.nodes or []]
+            console_write("Subnet gateway {}", args.gateways)
+#            [console_write(node) for node in args.gateways is not None and args.gateways or []]
+            console_write("CSV Path {}", args.csv_path)
+        except Exception as ex:
+            console_write("Exception on handlin report arguments: {}", ex)
+            return None
+        return args
+
 if __name__ == '__main__':
 
 #    ZbeeReport.gen_report(genid='581fdfe3362ac719d1c96eb3')
 #    ZbeeReport.gen_report(genid='1478508817')
 #    ZbeeReport.gen_report(genid='1478585096')
-    if len(sys.argv) > 1:
-        ZbeeReport.generate(sys.argv[1], gw=None, nodes=None, irange=None)
-    else:
-        console_write("Genid not given")
+    args = ZbeeReport.handle_args()
+    if args is not None:
+        ZbeeReport.generate(args.genid, gw=args.gateways, nodes=args.nodes, irange=None, csv_path=args.csv_path)
 
