@@ -9,6 +9,7 @@ from inuithy.util.config_manager import create_inuithy_cfg
 import inuithy.mode.auto_mode as auto
 import inuithy.mode.monitor_mode as moni
 import inuithy.util.console as tsh
+from inuithy.util.task_manager import ProcTaskManager
 import logging
 import logging.config as lconf
 
@@ -17,6 +18,7 @@ lconf.fileConfig(INUITHY_LOGCONFIG)
 def auto_mode_handler(tcfg, trcfg):
     """Handler for automatic mode
     """
+    global controller
     controller = auto.AutoController(tcfg, trcfg)
     controller.start()
 
@@ -46,12 +48,15 @@ def start_controller(tcfg, trcfg):
     if mode_route.get(cfg.workmode) is None:
         lgr.error("Unknown work mode")
         return
-#    try:
-    mode_route[cfg.workmode](tcfg, trcfg)
-#    except KeyboardInterrupt:
-#        lgr.info(string_write("Controller received keyboard interrupt"))
-#    except Exception as ex:
-#        lgr.error(string_write("Exception on Controller: {}", ex))
+    try:
+        procs = ProcTaskManager()
+        procs.create_task(mode_route[cfg.workmode], (tcfg, trcfg))
+        procs.waitall()
+    except KeyboardInterrupt:
+        lgr.info(string_write("Controller received keyboard interrupt"))
+        controller.teardown()
+    except Exception as ex:
+        lgr.error(string_write("Exception on Controller: {}", ex))
 #    finally:
     lgr.info("Bye~")
 
