@@ -8,11 +8,12 @@ T_CLIENTID, T_TID, T_INTERVAL, T_DURATION, T_NODES, T_DEST,\
 T_TRAFFIC_STATUS, T_MSG, T_CTRLCMD, TrafficStatus, T_TRAFFIC_TYPE,\
 INUITHY_LOGCONFIG, INUITHY_TOPIC_COMMAND, TrafficType, DEV_TTY, T_GENID,\
 T_SRC, T_PKGSIZE, T_EVERYONE, mqlog_map, T_VERSION, T_MSG_TYPE
+from inuithy.common.serial_adapter import SerialAdapter
+from inuithy.common.traffic import TrafficExecutor
 from inuithy.util.helper import getpredefaddr
 from inuithy.util.cmd_helper import pub_status, pub_heartbeat, pub_unregister, extract_payload
 from inuithy.util.config_manager import create_inuithy_cfg
-from inuithy.common.serial_adapter import SerialAdapter
-from inuithy.common.traffic import TrafficExecutor
+#from inuithy.util.heartbeat import Heartbeat
 import paho.mqtt.client as mqtt
 import logging.config as lconf
 import threading
@@ -139,6 +140,7 @@ class Agent(object):
             client, userdata, rc))
         if 0 != rc:
             userdata.lgr.error(string_write("MQ.Disconnection: disconnection error"))
+        userdata.teardown("Teardown from disconnection callback")
 
     @staticmethod
     def on_log(client, userdata, level, buf):
@@ -190,8 +192,8 @@ class Agent(object):
     def __str__(self):
         return string_write("clientid:[{}] host:[{}]", self.clientid, self.host)
 
-    def heartbeat_routine(self):
-        self.lgr.info(string_write("Heartbeat routine"))
+    def alive_notification(self):
+        self.lgr.info(string_write("Alive notification"))
         try:
             data = {
                 T_CLIENTID: self.clientid,
@@ -201,13 +203,13 @@ class Agent(object):
             }
             pub_heartbeat(self._mqclient, self.tcfg.mqtt_qos, data)
         except Exception as ex:
-            self.lgr.info(string_write("Heartbeat exception:{}", ex))
+            self.lgr.info(string_write("Alive notification exception:{}", ex))
 
     def register(self):
         """Register an agent to controller
         """
         self.lgr.info(string_write("Registering {}", self.clientid))
-        self.heartbeat_routine()
+        self.alive_notification()
 
     def unregister(self):
         """Unregister an agent from controller
@@ -553,7 +555,7 @@ class Agent(object):
     def on_new_controller(self, message):
         """New controller command handler"""
         self.lgr.info(string_write("New controller"))
-        self.register()
+#        self.register()
 
     def on_agent_restart(self, message):
         """Agent restart command handler"""
@@ -584,8 +586,15 @@ class Agent(object):
         """Heartbeat enable command handler"""
         self.lgr.info(string_write("Enable heartbeat"))
         self.__enable_heartbeat = True
-        self.__heartbeat = Heartbeat(target=self.heartbeat_routine, name="AgnetHeartbeat")
-        self.__heartbeat.run()
+        self.lgr.error(string_write("Heartbeat not implemented"))
+        #TODO Configure interval
+#        info = {
+#            T_CLIENTID: self.clientid,
+#            T_HOST: self.host,
+#            T_ADDR: self.tcfg.controller,
+#        }
+#        self.__heartbeat = Heartbeat(interval=float(self.tcfg.heartbeat.get(T_INTERVAL)), name="AgnetHeartbeat", info=info)
+#        self.__heartbeat.run()
 
     def on_agent_disable_heartbeat(self, message):
         """Heartbeat disable command handler"""
