@@ -74,7 +74,6 @@ class Heartbeat(threading.Thread):
                 T_HOST: self.info.get(T_HOST),
                 T_VERSION: INUITHY_VERSION,
             }
-            print(json.dumps(data))
             self.__sock.sendto(json.dumps(data), addr)
         except Exception as ex:
             self.lgr.info(to_string("Heartbeat exception:{}", ex))

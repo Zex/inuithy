@@ -330,6 +330,8 @@ class TrafficState:
             except StopIteration:
                 self.lgr.info("All traffic generator done")
 #            [self.start_one() for tg in self.next_tgs]
+        except KeyboardInterrupt:
+            self.lgr.info("Terminating ...")
         except Exception as rex:
             self.lgr.error(to_string("Traffic runtime error: {}", rex))
         self.finish()
@@ -370,7 +372,6 @@ class TrafficState:
         except Exception as ex:
             self.lgr.error(to_string("Traffic state transition failed: {}", str(ex)))
 
-
     def config_network(self, nwlayoutname):
         """Configure network by given network layout"""
         self.lgr.info(to_string("Config network: [{}]", nwlayoutname))
@@ -379,6 +380,7 @@ class TrafficState:
         self.noi.clear()
         self.noi[T_GATEWAY] = set()
         self.noi[T_NWLAYOUT] = set()
+        self.noi[T_NODES] = self.current_tg.noi is None and None or set(self.current_tg.noi)
         for subnet in self.ctrl.nwcfg.config.get(nwlayoutname).values():
             self.noi[T_GATEWAY].add(subnet.get(T_GATEWAY))
             data = deepcopy(subnet)
@@ -470,9 +472,7 @@ class TrafficState:
         if not self.traf_running:
             return
 
-        noi = self.ctrl.trcfg.config.get(T_NOI)
-
-        if noi is None or len(noi) == 0:
+        if self.noi.get(T_NODES) is None or len(self.noi.get(T_NODES)) == 0:
             if self.noi.get(T_NODES) is None:
                 self.noi[T_NODES] = set([data.get(T_SRC)])
             else:
@@ -483,8 +483,6 @@ class TrafficState:
             else:
                 [self.noi[T_NODES].add(x) for x in \
                     self.noi.get(T_NWLAYOUT)]
-        else:
-            self.noi[T_NODES] = set(noi)
 
     @after('fire')
     def do_fire(self):

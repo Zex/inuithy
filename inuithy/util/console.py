@@ -188,7 +188,6 @@ class Console(object):#threading.Thread):
         start_agents(agents)
         to_console("Waiting for agents to get ready")
         self.ctrl.traffic_state.wait_agent()
-        to_console('{}', self.ctrl.traffic_state.chk.available_agents)
 
     def on_cmd_agent_stop(self, *args, **kwargs):
         """Agent stop command handler"""
@@ -284,6 +283,7 @@ class Console(object):#threading.Thread):
         self.lgr.info("On command traffic genreport")
         to_console("Generating traffic report")
         self.ctrl.traffic_state.genreport()
+        to_console("Report [{}]", self.ctrl.traffic_state.current_genid)
 
     def on_cmd_traffic_register(self, *args, **kwargs):
         """Register traffic command handler"""
