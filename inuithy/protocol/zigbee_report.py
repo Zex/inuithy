@@ -198,7 +198,6 @@ class ZbeeReport(object):
             recs = r.get(T_RECORDS)
             #csv_data = ZbeeReport.create_csv(recs, ginfo)
             raw = pd.DataFrame.from_records(recs)
-            print(raw)
             pdata = pd.DataFrame(raw[pd.notnull(raw[ginfo.header[2]])])
 #            pdata = pdata.fillna(value=0)
             [pdata.__setitem__(item, pdata[item].astype(int)) for item in ginfo.header[2:]]

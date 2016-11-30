@@ -3,7 +3,7 @@
 """
 from inuithy.common.predef import MessageType, T_HOST, StorageType,\
 T_RECORDS, T_MSG_TYPE, to_string, T_TIME, T_GENID, T_CLIENTID,\
-T_SRC, T_DEST, T_PKGSIZE
+T_SRC, T_DEST, T_PKGSIZE, to_console
 from pymongo import MongoClient
 #from bson.objectid import ObjectId
 #from datetime import datetime as dt
@@ -156,11 +156,11 @@ class MongodbStorage(object):
 def update_test():
 
     sto = MongodbStorage('127.0.0.1', 19713)
-    print(sto.trafrec)
+    to_console(sto.trafrec)
     for r in sto.trafrec.find():
         oid = r.get('_id')
-        print("------------------------{}---------------------".format(oid))
-        print(r)
+        to_console("------------------------{}---------------------".format(oid))
+        to_console(r)
         rec = {
             T_GENID:    str(r.get('_id')),
             T_MSG:      "lignton 1122",
@@ -171,17 +171,17 @@ def update_test():
             T_PKGSIZE:  "10",
         }
         sto.insert_record(rec)
-        print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-#        print(sto.trafrec.find_one({"_id": ObjectId(oid)}))
-        print(sto.trafrec.find_one({T_GENID: oid}))
+        to_console(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+#        to_console(sto.trafrec.find_one({"_id": ObjectId(oid)}))
+        to_console("{}", sto.trafrec.find_one({T_GENID: oid}))
 
 def check_records():
     sto = MongodbStorage('127.0.0.1', 19713)
-    print(sto.trafrec)
+    to_console(sto.trafrec)
     for r in sto.trafrec.find():
         oid = r.get('_id')
-        print("------------------------{}---------------------".format(oid))
-        print(r)
+        to_console("------------------------{}---------------------", oid)
+        to_console(r)
 
 def check_recv(host, port, genid):
     sto = MongodbStorage(host, port)
@@ -190,7 +190,7 @@ def check_recv(host, port, genid):
             T_GENID: genid,
             #"records": { "$elemMatch": {"msgtype": "RECV"} }
         }):
-        [print(v) for v in r[T_RECORDS] if v[T_MSG_TYPE] == MessageType.RECV.name]
+        [to_console(v) for v in r[T_RECORDS] if v[T_MSG_TYPE] == MessageType.RECV.name]
 
 def check_sent(host, port, genid):
     sto = MongodbStorage(host, port)
@@ -198,7 +198,7 @@ def check_sent(host, port, genid):
 #            "_id": ObjectId(genid),
             T_GENID: genid,
         }):
-        [print(v) for v in r[T_RECORDS] if v[T_MSG_TYPE] == MessageType.SEND.name]
+        [to_console(v) for v in r[T_RECORDS] if v[T_MSG_TYPE] == MessageType.SEND.name]
 
 def cleanup():
     sto = MongodbStorage('127.0.0.1', 19713)
