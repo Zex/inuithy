@@ -2,7 +2,7 @@
  @uthor: Zex Li <top_zlynch@yahoo.com>
 """
 from inuithy.common.predef import T_NWLAYOUT_ID_FMT, IFACEPATH
-from inuithy.common.predef import string_write 
+from inuithy.common.predef import to_string 
 import subprocess as sp
 import os
 
@@ -10,7 +10,7 @@ def runonremote(user, host, cmd):
     """Run command on remote host
     """
     fmt = 'ssh -f {}@{} '#"{}"'
-    rcmd = string_write(fmt, user, host)#, cmd)
+    rcmd = to_string(fmt, user, host)#, cmd)
     rcmd += "\"" + cmd + "\""
     sp.call(rcmd, shell=True)
 
@@ -20,7 +20,7 @@ def delimstr(delim, *args):
     return delim.join(list(args))
 
 def getnwlayoutid(nwcfg_path, layout_name):
-    return string_write(T_NWLAYOUT_ID_FMT, nwcfg_path, layout_name)
+    return to_string(T_NWLAYOUT_ID_FMT, nwcfg_path, layout_name)
 
 def getnwlayoutname(nwlayoutid):
     return nwlayoutid.split(':')[1]

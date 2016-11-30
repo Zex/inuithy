@@ -1,14 +1,14 @@
 """ Configure manager for Inuithy
  @uthor: Zex Li <top_zlynch@yahoo.com>
 """
-from inuithy.common.predef import INUITHY_LOGCONFIG, string_write,\
+from inuithy.common.predef import INUITHY_LOGCONFIG, to_string,\
 INUITHY_TITLE, INUITHY_VERSION, INUITHY_CONFIG_PATH, T_ENABLE_LDEBUG,\
 T_MQTT, T_WORKMODE, T_HEARTBEAT, T_ENABLE_MQDEBUG, T_TSH, T_HISTORY, T_QOS,\
 T_TARGET_AGENTS, T_NODES, T_PANID, T_SPANID, T_NWCONFIG_PATH, T_TYPE,\
 T_AGENTS, T_CONTROLLER, T_USER, T_TRAFFIC_STORAGE, T_GENID, T_PATH,\
 T_PORT, WorkMode, TrafficStorage, StorageType, T_PASSWD, T_CHANNEL,\
 T_GATEWAY, T_TARGET_TRAFFICS, T_DURATION, T_PKGSIZE, T_PKGRATE,\
-T_DESTS, T_SRCS, T_NWLAYOUT, NETWORK_CONFIG_PATH,\
+T_DESTS, T_SRCS, T_NWLAYOUT, NETWORK_CONFIG_PATH, T_NOI,\
 TRAFFIC_CONFIG_PATH, T_HOST, T_REPORTDIR, T_TRAFFIC_FINISH_DELAY
 from abc import ABCMeta#, abstractmethod
 import logging
@@ -34,6 +34,7 @@ class Config(object):
         self.lgr = lgr
         if self.lgr is None:
             self.lgr = logging
+        self.__config_path = None
         self.config_path = path
         self.config = {}
 
@@ -41,14 +42,14 @@ class Config(object):
         return '\n'.join([self.config_path, str(self.config)])
 
     def load(self):
-        self.lgr.info(string_write("Loading configure from [{}]", self.config_path))
+        self.lgr.info(to_string("Loading configure from [{}]", self.config_path))
         ret = True
         if self.config_path.endswith('yaml'):
             ret = self.load_yaml()
         elif self.config_path.endswith('json'):
             ret = self.load_json()
         else:
-            if self.load_yaml() == False and self.load_json == False:
+            if self.load_yaml() is False and self.load_json() is False:
                 self.lgr.error("Unsupported format for config file")
                 ret = False
         return ret
@@ -59,7 +60,7 @@ class Config(object):
             with open(self.config_path, 'w') as fd:
                 yaml.dump(self.config, fd)
         except Exception as ex:
-            self.lgr.error(string_write("dumping yaml config file [{}]: {}", self.config_path, ex))
+            self.lgr.error(to_string("dumping yaml config file [{}]: {}", self.config_path, ex))
 
     def dump_json(self):
         try:
@@ -67,7 +68,7 @@ class Config(object):
             with open(self.config_path, 'w') as fd:
                 json.dump(self.config, fd)
         except Exception as ex:
-            self.lgr.error(string_write("dumping json config file [{}]: {}", self.config_path, ex))
+            self.lgr.error(to_string("dumping json config file [{}]: {}", self.config_path, ex))
 
     def load_yaml(self):
         ret = True
@@ -76,7 +77,7 @@ class Config(object):
             with open(self.config_path, 'r') as fd:
                 self.config = yaml.load(fd)
         except Exception as ex:
-            self.lgr.error(string_write("loading yaml config file [{}]: {}", self.config_path, ex))
+            self.lgr.error(to_string("loading yaml config file [{}]: {}", self.config_path, ex))
             ret = False
         return ret
 
@@ -87,7 +88,7 @@ class Config(object):
             with open(self.config_path, 'r') as fd:
                 self.config = json.load(fd)
         except Exception as ex:
-            self.lgr.error(string_write("loading json config file [{}]: {}", self.config_path, ex))
+            self.lgr.error(to_string("loading json config file [{}]: {}", self.config_path, ex))
             ret = False
         return ret
 
@@ -128,7 +129,7 @@ class InuithyConfig(Config):
     @workmode.setter
     def workmode(self, val):
         pass
-    
+
     @property
     def heartbeat(self):
         return self.config[T_HEARTBEAT]
@@ -207,7 +208,7 @@ class InuithyConfig(Config):
             # <TrafficStorage>:<StorageType>
             # - TrafficStorage.DB
             # - TrafficStorage.FILE
-            T_TYPE:     string_write("{}:{}", TrafficStorage.DB.name, StorageType.MongoDB.name),
+            T_TYPE:     to_string("{}:{}", TrafficStorage.DB.name, StorageType.MongoDB.name),
             # Path to traffic database
             # - For database storage, the path is host and port
             #   combination formated as <host>:<port>
@@ -278,7 +279,7 @@ class NetworkConfig(Config):
         """
         for agent in self.nwcfg.config.agents:
             if addr in agent[T_NODES]:
-                self.lgr.info(string_write("Found [{}] on agent [{}]", addr, agent[T_HOST]))
+                self.lgr.info(to_string("Found [{}] on agent [{}]", addr, agent[T_HOST]))
                 return agent
         return None
 
@@ -508,6 +509,7 @@ class TrafficConfig(Config):
             T_PKGSIZE: 1,
             # seconds
             T_DURATION: 180,
+            T_NOI: ['1122', '1112', '1124'],
         }
         self.config["traffic_1"] = {
             T_NWLAYOUT: 'network_0',
@@ -522,6 +524,7 @@ class TrafficConfig(Config):
             T_PKGSIZE: 2,
             # seconds
             T_DURATION: 180,
+            T_NOI: ['1122', '1114', '1124'],
         }
         self.config["traffic_2"] = {
             T_NWLAYOUT: 'network_1',
@@ -536,6 +539,7 @@ class TrafficConfig(Config):
             T_PKGSIZE: 2,
             # seconds
             T_DURATION: 360,
+            T_NOI: [],
         }
         self.config["traffic_3"] = {
             T_NWLAYOUT: 'network_1',
@@ -550,6 +554,7 @@ class TrafficConfig(Config):
             T_PKGSIZE: 2,
             # seconds
             T_DURATION: 360,
+            T_NOI: [],
         }
         self.config["traffic_4"] = {
             T_NWLAYOUT: 'network_2',
@@ -564,6 +569,7 @@ class TrafficConfig(Config):
             T_PKGSIZE: 2,
             # seconds
             T_DURATION: 360,
+            T_NOI: [],
         }
         self.config["traffic_5"] = {
             T_NWLAYOUT: 'network_1',
@@ -578,6 +584,22 @@ class TrafficConfig(Config):
             T_PKGSIZE: 2,
             # seconds
             T_DURATION: 10,
+            T_NOI: [],
+        }
+        self.config["traffic_6"] = {
+            T_NWLAYOUT: 'network_1',
+            T_SRCS: [
+                '11a2',
+            ],
+            T_DESTS: [
+                '11b1',
+            ],
+            # package / seconds
+            T_PKGRATE: 0.2,
+            T_PKGSIZE: 2,
+            # seconds
+            T_DURATION: 10,
+            T_NOI: ['11b1', '11a2'],
         }
         # Network layout configure path
         self.config[T_NWCONFIG_PATH] = NETWORK_CONFIG_PATH
@@ -615,7 +637,7 @@ def create_network_cfg(cfgpath):
 
 if __name__ == '__main__':
     lgr = logging.getLogger("InuithyConfig")
-    lgr.info(string_write(INUITHY_TITLE, INUITHY_VERSION, "InuithyConfig"))
+    lgr.info(to_string(INUITHY_TITLE, INUITHY_VERSION, "InuithyConfig"))
 
     cfg = InuithyConfig(INUITHY_CONFIG_PATH)
     cfg.create_sample()

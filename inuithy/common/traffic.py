@@ -4,7 +4,7 @@
 from inuithy.common.predef import T_PKGRATE, T_DURATION,\
 T_NWCONFIG_PATH, T_NWLAYOUT, T_SRCS, T_DESTS,\
 T_TARGET_TRAFFICS, TRAFFIC_CONFIG_PATH, NETWORK_CONFIG_PATH,\
-T_PKGSIZE, T_NODES, console_write, string_write, T_EVERYONE,\
+T_PKGSIZE, T_NODES, to_console, to_string, T_EVERYONE,\
 T_TRAFFIC_STATUS, TrafficStatus, T_TID
 from inuithy.util.helper import getnwlayoutid, is_number
 #from inuithy.util.trigger import TrafficTrigger
@@ -54,7 +54,7 @@ class Traffic(object):
         self.__dest = dest
 
     def __str__(self):
-        return string_write(
+        return to_string(
             "[{}]============P({}) ===========>[{}]",
             self.src, self.pkgsize, self.dest)
 
@@ -116,11 +116,11 @@ class TrafficGenerator(object):
         self.traffics = []
         self.nwlayoutid = getnwlayoutid(trcfg.config[T_NWCONFIG_PATH], self.cur_trcfg[T_NWLAYOUT])
         self.create_traffic(trcfg, nwcfg)
-        self.__genid = genid is not None and genid or string_write("[{}]{}:{}",\
+        self.__genid = genid is not None and genid or to_string("[{}]{}:{}",\
             time.clock_gettime(time.CLOCK_REALTIME), self.nwlayoutid, trname)
 
     def __str__(self):
-        return string_write("genid:{},layout:{},traffic:{},rate:{}/s,dur:{}s,",\
+        return to_string("genid:{},layout:{},traffic:{},rate:{}/s,dur:{}s,",\
             self.genid, self.nwlayoutid, self.traffic_name, self.pkgrate, self.duration)
 
     @staticmethod
@@ -137,14 +137,14 @@ class TrafficGenerator(object):
                 for sub_name in nwcfg.config.get(nw):
                     sub = nwcfg.subnet(nw, sub_name)
                     if sub is None:
-                        raise ValueError(string_write(TRAFFIC_ERR_NOSUBNET, sub_name, nw))
+                        raise ValueError(to_string(TRAFFIC_ERR_NOSUBNET, sub_name, nw))
                     [nodes.append(node) for node in sub[T_NODES]]
             elif is_number(s):
                 nodes.append(s)
             else:
                 sub = nwcfg.subnet(nw, s)
                 if sub is None:
-                    raise ValueError(string_write(TRAFFIC_ERR_NOSUBNET, s, nw))
+                    raise ValueError(to_string(TRAFFIC_ERR_NOSUBNET, s, nw))
                 [nodes.append(node) for node in sub[T_NODES]]
         return nodes
 
@@ -165,7 +165,7 @@ class TrafficGenerator(object):
             else:
                 sub = nwcfg.subnet(nw, s)
                 if sub is None:
-                    raise ValueError(string_write(TRAFFIC_ERR_NOSUBNET, s, nw))
+                    raise ValueError(to_string(TRAFFIC_ERR_NOSUBNET, s, nw))
                 [nodes.append(node) for node in sub[T_NODES]]
         return nodes
 
@@ -191,10 +191,10 @@ class Duration(object):
         pass
 
     def __enter__(self):
-        console_write(">> {}", time.ctime(time.clock_gettime(time.CLOCK_REALTIME)))
+        to_console(">> {}", time.ctime(time.clock_gettime(time.CLOCK_REALTIME)))
 
     def __exit__(self, cls, message, traceback):
-        console_write("<< {}", time.ctime(time.clock_gettime(time.CLOCK_REALTIME)))
+        to_console("<< {}", time.ctime(time.clock_gettime(time.CLOCK_REALTIME)))
 
 #class TrafficExecutor(TrafficTrigger):
 class TrafficExecutor(threading.Thread):
@@ -211,7 +211,7 @@ class TrafficExecutor(threading.Thread):
         pass
 
     def __init__(self, node, interval, duration, request=None, lgr=None, mqclient=None, tid=None):
-        threading.Thread.__init__(self, name=string_write("TE-{}", tid), target=None, daemon=False)
+        threading.Thread.__init__(self, name=to_string("TE-{}", tid), target=None, daemon=False)
         self.lgr = lgr
         if self.lgr is None:
             self.lgr = logging
@@ -225,7 +225,7 @@ class TrafficExecutor(threading.Thread):
         self.done = threading.Event()
 
     def run(self):
-        self.lgr.debug(string_write("Start traffic [{}]", self))
+        self.lgr.debug(to_string("Start traffic [{}]", self))
         self.running = True
         self.stop_timer.start()
 
@@ -235,7 +235,7 @@ class TrafficExecutor(threading.Thread):
             self.done.clear()
 
     def stop_trigger(self):
-        console_write("{}: ========Stopping trigger============", self)
+        to_console("{}: ========Stopping trigger============", self)
         self.running = False
         self.stop_timer.cancel()
         if self.mqclient is not None:
@@ -245,7 +245,7 @@ class TrafficExecutor(threading.Thread):
             })
 
     def __str__(self):
-        return string_write("tid[{}]: intv:{}, dur:{}, node:[{}]",\
+        return to_string("tid[{}]: intv:{}, dur:{}, node:[{}]",\
             self.tid, self.interval, self.duration, str(self.node))
 
 def create_traffics(trcfg, nwcfg):
@@ -264,15 +264,15 @@ if __name__ == '__main__':
     nwcfg = create_network_cfg(trcfg.nw_cfgpath)
     tgs = create_traffics(trcfg, nwcfg)
     for tg in tgs:
-        console_write("---------------------------------------------")
-        console_write(str(tg))
-        console_write('\n'.join([str(traffic) for traffic in tg.traffics]))
+        to_console("---------------------------------------------")
+        to_console(str(tg))
+        to_console('\n'.join([str(traffic) for traffic in tg.traffics]))
 #    te = TrafficExecutor("BLE", 'shield on', 1/0.9, 3, {"account":88888})
     node = NodeZigbee('/dev/ttyS33')
     te = TrafficExecutor(node, 'shield on', 1/0.9, 3, request={"dest":'4343'}, tid='12345')
-    console_write("==========beg=============")
+    to_console("==========beg=============")
     te.run()
-    console_write("==========end=============")
+    to_console("==========end=============")
 
 #    cur_trcfg = trcfg.config['traffic_6']
 #    srcs = TrafficGenerator.parse_srcs(cur_trcfg, nwcfg)

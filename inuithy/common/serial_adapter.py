@@ -2,7 +2,7 @@
  @author: Zex Li <top_zlynch@yahoo.com>
 """
 from inuithy.common.predef import DEV_TTYUSB, DEV_TTYS, DEV_TTY,\
-string_write, T_EVERYONE, INUITHY_LOGCONFIG
+to_string, T_EVERYONE, INUITHY_LOGCONFIG
 from inuithy.common.node import NodeBLE, NodeZigbee, NodeType
 from inuithy.protocol.ble_proto import BleProtocol as BleProt
 from inuithy.protocol.zigbee_proto import ZigbeeProtocol as ZbeeProt
@@ -61,7 +61,7 @@ class SerialAdapter(object):
                 if ptype is not None and len(ptype) > 0:
                     return ptype
             except Exception as ex:
-                self.lgr(string_write(
+                self.lgr(to_string(
                     "Exception on sending examine msg [{}]: {}",
                     msg, ex))
 
@@ -84,7 +84,7 @@ class SerialAdapter(object):
                 self.__nodes.append(node)
                 node.start_listener()
         except Exception as ex:
-            logging.error(string_write("Exception on creating node: {}", ex))
+            logging.error(to_string("Exception on creating node: {}", ex))
 
         return node
 

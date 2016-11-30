@@ -2,7 +2,7 @@
  @uthor: Zex Li <top_zlynch@yahoo.com>
 """
 from inuithy.common.predef import INUITHY_LOGCONFIG, INUITHY_CONFIG_PATH,\
-console_write, string_write
+to_console, to_string
 #MessageType, T_HOST, StorageType, T_NODE, T_MSG, T_TRAFFIC_TYPE,\
 #T_RECORDS, T_MSG_TYPE, T_TIME, T_GENID, T_CLIENTID,\
 #T_SRC, T_DEST, T_PKGSIZE, T_REPORTDIR, T_PATH, T_GATEWAY,\
@@ -81,7 +81,7 @@ lgr = logging
 #                plt.title("Number of packs sent via address")
 #                pdf_pg.savefig()
 #        except Exception as ex:
-#            console_write("ERROR: {}", ex)
+#            to_console("ERROR: {}", ex)
 #
 #    @staticmethod
 #    def gen_dest_pack(recs, genid, pdf_pg):
@@ -110,7 +110,7 @@ lgr = logging
 #                plt.title("Number of packs received via address")
 #                pdf_pg.savefig()
 #        except Exception as ex:
-#            console_write("ERROR: {}", ex)
+#            to_console("ERROR: {}", ex)
 #
 #    @staticmethod
 #    def gen_total_gwpack(recs, genid, pdf_pg):
@@ -136,7 +136,7 @@ lgr = logging
 #                plt.title("Total of packs via gateway")
 #                pdf_pg.savefig()
 #        except Exception as ex:
-#            console_write("ERROR: {}", ex)
+#            to_console("ERROR: {}", ex)
 #
 #    @staticmethod
 #    def gen_total_pack(recs, genid, pdf_pg):
@@ -154,7 +154,7 @@ lgr = logging
 #            plt.title("Total of requested and received packets")
 #            pdf_pg.savefig()
 #        except Exception as ex:
-#            console_write("ERROR: {}", ex)
+#            to_console("ERROR: {}", ex)
 #
 #    @staticmethod
 #    def create_csv(recs, header, genid):
@@ -171,9 +171,9 @@ lgr = logging
 #                    continue
 #                line = [rec.get(k) for k in header if rec.get(k)]
 #                line_fmt = ('{},' * len(line)).strip(',')
-#                data.append(string_write(line_fmt, *tuple(line)))
+#                data.append(to_string(line_fmt, *tuple(line)))
 #        except Exception as ex:
-#            console_write("ERROR: {}", ex)
+#            to_console("ERROR: {}", ex)
 #        return data
 #
 #    @staticmethod
@@ -181,17 +181,17 @@ lgr = logging
 #        try:
 #            n = pdata.groupby(item)
 #            n.plot(kind='line', colormap='plasma', figsize=(30, 30))
-#            plt.title(string_write("Group by {}", item))
+#            plt.title(to_string("Group by {}", item))
 #            pdf_pg.savefig()
 #        except Exception as ex:
-#            console_write("ERROR: {}", ex)
+#            to_console("ERROR: {}", ex)
 #
 #    @staticmethod
 #    def gen_report(inuithy_cfgpath=INUITHY_CONFIG_PATH, genid=None):
 #
 #        cfg = create_inuithy_cfg(inuithy_cfgpath)
 #        if cfg is None:
-#            lgr.error(string_write("Failed to load inuithy configure"))
+#            lgr.error(to_string("Failed to load inuithy configure"))
 #            return False
 #
 #        storage = Storage(cfg, lgr)
@@ -207,15 +207,15 @@ lgr = logging
 #
 ##            header = (T_TIME, T_NODE, T_SRC, T_DEST, T_MSG_TYPE, T_TRAFFIC_TYPE, T_CLIENTID, T_HOST, T_GENID)
 #            csv_data = ReportAdapter.create_csv(recs, header, genid)
-#            with open(string_write('{}/{}.csv', cfg.config[T_REPORTDIR][T_PATH], genid), 'w') as fd:
+#            with open(to_string('{}/{}.csv', cfg.config[T_REPORTDIR][T_PATH], genid), 'w') as fd:
 #                fd.write(','.join(h for h in header) + '\n')
 #                [fd.write(line + '\n') for line in csv_data]
 ##            jdata = json.dumps(recs)
-#            pdata = pd.read_csv(string_write('{}/{}.csv', cfg.config[T_REPORTDIR][T_PATH], genid))
+#            pdata = pd.read_csv(to_string('{}/{}.csv', cfg.config[T_REPORTDIR][T_PATH], genid))
 ##            print(pdata)
 ##            print("=========================================================")
 ##            continue
-#            with PdfPages(string_write('{}/{}.pdf', cfg.config[T_REPORTDIR][T_PATH], genid)) as pdf_pg:
+#            with PdfPages(to_string('{}/{}.pdf', cfg.config[T_REPORTDIR][T_PATH], genid)) as pdf_pg:
 #                [ReportAdapter.groupby(pdata, T_TIME, pdf_pg) for item in header]
 #                ReportAdapter.gen_total_pack(recs, genid, pdf_pg)
 #                ReportAdapter.gen_src_pack(recs, genid, pdf_pg)
@@ -253,5 +253,5 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         ReportAdapter.generate(sys.argv[1], gw=None, nodes=None, irange=None)
     else:
-        console_write("Genid not given")
+        to_console("Genid not given")
 

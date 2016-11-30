@@ -3,7 +3,7 @@
 """
 from inuithy.common.version import INUITHY_VERSION
 from inuithy.common.predef import T_CLIENTID, T_HOST,\
-T_VERSION, T_ADDR, string_write, INUITHY_LOGCONFIG
+T_VERSION, T_ADDR, to_string, INUITHY_LOGCONFIG
 import json
 import threading
 import socket
@@ -44,9 +44,9 @@ class Heartbeat(threading.Thread):
         self.__sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
     def run(self):
-        self.lgr.info(string_write("Heartbeat routine started"))
+        self.lgr.info(to_string("Heartbeat routine started"))
         if self.__target is None or self.info is None:
-            self.lgr.error(string_write("Heartbeat routine not defined or hearbeat info block empty"))
+            self.lgr.error(to_string("Heartbeat routine not defined or hearbeat info block empty"))
             return # or self.__src is None: return
         self.__running = True
 
@@ -66,7 +66,7 @@ class Heartbeat(threading.Thread):
             self.__sock.close()
 
     def __target(self):
-        self.lgr.info(string_write("Heartbeat routine"))
+        self.lgr.info(to_string("Heartbeat routine"))
         try:
             addr = (self.info.get(T_ADDR), Heartbeat.PORT)
             data = {
@@ -77,7 +77,7 @@ class Heartbeat(threading.Thread):
             print(json.dumps(data))
             self.__sock.sendto(json.dumps(data), addr)
         except Exception as ex:
-            self.lgr.info(string_write("Heartbeat exception:{}", ex))
+            self.lgr.info(to_string("Heartbeat exception:{}", ex))
 
 
 if __name__ == '__main__':

@@ -1,7 +1,7 @@
 """ Agent info definition
  @author: Zex Li <top_zlynch@yahoo.com>
 """
-from inuithy.common.predef import T_TYPE, AgentStatus, T_ADDR, string_write
+from inuithy.common.predef import T_TYPE, AgentStatus, T_ADDR, to_string
 from inuithy.common.node import NodeBLE, NodeZigbee, NodeType
 import json
 
@@ -31,5 +31,6 @@ class AgentInfo(object):
         return None
 
     def __str__(self):
-        return string_write("agent<{}>: host:{} status:{} nodes:{} total_node:{}", self.agentid, self.host, self.status, [str(n) for n in self.nodes], len(self.nodes))
+        return to_string("agent<{}>: host:{} status:{} nodes:{} total_node:{}",\
+            self.agentid, self.host, self.status, [str(n) for n in self.nodes], len(self.nodes))
     

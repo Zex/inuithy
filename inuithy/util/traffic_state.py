@@ -4,7 +4,7 @@
 from inuithy.common.predef import T_TID, T_GENID, T_TRAFFIC_TYPE,\
 T_CLIENTID, T_NODE, T_HOST, T_DURATION, T_INTERVAL, T_GATEWAY, T_SRC,\
 T_DEST, T_PKGSIZE, T_NODES, T_PATH, T_NWLAYOUT, T_PANID, T_SPANID,\
-console_write, string_write, TrafficType, T_TRAFFIC_FINISH_DELAY,\
+to_console, to_string, TrafficType, T_TRAFFIC_FINISH_DELAY,\
 TrafficStorage, StorageType, INUITHY_CONFIG_PATH, TrafficStatus
 from inuithy.util.helper import getnwlayoutname
 from inuithy.util.cmd_helper import pub_traffic, start_agents,\
@@ -70,7 +70,7 @@ class TrafStatChk(object):
                 return False
             return True
         except Exception as ex:
-            self.lgr.error(string_write("Failed to check network layout: {}", ex))
+            self.lgr.error(to_string("Failed to check network layout: {}", ex))
             return False
 
     def is_traffic_all_fired(self):
@@ -86,7 +86,7 @@ class TrafStatChk(object):
                 return True
             return False
         except Exception as ex:
-            self.lgr.error(string_write("Failed to check whether traffic fired: {}", ex))
+            self.lgr.error(to_string("Failed to check whether traffic fired: {}", ex))
             return False
 
     def is_traffic_all_registered(self):
@@ -102,7 +102,7 @@ class TrafStatChk(object):
                 return True
             return False
         except Exception as ex:
-            self.lgr.error(string_write("Failed to check whether traffic registered: {}", ex))
+            self.lgr.error(to_string("Failed to check whether traffic registered: {}", ex))
             return False
 
     def is_traffic_finished(self):
@@ -118,7 +118,7 @@ class TrafStatChk(object):
                 return True
             return False
         except Exception as ex:
-            self.lgr.error(string_write("Failed to check whether traffic finished: {}", ex))
+            self.lgr.error(to_string("Failed to check whether traffic finished: {}", ex))
             return False
 
     def is_agents_all_up(self):
@@ -136,7 +136,7 @@ class TrafStatChk(object):
                     return False
             return True
         except Exception as ex:
-            self.lgr.error(string_write("Failed to check agent availability", ex))
+            self.lgr.error(to_string("Failed to check agent availability", ex))
             return False
 
 def transition(sm, event, event_name):
@@ -144,7 +144,7 @@ def transition(sm, event, event_name):
     try:
         event()
     except InvalidStateTransition as ex:
-        console_write("{}: {} => {} Failed: {}", sm, event, event_name, ex)
+        to_console("{}: {} => {} Failed: {}", sm, event, event_name, ex)
 
 @acts_as_state_machine
 class TrafficState:
@@ -243,9 +243,9 @@ class TrafficState:
         try:
             self.current_genid = genid
             with open(self.ctrl.tcfg.config[T_GENID][T_PATH], 'a') as fd:
-                fd.write(string_write("{},{}\n", genid, str(dt.now())))
+                fd.write(to_string("{},{}\n", genid, str(dt.now())))
         except Exception as ex:
-            self.lgr.error(string_write("Record genid failed: {}", ex))
+            self.lgr.error(to_string("Record genid failed: {}", ex))
 
     def update_stat(self, item, stat, cond=None):
         self.chk.traffic_stat[item] = stat
@@ -254,14 +254,14 @@ class TrafficState:
 
     def check(self, cond):
         """Check for condition"""
-        self.lgr.info(string_write("Current state: {}, check for: {}", str(self.current_state), cond))
+        self.lgr.info(to_string("Current state: {}, check for: {}", str(self.current_state), cond))
         if hasattr(self.chk, cond) and getattr(self.chk, cond)():
             getattr(self.chk, "_"+cond).set()
 
     @after('wait_agent')
     def do_waitfor_agent_all_up(self):
         """Wait for expected agents startup"""
-        self.lgr.info(string_write("Wait for agents all up", str(self.current_state)))
+        self.lgr.info(to_string("Wait for agents all up", str(self.current_state)))
         if not self.traf_running:
             return
         self.chk._is_agents_all_up.wait()
@@ -270,7 +270,7 @@ class TrafficState:
     @after('wait_nwlayout')
     def do_waitfor_nwlayout_done(self):
         """Wait for network configure to be done"""
-        self.lgr.info(string_write("Wait for network layout done: {}", str(self.current_state)))
+        self.lgr.info(to_string("Wait for network layout done: {}", str(self.current_state)))
         if not self.traf_running:
             return
         self.chk._is_network_layout_done.wait()
@@ -279,7 +279,7 @@ class TrafficState:
     @after('wait_traffic')
     def do_waitfor_traffic_all_set(self):
         """Wait for traffic all registered on agents"""
-        self.lgr.info(string_write("Wait for traffic all set: {}", str(self.current_state)))
+        self.lgr.info(to_string("Wait for traffic all set: {}", str(self.current_state)))
         if not self.traf_running:
             return
         self.chk._is_traffic_all_registered.wait()
@@ -287,17 +287,17 @@ class TrafficState:
 
     @before('create')
     def do_create(self):
-        self.lgr.info(string_write("Create traffic from configure: {}", str(self.current_state)))
+        self.lgr.info(to_string("Create traffic from configure: {}", str(self.current_state)))
         if not self.traf_running:
             return
         self.trgens = create_traffics(self.ctrl.trcfg, self.ctrl.nwcfg)
-        self.lgr.info(string_write("Total generator: [{}]", len(self.trgens)))
+        self.lgr.info(to_string("Total generator: [{}]", len(self.trgens)))
         self.next_tgs = self.yield_traffic()
 
     @after('start')
     def do_start(self):
         """Start traffic deployment"""
-        self.lgr.info(string_write("Start traffic sm: {}", str(self.current_state)))
+        self.lgr.info(to_string("Start traffic sm: {}", str(self.current_state)))
         if not self.traf_running:
             return
         try:
@@ -305,7 +305,7 @@ class TrafficState:
 #            force_stop_agents(self.chk.expected_agents)
             self.create()
             self.lgr.info("Starting agents ...")
-            console_write("Starting agents ...")
+            to_console("Starting agents ...")
             start_agents(self.chk.expected_agents)
             self.wait_agent()
             try:
@@ -317,7 +317,7 @@ class TrafficState:
                 self.lgr.info("All traffic generator done")
 #            [self.start_one() for tg in self.next_tgs]
         except Exception as rex:
-            self.lgr.error(string_write("Traffic runtime error: {}", rex))
+            self.lgr.error(to_string("Traffic runtime error: {}", rex))
         self.finish()
 
     def yield_traffic(self):
@@ -336,7 +336,7 @@ class TrafficState:
             T_NWLAYOUT: deepcopy(self.ctrl.nwcfg.config.get(nwlayoutname))
         }
         self.current_tg.genid = self.ctrl.storage.insert_config(cfg)
-        console_write("Current traffic: {}", self.current_tg)
+        to_console("Current traffic: {}", self.current_tg)
         self.record_genid(self.current_tg.genid)
         return self.current_tg
 
@@ -345,19 +345,21 @@ class TrafficState:
         try:
             if not self.traf_running:
                 return
-            self.lgr.info(string_write("Start one traffic"))
+            self.lgr.info(to_string("Start one traffic"))
             stat_transition = [
-                self.deploy, self.wait_nwlayout, self.register, self.wait_traffic,
-                self.fire, self.traffic_finish, self.genreport,
+                self.deploy, self.wait_nwlayout,\
+                self.register, self.wait_traffic,\
+                self.fire, self.traffic_finish,\
+                self.genreport,
             ]
             [stat() for stat in stat_transition if self.traf_running]
         except Exception as ex:
-            self.lgr.error(string_write("Traffic state transition failed: {}", str(ex)))
+            self.lgr.error(to_string("Traffic state transition failed: {}", str(ex)))
 
 
     def config_network(self, nwlayoutname):
         """Configure network by given network layout"""
-        self.lgr.info(string_write("Config network: [{}]", nwlayoutname))
+        self.lgr.info(to_string("Config network: [{}]", nwlayoutname))
         if not self.traf_running:
             return
         self.interest_nodes.clear()
@@ -372,7 +374,7 @@ class TrafficState:
                 self.interest_nodes[T_NWLAYOUT].add(node)
                 target_host = self.chk.node2host.get(node)
                 if target_host is None:
-                    raise ValueError(string_write("Node [{}] not found on any agent", node))
+                    raise ValueError(to_string("Node [{}] not found on any agent", node))
 #                data[T_CLIENTID] = aid
                 data[T_HOST] = target_host
                 data[T_GENID] = self.current_tg.genid
@@ -380,35 +382,35 @@ class TrafficState:
                 data[T_TRAFFIC_TYPE] = TrafficType.JOIN.name
                 if not self.ctrl.tcfg.enable_localdebug:
                     data[T_CLIENTID] = self.chk.node2aid.get(node)
-#                    self.lgr.debug(string_write("LAYOUT: {}", data.get(T_CLIENTID)))
+#                    self.lgr.debug(to_string("LAYOUT: {}", data.get(T_CLIENTID)))
                     pub_traffic(self.ctrl.mqclient, self.ctrl.tcfg.mqtt_qos, data)
                 else: # DEBUG
                     for aid in self.chk.node2aid.values():
                         data[T_CLIENTID] = aid
-#                        self.lgr.debug(string_write("LAYOUT: {}", data.get(T_CLIENTID)))
+#                        self.lgr.debug(to_string("LAYOUT: {}", data.get(T_CLIENTID)))
                         pub_traffic(self.ctrl.mqclient, self.ctrl.tcfg.mqtt_qos, data)
                         break
 
     @after('deploy')
     def do_deploy(self, tg=None):
         """Deploy network layout based on configure"""
-        self.lgr.info(string_write("Deploy network layout: {}", str(self.current_state)))
+        self.lgr.info(to_string("Deploy network layout: {}", str(self.current_state)))
         if tg is None:
             tg = self.current_tg
-        self.lgr.info(string_write("Deploy network: {}, Current traffic [{}]", tg.nwlayoutid, str(tg)))
+        self.lgr.info(to_string("Deploy network: {}, Current traffic [{}]", tg.nwlayoutid, str(tg)))
         if self.ctrl.current_nwlayout != tg.nwlayoutid:
             self.config_network(getnwlayoutname(tg.nwlayoutid))
             self.ctrl.current_nwlayout = tuple(tg.nwlayoutid.split(':'))
         else:
             self.chk._is_network_layout_done.set()
-        self.lgr.info(string_write("Current network layout: {}", self.ctrl.current_nwlayout))
+        self.lgr.info(to_string("Current network layout: {}", self.ctrl.current_nwlayout))
 
     @after('register')
     def do_register(self):
         """Register traffic to agents"""
-        self.lgr.info(string_write("Register traffic task: {}", str(self.current_state)))
+        self.lgr.info(to_string("Register traffic task: {}", str(self.current_state)))
         tg = self.current_tg
-        self.lgr.info(string_write("Register traffic: [{}]", str(tg)))
+        self.lgr.info(to_string("Register traffic: [{}]", str(tg)))
         self.chk.traffic_stat.clear()
         for tr in tg.traffics:
             try:
@@ -430,7 +432,7 @@ class TrafficState:
                     tid = ''.join([random.choice(string.hexdigits) for _ in range(7)])
                     data[T_TID] = tid
                     data[T_CLIENTID] = self.chk.node2aid.get(tr.src)
-                    self.lgr.debug(string_write("TRAFFIC: {}:{}:{}", data.get(T_TID), data.get(T_CLIENTID), tr))
+                    self.lgr.debug(to_string("TRAFFIC: {}:{}:{}", data.get(T_TID), data.get(T_CLIENTID), tr))
                     pub_traffic(self.ctrl.mqclient, self.ctrl.tcfg.mqtt_qos, data)
                     self.chk.traffic_stat[tid] = TrafficStatus.REGISTERING
                 else: # DEBUG
@@ -438,14 +440,14 @@ class TrafficState:
                         tid = ''.join([random.choice(string.hexdigits) for _ in range(7)])
                         data[T_TID] = tid
                         data[T_CLIENTID] = aid
-                        self.lgr.debug(string_write("TRAFFIC: {}:{}:{}", data.get(T_TID), data.get(T_CLIENTID), tr))
+                        self.lgr.debug(to_string("TRAFFIC: {}:{}:{}", data.get(T_TID), data.get(T_CLIENTID), tr))
                         pub_traffic(self.ctrl.mqclient, self.ctrl.tcfg.mqtt_qos, data)
                         self.chk.traffic_stat[tid] = TrafficStatus.REGISTERING
                         break
-                self.lgr.debug(string_write("Total traffic: [{}]", len(self.chk.traffic_stat)))
+                self.lgr.debug(to_string("Total traffic: [{}]", len(self.chk.traffic_stat)))
                 self.add_interest_nodes(data)
             except Exception as ex:
-                self.lgr.error(string_write(
+                self.lgr.error(to_string(
                     "Exception on registering traffic, network [{}], traffic [{}]: {}",
                     tg.nwlayoutid, tg.traffic_name, str(ex)))
 
@@ -465,12 +467,12 @@ class TrafficState:
     @after('fire')
     def do_fire(self):
         """Tell agents to fire registerd traffic"""
-        self.lgr.info(string_write("Fire traffic: {}", str(self.current_state)))
-        console_write("Firing traffics ...")
+        self.lgr.info(to_string("Fire traffic: {}", str(self.current_state)))
+        to_console("Firing traffics ...")
         for agent in self.chk.available_agents.keys():
             if not self.traf_running:
                 break
-            console_write(string_write("Fire on {}", agent))
+            to_console(to_string("Fire on {}", agent))
             data = {
                 T_CLIENTID: agent,
                 T_TRAFFIC_TYPE: TrafficType.START.name,
@@ -480,14 +482,14 @@ class TrafficState:
     @before('traffic_finish')
     def do_traffic_finish(self):
         """Waif for one traffic finished"""
-        self.lgr.info(string_write("Traffic finished: {}", str(self.current_state)))
+        self.lgr.info(to_string("Traffic finished: {}", str(self.current_state)))
         self.chk._is_traffic_finished.wait()
         self.chk._is_traffic_finished.clear()
 
     @after('genreport')
     def do_genreport(self):
         """Analyze collected data and generate report"""
-        self.lgr.info(string_write("Try analysing: {}", str(self.current_state)))
+        self.lgr.info(to_string("Try analysing: {}", str(self.current_state)))
         if self.ctrl.tcfg.storagetype in [\
             (TrafficStorage.DB.name, StorageType.MongoDB.name),]:
             if self.current_genid is not None:
@@ -496,25 +498,26 @@ class TrafficState:
                     list(self.interest_nodes.get(T_GATEWAY)), list(self.interest_nodes.get(T_NODES))))
                 tmg.waitall()
         else:
-            self.lgr.info(string_write("Unsupported storage type: {}", str(self.ctrl.tcfg.storagetype)))
+            self.lgr.info(to_string("Unsupported storage type: {}", str(self.ctrl.tcfg.storagetype)))
 
     @after('finish')
     def do_finish(self):
         """All traffic finished"""
-        self.lgr.info(string_write("All finished: {}", str(self.current_state)))
+        self.lgr.info(to_string("All finished: {}", str(self.current_state)))
 #        if not self.traf_running:
 #            return
 
         try:
-            self.lgr.info("Stopping agents ...")
             self.trgens.clear()
-            stop_agents(self.ctrl.mqclient, self.ctrl.tcfg.mqtt_qos)
-            self.lgr.info("Wait for last notifications")
-            self.chk._is_traffic_all_unregistered.wait()
-            self.chk._is_traffic_all_unregistered.clear()
-            self.lgr.info("Agents stopped")
+            if len(self.chk.available_agents) > 0:
+                self.lgr.info("Stopping agents ...")
+                stop_agents(self.ctrl.mqclient, self.ctrl.tcfg.mqtt_qos)
+                self.lgr.info("Wait for last notifications")
+                self.chk._is_traffic_all_unregistered.wait()
+                self.chk._is_traffic_all_unregistered.clear()
+                self.lgr.info("Agents stopped")
         except Exception as ex:
-            self.lgr.error(string_write("Exception on stopping agents: {}", ex))
+            self.lgr.error(to_string("Exception on stopping agents: {}", ex))
 
         self.lgr.info("Stopping controller ...")
         self.ctrl.teardown()
@@ -526,7 +529,7 @@ class TrafficState:
                 self.lgr.info("Force stopping agents ...")
                 force_stop_agents(self.chk.expected_agents)
         except Exception as ex:
-            self.lgr.error(string_write("Exception on force stopping agents: {}", ex))
+            self.lgr.error(to_string("Exception on force stopping agents: {}", ex))
 
 if __name__ == '__main__':
     pass

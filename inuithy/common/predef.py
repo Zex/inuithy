@@ -111,6 +111,7 @@ T_TRAFFIC_STATUS = 'traffic_status'
 T_TID = 'tid'
 T_TRAFFIC_FINISH_DELAY = 'traffin_delay'
 T_EVERYONE = '*'
+T_NOI = 'noi' # Nodes of interest
 
 TrafficStatus = Enum("TrafficStatus", [
     "INITFAILED",       # Initialization failure
@@ -150,7 +151,7 @@ class GenInfo(object):
         self.genid = None
 
     def __str__(self):
-        return string_write("header: {}\ncsv: {}\npdf: {}\nfigures: {}\ngenid: {}\n",\
+        return to_string("header: {}\ncsv: {}\npdf: {}\nfigures: {}\ngenid: {}\n",\
                 self.header, self.csv_path, self.pdf_path, self.fig_base, self.genid)
 
 
@@ -202,12 +203,12 @@ CtrlCmd = Enum("CtrlCmd", [
     "AGENT_DISABLE_HEARTBEAT",
 ])
 
-def string_write(fmt, *params):
+def to_string(fmt, *params):
     if params is None or len(params) == 0:
         return fmt
     return fmt.format(*params)
 
-def console_write(fmt, *params):
+def to_console(fmt, *params):
     if params is None or len(params) == 0:
         print(fmt)
         return

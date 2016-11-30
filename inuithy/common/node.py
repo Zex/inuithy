@@ -2,7 +2,7 @@
  @author: Zex Li <top_zlynch@yahoo.com>
 """
 from inuithy.common.predef import TrafficType, T_MSG, T_GENID,\
-INUITHY_LOGCONFIG, string_write, T_TYPE, T_ADDR, T_PORT
+INUITHY_LOGCONFIG, to_string, T_TYPE, T_ADDR, T_PORT
 from inuithy.util.cmd_helper import pub_reportwrite, pub_notification
 from inuithy.protocol.ble_proto import BleProtocol as BleProt
 from inuithy.protocol.zigbee_proto import ZigbeeProtocol as ZbeeProt
@@ -53,7 +53,7 @@ class SerialNode(object):
 
     def read(self, rdbyte=0):
         """Read data ultility"""
-#        self.lgr.debug(string_write("SerialNode#R: rdbyte:{}", rdbyte))
+#        self.lgr.debug(to_string("SerialNode#R: rdbyte:{}", rdbyte))
         rdbuf = ""
         if self.__serial is not None and self.__serial.isOpen():
             if 0 < self.__serial.inWaiting():
@@ -64,7 +64,7 @@ class SerialNode(object):
 
     def write(self, data="", request=None):
         """Write data ultility"""
-#       self.lgr.debug(string_write("SerialNode#W: data:[{}], len:{}", data, len(data)))
+#       self.lgr.debug(to_string("SerialNode#W: data:[{}], len:{}", data, len(data)))
         written = 0
         if self.__serial is not None and self.__serial.isOpen():
             written = self.__serial.write(data)
@@ -88,7 +88,7 @@ class SerialNode(object):
                 self.read()
                 self.done.clear()
             except Exception as ex:
-                self.lgr.error(string_write("Exception in listener routine: {}", ex))
+                self.lgr.error(to_string("Exception in listener routine: {}", ex))
 
     def stop_listener(self):
         """Stop running listener"""

@@ -1,7 +1,7 @@
 """ General worker
  @author: Zex Li <top_zlynch@yahoo.com>
 """
-from inuithy.common.predef import INUITHY_LOGCONFIG, string_write
+from inuithy.common.predef import INUITHY_LOGCONFIG, to_string
 from queue import Queue, Empty
 import threading
 import logging
@@ -52,7 +52,7 @@ class Worker(object):
         while self._keep_working:# and not self.jobs.empty():
             try:
                 job = self.jobs.get(timeout=self.get_timeout)
-#                self.lgr.debug(string_write("job:{}", job))
+#                self.lgr.debug(to_string("job:{}", job))
                 if len(job) > 1 and job[0] is not None:
                     job[0](*job[1])
             except Empty:
