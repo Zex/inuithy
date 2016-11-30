@@ -3,17 +3,18 @@
 """
 from inuithy.common.version import INUITHY_ROOT
 from inuithy.common.predef import INUITHY_LOGCONFIG, INUITHY_CONFIG_PATH,\
-TRAFFIC_CONFIG_PATH, INUITHY_TITLE, INUITHY_VERSION, string_write,\
+TRAFFIC_CONFIG_PATH, INUITHY_TITLE, INUITHY_VERSION, to_string,\
 WorkMode
 from inuithy.util.config_manager import create_inuithy_cfg
-import inuithy.mode.auto_mode as auto
-import inuithy.mode.monitor_mode as moni
-import inuithy.util.console as tsh
+import inuithy.mode.auto as auto
+import inuithy.mode.monitor as moni
+#import inuithy.util.console as tsh
 from inuithy.util.task_manager import ProcTaskManager
 import logging
 import logging.config as lconf
 
 lconf.fileConfig(INUITHY_LOGCONFIG)
+controller = None
 
 def auto_mode_handler(tcfg, trcfg):
     """Handler for automatic mode
@@ -25,11 +26,14 @@ def auto_mode_handler(tcfg, trcfg):
 def manual_mode_handler(tcfg, trcfg):
     """Handler for manual mode
     """
-    tsh.start_console()
+    global controller
+    controller = auto.ManualController(tcfg, trcfg)
+    controller.start()
 
 def monitor_mode_handler(tcfg, trcfg):
     """Handler for monitoring mode
     """
+    global controller
     controller = moni.MonitorController(tcfg, trcfg)
     controller.start()
 
@@ -40,7 +44,7 @@ mode_route = {
 }
 
 def start_controller(tcfg, trcfg):
-    lgr.info(string_write("Start controller"))
+    lgr.info(to_string("Start controller"))
     cfg = create_inuithy_cfg(tcfg)
     if cfg is None:
         lgr.error("Preload failed")
@@ -49,19 +53,20 @@ def start_controller(tcfg, trcfg):
         lgr.error("Unknown work mode")
         return
     try:
-        procs = ProcTaskManager()
-        procs.create_task(mode_route[cfg.workmode], (tcfg, trcfg))
-        procs.waitall()
+        mode_route[cfg.workmode], (tcfg, trcfg)
+#        procs = ProcTaskManager()
+#        procs.create_task(mode_route[cfg.workmode], (tcfg, trcfg))
+#        procs.waitall()
     except KeyboardInterrupt:
-        lgr.info(string_write("Controller received keyboard interrupt"))
+        lgr.info(to_string("Controller received keyboard interrupt"))
         controller.teardown()
     except Exception as ex:
-        lgr.error(string_write("Exception on Controller: {}", ex))
+        lgr.error(to_string("Exception on Controller: {}", ex))
 #    finally:
     lgr.info("Bye~")
 
 if __name__ == '__main__':
     lgr = logging.getLogger('InuithyController')
-    lgr.info(string_write(INUITHY_TITLE, INUITHY_VERSION, "Controller"))
+    lgr.info(to_string(INUITHY_TITLE, INUITHY_VERSION, "Controller"))
     start_controller(INUITHY_CONFIG_PATH, TRAFFIC_CONFIG_PATH)
 
