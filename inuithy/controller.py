@@ -7,6 +7,7 @@ TRAFFIC_CONFIG_PATH, INUITHY_TITLE, INUITHY_VERSION, to_string,\
 WorkMode
 from inuithy.util.config_manager import create_inuithy_cfg
 import inuithy.mode.auto as auto
+import inuithy.mode.manual as manu
 import inuithy.mode.monitor as moni
 from inuithy.util.task_manager import ProcTaskManager
 import logging
@@ -19,21 +20,21 @@ def auto_mode_handler(tcfg, trcfg):
     """Handler for automatic mode
     """
     global controller
-    controller = auto.AutoController(tcfg, trcfg)
+    controller = auto.AutoCtrl(tcfg, trcfg)
     controller.start()
 
 def manual_mode_handler(tcfg, trcfg):
     """Handler for manual mode
     """
     global controller
-    controller = auto.ManualController(tcfg, trcfg)
+    controller = manu.ManualCtrl(tcfg, trcfg)
     controller.start()
 
 def monitor_mode_handler(tcfg, trcfg):
     """Handler for monitoring mode
     """
     global controller
-    controller = moni.MonitorController(tcfg, trcfg)
+    controller = moni.MoniCtrl(tcfg, trcfg)
     controller.start()
 
 mode_route = {
@@ -53,7 +54,7 @@ def start_controller(tcfg, trcfg):
         lgr.error("Unknown work mode")
         return
     try:
-        mode_route[cfg.workmode], (tcfg, trcfg)
+        mode_route[cfg.workmode](tcfg, trcfg)
     except KeyboardInterrupt:
         lgr.info(to_string("Controller received keyboard interrupt"))
         controller.teardown()
