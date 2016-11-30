@@ -2,7 +2,7 @@
  @uthor: Zex Li <top_zlynch@yahoo.com>
 """
 from inuithy.common.predef import MessageType, T_HOST, StorageType,\
-T_RECORDS, T_MSG_TYPE, string_write, T_TIME, T_GENID, T_CLIENTID,\
+T_RECORDS, T_MSG_TYPE, to_string, T_TIME, T_GENID, T_CLIENTID,\
 T_SRC, T_DEST, T_PKGSIZE
 from pymongo import MongoClient
 #from bson.objectid import ObjectId
@@ -55,7 +55,7 @@ class MongodbStorage(object):
 
     @property
     def storage_path(self):
-        return self.localpath or string_write("{}:{}", self.host, self.port)
+        return self.localpath or to_string("{}:{}", self.host, self.port)
     @storage_path.setter
     def storage_path(self, val):
         pass
@@ -86,7 +86,7 @@ class MongodbStorage(object):
         self.cli.close()
 
     def __str__(self):
-        return str(string_write("cli:{} host:{} port:{} name:{}", self.cli, self.host, self.port, self.storage_name))
+        return str(to_string("cli:{} host:{} port:{} name:{}", self.cli, self.host, self.port, self.storage_name))
 
     def insert_config(self, data):
         """

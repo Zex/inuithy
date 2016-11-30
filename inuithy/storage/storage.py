@@ -2,7 +2,7 @@
  @author: Zex Li <top_zlynch@yahoo.com>
 """
 from inuithy.common.predef import INUITHY_LOGCONFIG, T_PATH, T_TRAFFIC_STORAGE,\
-string_write, TrafficStorage, StorageType
+to_string, TrafficStorage, StorageType
 from inuithy.storage.mongodb_plugin import MongodbStorage
 from inuithy.storage.splunk_plugin import SplunkStorage
 import logging
@@ -44,7 +44,7 @@ class Storage(object):
 
     @property
     def storage_path(self):
-        return self.localpath or string_write("{}:{}", self.host, self.port)
+        return self.localpath or to_string("{}:{}", self.host, self.port)
     @storage_path.setter
     def storage_path(self, val):
         pass
@@ -65,7 +65,7 @@ class Storage(object):
         self.load_plugin(*self.tcfg.storagetype)
 
     def load_plugin(self, sttype, stname):
-        self.lgr.info(string_write("Load plugin: {}:{}", sttype, stname))
+        self.lgr.info(to_string("Load plugin: {}:{}", sttype, stname))
         s = self.tcfg.config[T_TRAFFIC_STORAGE]
         if sttype == TrafficStorage.DB.name:
             if stname == StorageType.MongoDB.name:
@@ -87,7 +87,7 @@ class Storage(object):
         try:
             self.__dbplugin.insert_record(data)
         except Exception as ex:
-            self.lgr.error(string_write("Insert record failed: {}", ex))
+            self.lgr.error(to_string("Insert record failed: {}", ex))
 
     def insert_config(self, data):
         """Insert current configure
@@ -96,7 +96,7 @@ class Storage(object):
         try:
             return self.__dbplugin.insert_config(data)
         except Exception as ex:
-            self.lgr.error(string_write("Insert config failed: {}", ex))
+            self.lgr.error(to_string("Insert config failed: {}", ex))
             return None
 
     def close(self):
