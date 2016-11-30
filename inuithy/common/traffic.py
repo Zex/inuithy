@@ -5,10 +5,10 @@ from inuithy.common.predef import T_PKGRATE, T_DURATION,\
 T_NWCONFIG_PATH, T_NWLAYOUT, T_SRCS, T_DESTS,\
 T_TARGET_TRAFFICS, TRAFFIC_CONFIG_PATH, NETWORK_CONFIG_PATH,\
 T_PKGSIZE, T_NODES, to_console, to_string, T_EVERYONE,\
-T_TRAFFIC_STATUS, TrafficStatus, T_TID
+T_TRAFFIC_STATUS, TrafficStatus, T_TID, T_NOI
 from inuithy.util.helper import getnwlayoutid, is_number
-#from inuithy.util.trigger import TrafficTrigger
 from inuithy.util.cmd_helper import pub_status
+from inuithy.common.node import SerialNode
 import time
 import threading
 import logging
@@ -104,13 +104,25 @@ class TrafficGenerator(object):
     def genid(self, val):
         self.__genid = val
 
+    @property
+    def noi(self):
+        """Nodes of interest"""
+        return self.__noi
+
+    @noi.setter
+    def noi(self, val):
+        if not isinstance(val, int):
+            raise TypeError("Integer expected")
+        self.__noi = val
+
     def __init__(self, trcfg, nwcfg, trname, genid=None):
         self.traffic_name = trname
         self.cur_trcfg = trcfg.config[trname]
         self.__nwconfig_file = ''
         self.__nwconfig_name = ''
-        self.__pkgrate = self.cur_trcfg[T_PKGRATE]
-        self.__duration = self.cur_trcfg[T_DURATION]
+        self.__pkgrate = self.cur_trcfg.get(T_PKGRATE)
+        self.__duration = self.cur_trcfg.get(T_DURATION)
+        self.__noi = self.cur_trcfg.get(T_NOI)
         # In second
         self.interval = 1/self.pkgrate
         self.traffics = []
@@ -180,7 +192,6 @@ class TrafficGenerator(object):
                 self.traffics.append(tr)
         return self
 
-
     def start(self):
         self.__trigger.start()
 
@@ -223,6 +234,7 @@ class TrafficExecutor(threading.Thread):
         self.mqclient = mqclient
         self.tid = tid
         self.nextshot = threading.Event()
+        self.data = data
 
     def run(self):
         self.lgr.debug(to_string("Start traffic [{}]", self))
@@ -233,8 +245,8 @@ class TrafficExecutor(threading.Thread):
             self.node.traffic(self.request)
             self.nextshot.wait(self.interval)
             self.nextshot.clear()
-            if data is not None and isinstance(data, SerialNode):
-               data.read_event.set() 
+            if self.data is not None and isinstance(self.data, set):
+                [n.read_event.set() for n in self.data if isinstance(n, SerialNode)]
 
     def stop_trigger(self):
         to_console("{}: ========Stopping trigger============", self)
@@ -279,11 +291,6 @@ if __name__ == '__main__':
 #    cur_trcfg = trcfg.config['traffic_6']
 #    srcs = TrafficGenerator.parse_srcs(cur_trcfg, nwcfg)
 #    dests = TrafficGenerator.parse_dests(cur_trcfg, nwcfg)
-#    print(srcs)
-#    print(dests)
 
 #    trgens = create_traffics(trcfg, nwcfg)
-#    print(len(trgens))
-#    for tg in trgens:
-#        print(len(tg.traffics))
 
