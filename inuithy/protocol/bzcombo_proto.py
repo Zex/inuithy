@@ -2,7 +2,7 @@
  @author Zex Li <top_zlynch@yahoo.com>
  @reference BLE_Control_Protocol.pdf
 """
-from inuithy.common.predef import string_write
+from inuithy.common.predef import to_string
 #, MessageType,\
 #TrafficType, T_SRC, T_DEST, T_CHANNEL, T_MSG_TYPE, T_TRAFFIC_TYPE,\
 #T_GENID, T_ADDR, T_TIME, T_NODE, T_PANID

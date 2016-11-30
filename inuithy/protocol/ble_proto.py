@@ -2,7 +2,7 @@
  @author Zex Li <top_zlynch@yahoo.com>
  @reference BLE_Control_Protocol.pdf
 """
-from inuithy.common.predef import string_write, MessageType,\
+from inuithy.common.predef import to_string, MessageType,\
 TrafficType, T_SRC, T_DEST, T_CHANNEL, T_MSG_TYPE, T_TRAFFIC_TYPE,\
 T_GENID, T_ADDR, T_TIME, T_NODE, T_PANID
 from inuithy.protocol.protocol import Protocol
@@ -68,8 +68,8 @@ class BleProtocol(Protocol):
             T_MSG_TYPE: MessageType.RECV.name,\
             T_NODE: node.addr,\
 #            T_MSG: data,
-            T_SRC: '7711', #TODO
-            T_DEST: node.addr,\
+            T_SRC: hex(random.randint(4096, 65535))[2:], #TODO
+            T_DEST: node.addr,
         }
 #        if data.split(' ')[0] == 'joingrp':
 #            report[T_TRAFFIC_TYPE] = TrafficType.JOIN.name

@@ -1,7 +1,7 @@
 """ Zigbee protocol definition
  @author: Zex Li <top_zlynch@yahoo.com>
 """
-from inuithy.common.predef import string_write, T_TIME, T_TYPE,\
+from inuithy.common.predef import to_string, T_TIME, T_TYPE,\
 MessageType, TrafficType, T_NODE, T_MSG_TYPE, T_TRAFFIC_TYPE,\
 T_GENID, T_CHANNEL, T_PANID, T_SPANID, T_DEST, T_PKGSIZE, T_SRC
 from inuithy.protocol.protocol import Protocol
@@ -140,7 +140,7 @@ class ZigbeeProtocol(Protocol):
 #                if status == '0x00':
 #                    node.nr_messages_sent += 1
             else:
-                PROTO.lgr.error(string_write('Incorrect send confirm: {}', data))
+                PROTO.lgr.error(to_string('Incorrect send confirm: {}', data))
         elif msg_type == MessageType.RECV.name:
             report = {\
                 T_TRAFFIC_TYPE: TrafficType.SCMD.name,\
