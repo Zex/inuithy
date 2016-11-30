@@ -2,14 +2,12 @@
  @author: Zex Li <top_zlynch@yahoo.com>
 """
 from inuithy.common.version import INUITHY_VERSION
-from inuithy.common.predef import T_CLIENTID, T_TRAFFIC_TYPE, T_PANID,\
-T_NODE, T_HOST, T_NODES, INUITHY_TOPIC_HEARTBEAT, T_TID, T_MSG, T_SPANID,\
-T_TRAFFIC_STATUS, TrafficStatus, TrafficType, to_string, to_console,\
-MessageType, TRAFFIC_CONFIG_PATH, INUITHY_CONFIG_PATH, INUITHY_TITLE, T_SRC,\
-INUITHY_TOPIC_UNREGISTER, INUITHY_LOGCONFIG, T_DEST, T_MSG_TYPE, T_VERSION,\
-INUITHY_TOPIC_STATUS, INUITHY_TOPIC_REPORTWRITE, INUITHY_TOPIC_NOTIFICATION
+from inuithy.common.predef import INUITHY_TOPIC_HEARTBEAT, INUITHY_TOPIC_STATUS,\
+INUITHY_TOPIC_REPORTWRITE, INUITHY_TOPIC_NOTIFICATION, INUITHY_TOPIC_UNREGISTER,\
+TRAFFIC_CONFIG_PATH, INUITHY_CONFIG_PATH, INUITHY_TITLE, INUITHY_LOGCONFIG,\
+to_string
 from inuithy.mode.base import ControllerBase
-from inuithy.util.cmd_helper import stop_agents, extract_payload
+from inuithy.util.cmd_helper import stop_agents
 import paho.mqtt.client as mqtt
 import logging
 import logging.config as lconf
@@ -21,6 +19,7 @@ class AutoController(ControllerBase):
     """Controller in automatic mode
     """
     def create_mqtt_client(self, host, port):
+        self.lgr.info("Create MQTT client")
         self._mqclient = mqtt.Client(self.clientid, True, self)
         self._mqclient.on_connect = AutoController.on_connect
         self._mqclient.on_message = AutoController.on_message
@@ -34,12 +33,23 @@ class AutoController(ControllerBase):
             (INUITHY_TOPIC_NOTIFICATION, self.tcfg.mqtt_qos),
         ])
 
+    def register_routes(self):
+        self.lgr.info("Register routes")
+        self.topic_routes = {
+            INUITHY_TOPIC_HEARTBEAT:      self.on_topic_heartbeat,
+            INUITHY_TOPIC_UNREGISTER:     self.on_topic_unregister,
+            INUITHY_TOPIC_STATUS:         self.on_topic_status,
+            INUITHY_TOPIC_REPORTWRITE:    self.on_topic_reportwrite,
+            INUITHY_TOPIC_NOTIFICATION:   self.on_topic_notification,
+        }
+
     def __init__(self, inuithy_cfgpath='config/inuithy.conf',\
         traffic_cfgpath='config/traffics.conf', lgr=None, delay=4):
         ControllerBase.__init__(self, inuithy_cfgpath, traffic_cfgpath, lgr, delay)
         self.lgr = lgr
         if self.lgr is None:
             self.lgr = logging
+        self.register_routes()
 
     def start(self):
         """Start controller routine"""
@@ -53,6 +63,7 @@ class AutoController(ControllerBase):
                 self._traffic_timer.start()
             if self.worker is not None:
                 self.worker.start()
+            stop_agents(self.mqclient)
             self.alive_notification()
             self._mqclient.loop_forever()
         except KeyboardInterrupt:

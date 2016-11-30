@@ -2,10 +2,12 @@
  @author: Zex Li <top_zlynch@yahoo.com>
 """
 from inuithy.common.predef import T_CTRLCMD, CtrlCmd, T_CLIENTID,\
-T_HOST, T_NODES, AgentStatus, INUITHY_LOGCONFIG, mqlog_map,\
-to_string, INUITHYCONTROLLER_CLIENT_ID
+T_HOST, T_NODES, AgentStatus, INUITHY_LOGCONFIG, mqlog_map, T_TID,\
+to_string, INUITHYCONTROLLER_CLIENT_ID, T_TRAFFIC_STATUS, T_MSG,\
+T_TRAFFIC_TYPE, TrafficType, T_NODE, TrafficStatus, T_VERSION,\
+MessageType
 from inuithy.util.helper import getnwlayoutid
-from inuithy.util.cmd_helper import pub_ctrlcmd
+from inuithy.util.cmd_helper import pub_ctrlcmd, extract_payload
 from inuithy.util.traffic_state import TrafficState
 from inuithy.storage.storage import Storage
 from inuithy.common.agent_info import AgentInfo
@@ -17,6 +19,9 @@ import logging, socket
 import logging.config as lconf
 
 lconf.fileConfig(INUITHY_LOGCONFIG)
+
+INUITHY_MQTTMSGFMT = "dup:{}, info:{}, mid:{}, payload:[{}], \
+qos:{}, retain:{}, state:{}, timestamp:{}, topic:[{}]"
 
 class ControllerBase(object):
     """Base of controllers
@@ -118,17 +123,6 @@ class ControllerBase(object):
     def node2aid(self):
         """Node address => connected host"""
         return self.traffic_state.chk.node2aid
-#    @node2aid.setter
-#    def node2aid(self, val):
-#        pass
-
-#    @property
-#    def host2aid(self):
-#        """host => agentid"""
-#        return self.traffic_state.chk.host2aid
-#    @host2aid.setter
-#    def host2aid(self, val):
-#        pass
 
     @property
     def current_nwlayout(self):
@@ -161,7 +155,7 @@ class ControllerBase(object):
         @delay Start traffic after @delay seconds
         """
         self.lgr = lgr
-        if lgr is None:
+        if self.lgr is None:
             self.lgr = logging
         self._mqclient = None
         self._storage = None
@@ -181,15 +175,6 @@ class ControllerBase(object):
 
     def __str__(self):
         return to_string("clientid:[{}] host:[{}]", self.clientid, self.host)
-
-    def register_routes(self):
-        self.topic_routes = {
-            INUITHY_TOPIC_HEARTBEAT:      self.on_topic_heartbeat,
-            INUITHY_TOPIC_UNREGISTER:     self.on_topic_unregister,
-            INUITHY_TOPIC_STATUS:         self.on_topic_status,
-            INUITHY_TOPIC_REPORTWRITE:    self.on_topic_reportwrite,
-            INUITHY_TOPIC_NOTIFICATION:   self.on_topic_notification,
-        }
 
     @staticmethod
     def on_connect(client, userdata, rc):
@@ -223,6 +208,7 @@ class ControllerBase(object):
             client, userdata, rc))
         if 0 != rc:
             userdata.lgr.error(to_string("MQ.Disconnection: disconnection error"))
+        userdata.teardown()
 
     @staticmethod
     def on_log(client, userdata, level, buf):
@@ -254,6 +240,7 @@ class ControllerBase(object):
 
     def add_agent(self, agentid, host, nodes):
         """Register started agent"""
+        self.lgr.info("Add agent") 
         if self.available_agents.get(agentid) is None:
             self.available_agents[agentid] = AgentInfo(agentid, host, AgentStatus.ONLINE, nodes)
             self.lgr.info(to_string("Agent {} added", agentid))
@@ -342,6 +329,7 @@ class ControllerBase(object):
 #                stop_agents(self._mqclient, self.tcfg.mqtt_qos)
                 if self.traffic_state:
                     self.traffic_state.traf_running = False
+                    self.traffic_state.chk.set_all()
                 if self._traffic_timer:
                     self._traffic_timer.cancel()
                 if self.storage:
@@ -350,7 +338,7 @@ class ControllerBase(object):
                     self.worker.stop()
                 if self.mqclient:
                     self.mqclient.disconnect()
-                self.traffic_state.chk.done.set()
+#                self.traffic_state.chk.done.set()
         except Exception as ex:
             self.lgr.error(to_string("Exception on teardown: {}", ex))
 

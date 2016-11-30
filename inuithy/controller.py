@@ -8,7 +8,6 @@ WorkMode
 from inuithy.util.config_manager import create_inuithy_cfg
 import inuithy.mode.auto as auto
 import inuithy.mode.monitor as moni
-#import inuithy.util.console as tsh
 from inuithy.util.task_manager import ProcTaskManager
 import logging
 import logging.config as lconf
@@ -44,6 +43,7 @@ mode_route = {
 }
 
 def start_controller(tcfg, trcfg):
+    global controller
     lgr.info(to_string("Start controller"))
     cfg = create_inuithy_cfg(tcfg)
     if cfg is None:
@@ -54,9 +54,6 @@ def start_controller(tcfg, trcfg):
         return
     try:
         mode_route[cfg.workmode], (tcfg, trcfg)
-#        procs = ProcTaskManager()
-#        procs.create_task(mode_route[cfg.workmode], (tcfg, trcfg))
-#        procs.waitall()
     except KeyboardInterrupt:
         lgr.info(to_string("Controller received keyboard interrupt"))
         controller.teardown()
