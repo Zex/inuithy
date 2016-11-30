@@ -55,18 +55,20 @@ class ZbeeReport(object):
                 nodes = addr_grp.groups.keys()
 
             for addr in nodes:
-                grp = addr_grp.get_group(addr)
-                index = np.arange(len(grp[item].values))
-                data = pd.DataFrame({addr: grp[item].values}, index=index)
-                if df is None:
-                    df = data
-                else:
-                    df = df.join(data, how='outer')
-
-            df = df.fillna(value=0)
-            df = df.diff()
+                try:
+                    grp = addr_grp.get_group(addr)
+                    index = np.arange(len(grp[item].values))
+                    data = pd.DataFrame({addr: grp[item].values}, index=index)
+                    if df is None:
+                        df = data
+                    else:
+                        df = df.join(data, how='outer')
+                except KeyError as ex:
+                    lgr.error(to_string("No record for node [{}]: {}", addr, ex))
 
             if df is not None and not df.empty:
+                df = df.fillna(value=0)
+                df = df.diff()
                 if iloc_range is not None:
                     df = df.iloc[iloc_range[0]:iloc_range[1]]
                 if title is None or len(title) == 0:
@@ -180,14 +182,14 @@ class ZbeeReport(object):
         storage = Storage(ginfo.cfg, lgr)
 
         if ginfo.src_type == TrafficStorage.DB.name:
-            return ZbeeReport.import_from_db(ginfo)
+            return ZbeeReport.import_from_db(ginfo, storage)
         elif ginfo.src_type == TrafficStorage.FILE.name:
-            return ZbeeReport.import_from_file(ginfo)
+            return ZbeeReport.import_from_file(ginfo, storage)
         else:
             lgr.error(to_string("Unsupported storage type: {}", ginfo.src_type))
 
     @staticmethod
-    def import_from_db(ginfo):
+    def import_from_db(ginfo, storage):
         """Import traffic data from database"""
         raw, pdata = None, None
         for r in storage.trafrec.find({
@@ -196,6 +198,7 @@ class ZbeeReport(object):
             recs = r.get(T_RECORDS)
             #csv_data = ZbeeReport.create_csv(recs, ginfo)
             raw = pd.DataFrame.from_records(recs)
+            print(raw)
             pdata = pd.DataFrame(raw[pd.notnull(raw[ginfo.header[2]])])
 #            pdata = pdata.fillna(value=0)
             [pdata.__setitem__(item, pdata[item].astype(int)) for item in ginfo.header[2:]]
@@ -206,7 +209,7 @@ class ZbeeReport(object):
 #                fd.write(','.join(h for h in ginfo.header) + '\n')
 #                [fd.write(line + '\n') for line in csv_data]
     @staticmethod
-    def import_from_file(ginfo):
+    def import_from_file(ginfo, storage):
         """Import traffic data from file"""
         raw, pdata = None, None
         raw = pd.DataFrame.from_csv(ginfo.csv_path, index_col=None)

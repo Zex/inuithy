@@ -49,18 +49,20 @@ class BleReport(object):
                 nodes = addr_grp.groups.keys()
 
             for addr in nodes:
-                grp = addr_grp.get_group(addr)
-                index = np.arange(len(grp[item].values))
-                data = pd.DataFrame({addr: grp[item].values}, index=index)
-                if df is None:
-                    df = data
-                else:
-                    df = df.join(data, how='outer')
-
-            df = df.fillna(value=0)
-            df = df.diff()
+                try:
+                    grp = addr_grp.get_group(addr)
+                    index = np.arange(len(grp[item].values))
+                    data = pd.DataFrame({addr: grp[item].values}, index=index)
+                    if df is None:
+                        df = data
+                    else:
+                        df = df.join(data, how='outer')
+                except KeyError as ex:
+                    lgr.error(to_string("No record for node [{}]: {}", addr, ex))
 
             if df is not None and not df.empty:
+                df = df.fillna(value=0)
+                df = df.diff()
                 if iloc_range is not None:
                     df = df.iloc[iloc_range[0]:iloc_range[1]]
                 if title is None or len(title) == 0:
