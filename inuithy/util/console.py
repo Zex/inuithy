@@ -5,7 +5,6 @@ from inuithy.common.version import INUITHY_ROOT, INUITHY_VERSION
 from inuithy.common.predef import INUITHY_LOGCONFIG, INUITHY_TITLE,\
 INUITHY_CONFIG_PATH, TRAFFIC_CONFIG_PATH, to_console, to_string,\
 T_EVERYONE
-#from inuithy.mode.manual_mode import ManualController
 from inuithy.common.command import TSH_ERR_GENERAL, TSH_ERR_HANDLING_CMD,\
 Command, Usage, TSH_ERR_INVALID_CMD
 from inuithy.util.helper import valid_cmds, runonremote, delimstr
@@ -162,9 +161,10 @@ class Console(object):#threading.Thread):
             TSH_CMD_GENREPORT:  self.on_cmd_traffic_genreport,
         }
 
-    def __init__(self, ctrl=None):
-#        threading.Thread.__init__(self, target=target, name=name, args=args, kwargs=kwargs, daemon=False)
-        self.lgr = logging.getLogger("InuithyShell")
+    def __init__(self, ctrl=None, lgr=None):
+        self.lgr = lgr
+        if self.lgr is None:
+            self.lgr = logging #logging.getLogger("InuithyShell")
         self._title = INUITHY_TITLE.format(INUITHY_VERSION, "Shell")
         self._running = True
         self._banner = ""
@@ -172,16 +172,7 @@ class Console(object):#threading.Thread):
         self._setup_banner()
         self._register_routes()
         self.ctrl = ctrl
-#        self.create_controller()
-#
-#    def create_controller(self):
-#        """Run a Controller in manual mode"""
-#        self.lgr.info("Create controller")
-#        self.ctrl = ManualController(INUITHY_CONFIG_PATH, TRAFFIC_CONFIG_PATH, lgr=self.lgr)
-#        self.ctrl.start()
-##        self.ctrl_proc = threading.Thread(target=self.ctrl.start, name="Ctrl@InuithyShell")
-##        self.ctrl_proc.daemon = False
-#
+
     def on_cmd_agent_start(self, *args, **kwargs):
         """Agent start command handler"""
         self.lgr.info("On command agent start")
@@ -221,6 +212,7 @@ class Console(object):#threading.Thread):
 
     def on_cmd_agent_list_less(self, *args, **kwargs):
         """List available agnents with less details"""
+        self.lgr.info("On command agent list less")
         [to_console("{}", k) for k in self.ctrl.available_agents.keys()]
 
     def on_cmd_agent_list(self, *args, **kwargs):
@@ -295,6 +287,7 @@ class Console(object):#threading.Thread):
 
     def on_cmd_traffic_register(self, *args, **kwargs):
         """Register traffic command handler"""
+        self.lgr.info("On command traffic register")
         to_console("Registering traffic")
         self.ctrl.traffic_state.register()
         self.ctrl.traffic_state.wait_traffic()
@@ -302,6 +295,7 @@ class Console(object):#threading.Thread):
 
     def on_cmd_traffic_run(self, *args, **kwargs):
         """Run traffic command handler"""
+        self.lgr.info("On command traffic run")
         to_console("Start firing")
         self.ctrl.traffic_state.fire()
         self.ctrl.traffic_state.traffic_finish()
@@ -309,6 +303,7 @@ class Console(object):#threading.Thread):
 
     def on_cmd_help(self, *args, **kwargs):
         """Help command handler"""
+        self.lgr.info("On command help")
         if args is None or len(args) == 0 or len(args[0]) == 0:
             to_console(str(self.usages['usage']))
             return
@@ -325,29 +320,31 @@ class Console(object):#threading.Thread):
 
     def on_cmd_quit(self, *args, **kwargs):
         """Quit command handler"""
+        self.lgr.info("On command quit")
         try:
             self.running = False
             if self.ctrl and self.ctrl.traffic_state:
                 self.ctrl.traffic_state.finish()
-#            if self.ctrl_proc and self.ctrl_proc.is_alive():
-#                self.ctrl_proc.join()
         except Exception as ex:
             to_console("Exception on quit: {}", ex)
 
     def on_cmd_rsys(self, *args, **kwargs):
         """Remote system command handler"""
+        self.lgr.info("On command rsys")
         if args is None or len(args) < 2:
             return
         runonremote('root', args[0], ' '.join(args[1:]))
 
     def on_cmd_sys(self, *args, **kwargs):
         """System command handler"""
+        self.lgr.info("On command sys")
         if args is None or len(args) == 0:
             return
         os.system(args[0])
 
     def console_loop(self, tshhist=None):
         """Console main loop"""
+        self.lgr.info("Console loop started")
         while self.running:
             try:
                 command = console_reader(to_string(DEFAULT_PROMPT, self._host))
@@ -360,18 +357,20 @@ class Console(object):#threading.Thread):
             except Exception as ex:
                 to_console(TSH_ERR_GENERAL, ex)
             except KeyboardInterrupt:
+                to_console("Terminating ...")
                 self.on_cmd_quit()
 
     def start(self):
         """Start inuithy shell"""
+        self.lgr.info("Start console")
         to_console(self._title)
         to_console(self._banner)
-#        self.ctrl_proc.start()
         mod = os.path.exists(self.ctrl.tcfg.tsh_hist) and 'a+' or 'w+'
         with open(self.ctrl.tcfg.tsh_hist, mod) as tshhist:
             self.console_loop(tshhist)
 
     def dispatch(self, command):
+        self.lgr.info("Dispatch command")
         if command is None or len(command) == 0:
             return
         cmds = valid_cmds(command)
@@ -386,11 +385,11 @@ class Console(object):#threading.Thread):
         except Exception as ex:
             to_console(TSH_ERR_HANDLING_CMD, command, ex)
 
-def start_console(ctrl):
-    """Shortcut to start a inuithy shell"""
-    term = Console(ctrl)
-    term.start()
-    to_console("\nBye~\n")
-
-if __name__ == '__main__':
-    start_console()
+#def start_console(ctrl):
+#    """Shortcut to start a inuithy shell"""
+#    term = Console(ctrl)
+#    term.start()
+#    to_console("\nBye~\n")
+#
+#if __name__ == '__main__':
+#    start_console()

@@ -4,7 +4,7 @@
 from inuithy.common.predef import T_TID, T_GENID, T_TRAFFIC_TYPE,\
 T_CLIENTID, T_NODE, T_HOST, T_DURATION, T_INTERVAL, T_GATEWAY, T_SRC,\
 T_DEST, T_PKGSIZE, T_NODES, T_PATH, T_NWLAYOUT, T_PANID, T_SPANID,\
-to_console, to_string, TrafficType, T_TRAFFIC_FINISH_DELAY,\
+to_console, to_string, TrafficType, T_TRAFFIC_FINISH_DELAY, T_NOI,\
 TrafficStorage, StorageType, INUITHY_CONFIG_PATH, TrafficStatus
 from inuithy.util.helper import getnwlayoutname
 from inuithy.util.cmd_helper import pub_traffic, start_agents,\
@@ -48,6 +48,18 @@ class TrafStatChk(object):
         self._is_traffic_all_fired = threading.Event()
         self._is_traffic_finished = threading.Event()
         self._is_traffic_all_unregistered = threading.Event()
+
+    def set_all(self):
+        for e in [
+           self._is_agents_all_up,
+           self._is_network_layout_done,
+           self._is_traffic_all_registered,
+           self._is_traffic_all_fired,
+           self._is_traffic_finished,
+           self._is_traffic_all_unregistered,
+            ]:
+            if not e.isSet():
+                e.set()
 
     def create_nwlayout(self, nwinfo):#nwid, nodes):
         """Create map of network layout configure"""
@@ -236,10 +248,12 @@ class TrafficState:
         self.chk_delay = 10
         self.trgens = []
         self.chk = TrafStatChk()
-        self.interest_nodes = {}
+        self.noi = {}
 
     def record_genid(self, genid):
         """Record running generator ID"""
+        if not self.traf_running:
+            return
         try:
             self.current_genid = genid
             with open(self.ctrl.tcfg.config[T_GENID][T_PATH], 'a') as fd:
@@ -309,7 +323,7 @@ class TrafficState:
             start_agents(self.chk.expected_agents)
             self.wait_agent()
             try:
-                while True:
+                while self.traf_running:
                     gid = self.next()
                     if gid is not None:
                         self.start_one()
@@ -362,16 +376,16 @@ class TrafficState:
         self.lgr.info(to_string("Config network: [{}]", nwlayoutname))
         if not self.traf_running:
             return
-        self.interest_nodes.clear()
-        self.interest_nodes[T_GATEWAY] = set()
-        self.interest_nodes[T_NWLAYOUT] = set()
+        self.noi.clear()
+        self.noi[T_GATEWAY] = set()
+        self.noi[T_NWLAYOUT] = set()
         for subnet in self.ctrl.nwcfg.config.get(nwlayoutname).values():
-            self.interest_nodes[T_GATEWAY].add(subnet.get(T_GATEWAY))
+            self.noi[T_GATEWAY].add(subnet.get(T_GATEWAY))
             data = deepcopy(subnet)
             del data[T_NODES] # Remove additional info
             self.chk.create_nwlayout(subnet)
             for node in subnet.get(T_NODES):
-                self.interest_nodes[T_NWLAYOUT].add(node)
+                self.noi[T_NWLAYOUT].add(node)
                 target_host = self.chk.node2host.get(node)
                 if target_host is None:
                     raise ValueError(to_string("Node [{}] not found on any agent", node))
@@ -453,21 +467,31 @@ class TrafficState:
 
     def add_interest_nodes(self, data):
         """Nodes we interested in"""
-        if self.interest_nodes.get(T_NODES) is None:
-            self.interest_nodes[T_NODES] = set([data.get(T_SRC)])
+        if not self.traf_running:
+            return
+
+        noi = self.ctrl.trcfg.config.get(T_NOI)
+
+        if noi is None or len(noi) == 0:
+            if self.noi.get(T_NODES) is None:
+                self.noi[T_NODES] = set([data.get(T_SRC)])
+            else:
+                self.noi[T_NODES].add(data.get(T_SRC))
+            
+            if data.get(T_DEST) != TRAFFIC_BROADCAST_ADDRESS:
+                self.noi[T_NODES].add(data.get(T_DEST))
+            else:
+                [self.noi[T_NODES].add(x) for x in \
+                    self.noi.get(T_NWLAYOUT)]
         else:
-            self.interest_nodes[T_NODES].add(data.get(T_SRC))
-        
-        if data.get(T_DEST) != TRAFFIC_BROADCAST_ADDRESS:
-            self.interest_nodes[T_NODES].add(data.get(T_DEST))
-        else:
-            [self.interest_nodes[T_NODES].add(x) for x in \
-                self.interest_nodes.get(T_NWLAYOUT)]
+            self.noi[T_NODES] = set(noi)
 
     @after('fire')
     def do_fire(self):
         """Tell agents to fire registerd traffic"""
         self.lgr.info(to_string("Fire traffic: {}", str(self.current_state)))
+        if not self.traf_running:
+            return
         to_console("Firing traffics ...")
         for agent in self.chk.available_agents.keys():
             if not self.traf_running:
@@ -483,6 +507,8 @@ class TrafficState:
     def do_traffic_finish(self):
         """Waif for one traffic finished"""
         self.lgr.info(to_string("Traffic finished: {}", str(self.current_state)))
+        if not self.traf_running:
+            return
         self.chk._is_traffic_finished.wait()
         self.chk._is_traffic_finished.clear()
 
@@ -490,12 +516,14 @@ class TrafficState:
     def do_genreport(self):
         """Analyze collected data and generate report"""
         self.lgr.info(to_string("Try analysing: {}", str(self.current_state)))
+        if not self.traf_running:
+            return
         if self.ctrl.tcfg.storagetype in [\
             (TrafficStorage.DB.name, StorageType.MongoDB.name),]:
             if self.current_genid is not None:
                 tmg = ProcTaskManager()
                 tmg.create_task(ReportAdapter.generate, (self.current_genid,
-                    list(self.interest_nodes.get(T_GATEWAY)), list(self.interest_nodes.get(T_NODES))))
+                    list(self.noi.get(T_GATEWAY)), list(self.noi.get(T_NODES))))
                 tmg.waitall()
         else:
             self.lgr.info(to_string("Unsupported storage type: {}", str(self.ctrl.tcfg.storagetype)))
@@ -509,9 +537,10 @@ class TrafficState:
 
         try:
             self.trgens.clear()
+            self.lgr.info("Stopping agents ...")
+            stop_agents(self.ctrl.mqclient, self.ctrl.tcfg.mqtt_qos)
+
             if len(self.chk.available_agents) > 0:
-                self.lgr.info("Stopping agents ...")
-                stop_agents(self.ctrl.mqclient, self.ctrl.tcfg.mqtt_qos)
                 self.lgr.info("Wait for last notifications")
                 self.chk._is_traffic_all_unregistered.wait()
                 self.chk._is_traffic_all_unregistered.clear()
