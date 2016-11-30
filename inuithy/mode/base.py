@@ -3,7 +3,7 @@
 """
 from inuithy.common.predef import T_CTRLCMD, CtrlCmd, T_CLIENTID,\
 T_HOST, T_NODES, AgentStatus, INUITHY_LOGCONFIG, mqlog_map,\
-string_write, INUITHYCONTROLLER_CLIENT_ID
+to_string, INUITHYCONTROLLER_CLIENT_ID
 from inuithy.util.helper import getnwlayoutid
 from inuithy.util.cmd_helper import pub_ctrlcmd
 from inuithy.util.traffic_state import TrafficState
@@ -168,7 +168,7 @@ class ControllerBase(object):
         self.topic_routes = {}
         self._current_nwlayout = ('', '')
         self._host = socket.gethostname()
-        self._clientid = string_write(INUITHYCONTROLLER_CLIENT_ID, self.host)
+        self._clientid = to_string(INUITHYCONTROLLER_CLIENT_ID, self.host)
         self.worker = Worker(2, self.lgr)
         if self.load_configs(inuithy_cfgpath, traffic_cfgpath):
             self._traffic_state = TrafficState(self, self.lgr)
@@ -180,7 +180,7 @@ class ControllerBase(object):
         pass
 
     def __str__(self):
-        return string_write("clientid:[{}] host:[{}]", self.clientid, self.host)
+        return to_string("clientid:[{}] host:[{}]", self.clientid, self.host)
 
     def register_routes(self):
         self.topic_routes = {
@@ -194,16 +194,16 @@ class ControllerBase(object):
     @staticmethod
     def on_connect(client, userdata, rc):
         """MQ connect event handler"""
-        userdata.lgr.info(string_write(
+        userdata.lgr.info(to_string(
             "MQ.Connection client:{} userdata:[{}] rc:{}", client, userdata, rc))
         if rc != 0:
-            userdata.lgr.info(string_write("MQ.Connection: connection error"))
+            userdata.lgr.info(to_string("MQ.Connection: connection error"))
 
     @staticmethod
     def on_message(client, userdata, message):
         """MQ message event handler"""
-#        userdata.lgr.info(string_write("MQ.Message: userdata:[{}]", userdata))
-#        userdata.lgr.info(string_write("MQ.Message: message "+INUITHY_MQTTMSGFMT,
+#        userdata.lgr.info(to_string("MQ.Message: userdata:[{}]", userdata))
+#        userdata.lgr.info(to_string("MQ.Message: message "+INUITHY_MQTTMSGFMT,
 #            message.dup, message.info, message.mid, message.payload,
 #            message.qos, message.retain, message.state, message.timestamp,
 #            message.topic))
@@ -213,16 +213,16 @@ class ControllerBase(object):
                 userdata.worker.add_job(handler, message)
 #            userdata.topic_routes[message.topic](message)
         except Exception as ex:
-            userdata.lgr.error(string_write("Exception on MQ message dispatching: {}", ex))
+            userdata.lgr.error(to_string("Exception on MQ message dispatching: {}", ex))
 
     @staticmethod
     def on_disconnect(client, userdata, rc):
         """MQ disconnect event handler"""
-        userdata.lgr.info(string_write(
+        userdata.lgr.info(to_string(
             "MQ.Disconnection: client:{} userdata:[{}] rc:{}",
             client, userdata, rc))
         if 0 != rc:
-            userdata.lgr.error(string_write("MQ.Disconnection: disconnection error"))
+            userdata.lgr.error(to_string("MQ.Disconnection: disconnection error"))
 
     @staticmethod
     def on_log(client, userdata, level, buf):
@@ -232,20 +232,20 @@ class ControllerBase(object):
     @staticmethod
     def on_publish(client, userdata, mid):
         """MQ publish event handler"""
-        userdata.lgr.info(string_write(
+        userdata.lgr.info(to_string(
             "MQ.Publish: client:{} userdata:[{}], mid:{}", client, userdata, mid))
 
     @staticmethod
     def on_subscribe(client, userdata, mid, granted_qos):
         """MQ subscribe event handler"""
-        userdata.lgr.info(string_write(
+        userdata.lgr.info(to_string(
             "MQ.Subscribe: client:{} userdata:[{}], mid:{}, grated_qos:{}",
             client, userdata, mid, granted_qos))
 
     def alive_notification(self):
         """Broadcast on new controller startup
         """
-        self.lgr.info(string_write("New controller notification {}", self.clientid))
+        self.lgr.info(to_string("New controller notification {}", self.clientid))
         data = {
             T_CTRLCMD:  CtrlCmd.NEW_CONTROLLER.name,
             T_CLIENTID: self.clientid,
@@ -256,10 +256,10 @@ class ControllerBase(object):
         """Register started agent"""
         if self.available_agents.get(agentid) is None:
             self.available_agents[agentid] = AgentInfo(agentid, host, AgentStatus.ONLINE, nodes)
-            self.lgr.info(string_write("Agent {} added", agentid))
+            self.lgr.info(to_string("Agent {} added", agentid))
         else:
             self.available_agents[agentid].nodes = nodes
-            self.lgr.info(string_write("Agent {} updated", agentid))
+            self.lgr.info(to_string("Agent {} updated", agentid))
 #        self.traffic_state.chk.host2aid.__setitem__(host, agentid)
         [self.traffic_state.chk.node2aid.__setitem__(node, agentid) for node in nodes]
 #        self.lgr.debug("n=>aid"+str(self.node2aid))
@@ -268,14 +268,14 @@ class ControllerBase(object):
         """Unregister started agent"""
         if self.available_agents.get(agentid):
             del self.available_agents[agentid]
-            self.lgr.info(string_write("Agent {} removed", agentid))
+            self.lgr.info(to_string("Agent {} removed", agentid))
 
     def _do_init(self):
         """
         _host: IP address of agent
 
         """
-        self.lgr.info(string_write("Do initialization"))
+        self.lgr.info(to_string("Do initialization"))
         try:
             self.node_to_host()
             for aname in self.trcfg.target_agents:
@@ -285,7 +285,7 @@ class ControllerBase(object):
             self.create_mqtt_client(*self.tcfg.mqtt)
             ControllerBase.initialized = True
         except Exception as ex:
-            self.lgr.error(string_write("Failed to initialize: {}", ex))
+            self.lgr.error(to_string("Failed to initialize: {}", ex))
 
     def create_mqtt_client(self, host, port):
         """Create MQTT subscriber"""
@@ -310,28 +310,28 @@ class ControllerBase(object):
         try:
             self._inuithy_cfg = create_inuithy_cfg(inuithy_cfgpath)
             if self._inuithy_cfg is None:
-                self.lgr.error(string_write("Failed to load inuithy configure"))
+                self.lgr.error(to_string("Failed to load inuithy configure"))
                 return False
             self._traffic_cfg = create_traffic_cfg(traffic_cfgpath)
             if self._traffic_cfg is None:
-                self.lgr.error(string_write("Failed to load traffics configure"))
+                self.lgr.error(to_string("Failed to load traffics configure"))
                 return False
             self._network_cfg = create_network_cfg(self._traffic_cfg.nw_cfgpath)
             if self._network_cfg is None:
-                self.lgr.error(string_write("Failed to load network configure"))
+                self.lgr.error(to_string("Failed to load network configure"))
                 return False
             is_configured = True
         except Exception as ex:
-            self.lgr.error(string_write("Configure failed: {}", ex))
+            self.lgr.error(to_string("Configure failed: {}", ex))
             is_configured = False
         return is_configured
 
     def load_storage(self):
-        self.lgr.info(string_write("Load DB plugin:{}", self.tcfg.storagetype))
+        self.lgr.info(to_string("Load DB plugin:{}", self.tcfg.storagetype))
         try:
             self._storage = Storage(self.tcfg, self.lgr)
         except Exception as ex:
-            self.lgr.error(string_write("Failed to load plugin: {}", ex))
+            self.lgr.error(to_string("Failed to load plugin: {}", ex))
 
     def teardown(self):
         """Cleanup"""
@@ -352,7 +352,7 @@ class ControllerBase(object):
                     self.mqclient.disconnect()
                 self.traffic_state.chk.done.set()
         except Exception as ex:
-            self.lgr.error(string_write("Exception on teardown: {}", ex))
+            self.lgr.error(to_string("Exception on teardown: {}", ex))
 
     def on_topic_heartbeat(self, message):
         """Heartbeat message format:
@@ -361,12 +361,12 @@ class ControllerBase(object):
         agentid, host, nodes, version = data.get(T_CLIENTID), data.get(T_HOST),\
                 data.get(T_NODES), data.get(T_VERSION)
         try:
-            self.lgr.info(string_write("On topic heartbeat: Agent Version {}", version))
+            self.lgr.info(to_string("On topic heartbeat: Agent Version {}", version))
             agentid = agentid.strip('\t\n ')
             self.add_agent(agentid, host, nodes)
             self.traffic_state.check("is_agents_all_up")
         except Exception as ex:
-            self.lgr.error(string_write("Exception on registering agent {}: {}", agentid, ex))
+            self.lgr.error(to_string("Exception on registering agent {}: {}", agentid, ex))
 
     def on_topic_unregister(self, message):
         """Unregister message format:
@@ -374,62 +374,62 @@ class ControllerBase(object):
         """
         data = extract_payload(message.payload)
         agentid = data.get(T_CLIENTID)
-        self.lgr.info(string_write("On topic unregister: del {}", agentid))
+        self.lgr.info(to_string("On topic unregister: del {}", agentid))
 
         try:
             self.del_agent(agentid)
             if len(self.available_agents) == 0:
                 self.traffic_state.chk._is_traffic_all_unregistered.set()
         except Exception as ex:
-            self.lgr.error(string_write("Exception on unregistering agent {}: {}", agentid, ex))
+            self.lgr.error(to_string("Exception on unregistering agent {}: {}", agentid, ex))
 
     def on_topic_status(self, message):
         """Status topic handler"""
-        self.lgr.info(string_write("On topic status"))
+        self.lgr.info(to_string("On topic status"))
         data = extract_payload(message.payload)
         if data.get(T_TRAFFIC_STATUS) == TrafficStatus.REGISTERED.name:
-            self.lgr.info(string_write("Traffic {} registered on {}",\
+            self.lgr.info(to_string("Traffic {} registered on {}",\
                 data.get(T_TID), data.get(T_CLIENTID)))
             self.traffic_state.update_stat(data.get(T_TID), TrafficStatus.REGISTERED, "is_traffic_all_registered")
         elif data.get(T_TRAFFIC_STATUS) == TrafficStatus.RUNNING.name:
-            self.lgr.info(string_write("Traffic {} is running on {}",\
+            self.lgr.info(to_string("Traffic {} is running on {}",\
                 data.get(T_TID), data.get(T_CLIENTID)))
             self.traffic_state.update_stat(data.get(T_TID), TrafficStatus.RUNNING)
         elif data.get(T_TRAFFIC_STATUS) == TrafficStatus.FINISHED.name:
-            self.lgr.info(string_write("Traffic {} finished", data.get(T_TID)))
+            self.lgr.info(to_string("Traffic {} finished", data.get(T_TID)))
             self.traffic_state.update_stat(data.get(T_TID), TrafficStatus.FINISHED, "is_traffic_finished")
         elif data.get(T_TRAFFIC_STATUS) == TrafficStatus.INITFAILED.name:
-            self.lgr.error(string_write("Agent {} failed to initialize: {}",\
+            self.lgr.error(to_string("Agent {} failed to initialize: {}",\
                 data.get(T_CLIENTID), data.get(T_MSG)))
             self.teardown()
         elif data.get(T_MSG) is not None:
             self.lgr.info(data.get(T_MSG))
         else:
-            self.lgr.debug(string_write("Unhandled status message {}", data))
+            self.lgr.debug(to_string("Unhandled status message {}", data))
 
     def on_topic_reportwrite(self, message):
         """Report-written topic handler"""
-#        self.lgr.info(string_write("On topic reportwrite"))
+#        self.lgr.info(to_string("On topic reportwrite"))
         data = extract_payload(message.payload)
         try:
             if data.get(T_TRAFFIC_TYPE) == TrafficType.JOIN.name:
-                self.lgr.debug(string_write("JOINING: {}", data.get(T_NODE)))
+                self.lgr.debug(to_string("JOINING: {}", data.get(T_NODE)))
             elif data.get(T_TRAFFIC_TYPE) == TrafficType.SCMD.name:
             # Record traffic only
-                self.lgr.debug(string_write("REPORT: {}", data))
+                self.lgr.debug(to_string("REPORT: {}", data))
 #                if data.get(T_MSG_TYPE) == MessageType.SEND.name and data.get(T_NODE) is not None:
                 if data.get(T_NODE) is not None:
                     self.storage.insert_record(data)
         except Exception as ex:
-            self.lgr.error(string_write("Failed to handle report write message: {}", ex))
+            self.lgr.error(to_string("Failed to handle report write message: {}", ex))
             self.teardown()
 
     def on_topic_notification(self, message):
         """Report-read topic handler"""
-#       self.lgr.info(string_write("On topic notification"))
+#       self.lgr.info(to_string("On topic notification"))
         data = extract_payload(message.payload)
         try:
-            self.lgr.debug(string_write("NOTIFY: {}", data))
+            self.lgr.debug(to_string("NOTIFY: {}", data))
             if data.get(T_TRAFFIC_TYPE) == TrafficType.JOIN.name:
                 if self.traffic_state.chk.nwlayout.get(data.get(T_NODE)) is not None:
                     self.traffic_state.chk.nwlayout[data.get(T_NODE)] = True
@@ -442,5 +442,5 @@ class ControllerBase(object):
             else:
                 self.storage.insert_record(data)
         except Exception as ex:
-            self.lgr.error(string_write("Failed to handle notification message: {}", ex))
+            self.lgr.error(to_string("Failed to handle notification message: {}", ex))
             self.teardown()
