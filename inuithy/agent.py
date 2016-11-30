@@ -9,7 +9,7 @@ T_TRAFFIC_STATUS, T_MSG, T_CTRLCMD, TrafficStatus, T_TRAFFIC_TYPE,\
 INUITHY_LOGCONFIG, INUITHY_TOPIC_COMMAND, TrafficType, DEV_TTY, T_GENID,\
 T_SRC, T_PKGSIZE, T_EVERYONE, mqlog_map, T_VERSION, T_MSG_TYPE
 from inuithy.common.serial_adapter import SerialAdapter
-from inuithy.common.traffic import TrafficExecutor
+from inuithy.common.traffic import TrafficExecutor, TRAFFIC_BROADCAST_ADDRESS
 from inuithy.util.helper import getpredefaddr
 from inuithy.util.cmd_helper import pub_status, pub_heartbeat, pub_unregister, extract_payload
 from inuithy.util.config_manager import create_inuithy_cfg
@@ -126,7 +126,8 @@ class Agent(object):
 #            message.qos, message.retain, message.state, message.timestamp,
 #            message.topic))
         try:
-            userdata.topic_routes[message.topic](message)
+            userdata.lgr.info("On message")
+#            userdata.topic_routes[message.topic](message)
         except Exception as ex:
             msg = to_string("Exception on MQ message dispatching: {}", ex)
             userdata.lgr.error(msg)
@@ -222,24 +223,27 @@ class Agent(object):
 
     def create_mqtt_client(self, host, port):
         """Create MQTT subscriber"""
-        self.topic_routes = {
-            INUITHY_TOPIC_COMMAND:  self.on_topic_command,
-            INUITHY_TOPIC_CONFIG:   self.on_topic_config,
-            INUITHY_TOPIC_TRAFFIC:  self.on_topic_traffic,
-        }
+#        self.topic_routes = {
+#            INUITHY_TOPIC_COMMAND:  self.on_topic_command,
+#            INUITHY_TOPIC_CONFIG:   self.on_topic_config,
+#            INUITHY_TOPIC_TRAFFIC:  self.on_topic_traffic,
+#        }
         self._mqclient = mqtt.Client(self.clientid, True, self)
-        self._mqclient.on_connect = Agent.on_connect
-        self._mqclient.on_message = Agent.on_message
-        self._mqclient.on_disconnect = Agent.on_disconnect
-#        self._mqclient.on_log = Agent.on_log
-#        self._mqclient.on_publish = Agent.on_publish
-#        self._mqclient.on_subscribe = Agent.on_subscribe
-        self._mqclient.connect(host, port)
-        self._mqclient.subscribe([
+        self.mqclient.on_connect = Agent.on_connect
+        self.mqclient.on_message = Agent.on_message
+        self.mqclient.on_disconnect = Agent.on_disconnect
+#        self.mqclient.on_log = Agent.on_log
+#        self.mqclient.on_publish = Agent.on_publish
+#        self.mqclient.on_subscribe = Agent.on_subscribe
+        self.mqclient.connect(host, port)
+        self.mqclient.subscribe([
             (INUITHY_TOPIC_COMMAND, self.tcfg.mqtt_qos),
             (INUITHY_TOPIC_TRAFFIC, self.tcfg.mqtt_qos),
             (INUITHY_TOPIC_CONFIG, self.tcfg.mqtt_qos),
         ])
+        self.mqclient.message_callback_add(INUITHY_TOPIC_COMMAND, Agent.on_topic_command)
+        self.mqclient.message_callback_add(INUITHY_TOPIC_CONFIG, Agent.on_topic_config)
+        self.mqclient.message_callback_add(INUITHY_TOPIC_TRAFFIC, Agent.on_topic_traffic)
         self.ctrlcmd_routes = {
             CtrlCmd.NEW_CONTROLLER.name:               self.on_new_controller,
 #            CtrlCmd.AGENT_RESTART.name:                self.on_agent_restart,
@@ -297,7 +301,7 @@ class Agent(object):
         self.__enable_heartbeat = False
         self.__heartbeat = None
         self._mqclient = None
-        self.topic_routes = {}
+#        self.topic_routes = {}
         self.ctrlcmd_routes = {}
         self.__traffic_executors = Queue()
         self.__inuithy_cfg = create_inuithy_cfg(cfgpath)
@@ -384,15 +388,20 @@ class Agent(object):
             self.lgr.error(status_msg)
         except NameError as ex:
             self.lgr.error(to_string("ERR: {}", ex))
+            raise
         except Exception as ex:
             status_msg = to_string("Exception on Agent: {}", ex)
             self.lgr.error(status_msg)
+            raise
 #        finally:
         self.teardown(status_msg)
         self.lgr.info(to_string("Agent terminated"))
 
-    def on_topic_command(self, message):
+#    def on_topic_command(self, message):
+    @staticmethod
+    def on_topic_command(client, userdata, message):
         """Topic command handler"""
+        self = userdata
         self.lgr.info(to_string("On topic command"))
         data = extract_payload(message.payload)
         try:
@@ -400,14 +409,32 @@ class Agent(object):
         except Exception as ex:
             self.lgr.error(to_string("Exception on dispating control command: {}", ex))
 
-    def on_topic_config(self, message):
+#    def on_topic_config(self, message):
+    @staticmethod
+    def on_topic_config(client, userdata, message):
         """Topic config handler"""
+        self = userdata
         self.lgr.info(to_string("On topic config"))
         try:
             # TODO
             pass
         except Exception as ex:
             self.lgr.error(to_string("Exception on updating config: {}", ex))
+
+#    def on_topic_traffic(self, message):
+    @staticmethod
+    def on_topic_traffic(client, userdata, message):
+        """Traffic topic handler"""
+        self = userdata
+#        self.lgr.info(to_string("On topic traffic"))
+        try:
+            data = extract_payload(message.payload)
+            if not self.is_msg_for_me([data.get(T_CLIENTID)]):
+                return
+            self.lgr.debug(to_string("Traffic data: {}", data))
+            self.traffic_dispatch(data)
+        except Exception as ex:
+            self.lgr.error(to_string("Failure on handling traffic request: {}", ex))
 
     def on_traffic_join(self, data):
         """Traffic join command handler
@@ -472,9 +499,15 @@ class Agent(object):
             }
             te = None
             if self.tcfg.enable_localdebug:
+                dest = None
+                if data.get(T_DEST) == TRAFFIC_BROADCAST_ADDRESS:
+                    dest = set(self.addr2node.values())
+                else:
+                    dest = set([self.addr2node.get(data.get(T_DEST))])
+                self.lgr.debug(to_string("Dummy dests: {}", dest))
                 te = TrafficExecutor(node, data.get(T_INTERVAL), data.get(T_DURATION),\
                     request=request, lgr=self.lgr, mqclient=self.mqclient, tid=data.get(T_TID),\
-                    data=self.addr2node(self.get(T_DEST)))
+                    data=dest)
             else:
                 te = TrafficExecutor(node, data.get(T_INTERVAL), data.get(T_DURATION),\
                     request=request, lgr=self.lgr, mqclient=self.mqclient, tid=data.get(T_TID))
@@ -512,18 +545,6 @@ class Agent(object):
         self.lgr.info(to_string("Traffic start request"))
         traf_thr = threading.Thread(target=self.start_traffic)
         traf_thr.start()
-
-    def on_topic_traffic(self, message):
-        """Traffic topic handler"""
-#        self.lgr.info(to_string("On topic traffic"))
-        try:
-            data = extract_payload(message.payload)
-            if not self.is_msg_for_me([data.get(T_CLIENTID)]):
-                return
-            self.lgr.debug(to_string("Traffic data: {}", data))
-            self.traffic_dispatch(data)
-        except Exception as ex:
-            self.lgr.error(to_string("Failure on handling traffic request: {}", ex))
 
     def start_traffic(self):
         """Start traffic routine"""
