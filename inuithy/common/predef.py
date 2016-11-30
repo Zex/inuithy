@@ -5,8 +5,6 @@ from inuithy.common.version import INUITHY_VERSION, INUITHY_ROOT
 import paho.mqtt.client as mqtt
 from enum import Enum
 
-INUITHY_MQTTMSGFMT = "dup:{}, info:{}, mid:{}, payload:[{}], \
-qos:{}, retain:{}, state:{}, timestamp:{}, topic:[{}]"
 # Controller => Agents
 # Command for agents
 INUITHY_TOPIC_COMMAND = "inuithy/topic/command"

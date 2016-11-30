@@ -15,7 +15,7 @@ import logging
 import logging.config as lconf
 
 TRAFFIC_ERR_NOSUBNET = "No subnet named [{}] in network [{}]"
-TRAFFIC_BROADCAST_ADDRESS = '0xFFFF'
+TRAFFIC_BROADCAST_ADDRESS = 'FFFF'
 
 class Traffic(object):
     """Traffic information"""
@@ -210,7 +210,7 @@ class TrafficExecutor(threading.Thread):
     def finished(self, val):
         pass
 
-    def __init__(self, node, interval, duration, request=None, lgr=None, mqclient=None, tid=None):
+    def __init__(self, node, interval, duration, request=None, lgr=None, mqclient=None, tid=None, data=None):
         threading.Thread.__init__(self, name=to_string("TE-{}", tid), target=None, daemon=False)
         self.lgr = lgr
         if self.lgr is None:
@@ -222,7 +222,7 @@ class TrafficExecutor(threading.Thread):
         self.stop_timer = threading.Timer(duration, self.stop_trigger)
         self.mqclient = mqclient
         self.tid = tid
-        self.done = threading.Event()
+        self.nextshot = threading.Event()
 
     def run(self):
         self.lgr.debug(to_string("Start traffic [{}]", self))
@@ -231,8 +231,10 @@ class TrafficExecutor(threading.Thread):
 
         while self.running: # TODO debug check
             self.node.traffic(self.request)
-            self.done.wait(self.interval)
-            self.done.clear()
+            self.nextshot.wait(self.interval)
+            self.nextshot.clear()
+            if data is not None and isinstance(data, SerialNode):
+               data.read_event.set() 
 
     def stop_trigger(self):
         to_console("{}: ========Stopping trigger============", self)
