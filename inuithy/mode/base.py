@@ -6,6 +6,10 @@ T_HOST, T_NODES, AgentStatus, INUITHY_LOGCONFIG, mqlog_map, T_TID,\
 to_string, INUITHYCONTROLLER_CLIENT_ID, T_TRAFFIC_STATUS, T_MSG,\
 T_TRAFFIC_TYPE, TrafficType, T_NODE, TrafficStatus, T_VERSION,\
 MessageType
+from inuithy.common.predef import INUITHY_TOPIC_HEARTBEAT, INUITHY_TOPIC_STATUS,\
+INUITHY_TOPIC_REPORTWRITE, INUITHY_TOPIC_NOTIFICATION, INUITHY_TOPIC_UNREGISTER,\
+TRAFFIC_CONFIG_PATH, INUITHY_CONFIG_PATH, INUITHY_TITLE, INUITHY_LOGCONFIG,\
+to_string, to_console
 from inuithy.util.helper import getnwlayoutid
 from inuithy.util.cmd_helper import pub_ctrlcmd, extract_payload
 from inuithy.util.traffic_state import TrafficState
@@ -159,7 +163,7 @@ class ControllerBase(object):
             self.lgr = logging
         self._mqclient = None
         self._storage = None
-        self.topic_routes = {}
+#        self.topic_routes = {}
         self._current_nwlayout = ('', '')
         self._host = socket.gethostname()
         self._clientid = to_string(INUITHYCONTROLLER_CLIENT_ID, self.host)
@@ -193,10 +197,10 @@ class ControllerBase(object):
 #            message.qos, message.retain, message.state, message.timestamp,
 #            message.topic))
         try:
-            handler = userdata.topic_routes.get(message.topic)
-            if handler is not None:
-                userdata.worker.add_job(handler, message)
-#            userdata.topic_routes[message.topic](message)
+            userdata.lgr.info("On message")
+#            handler = userdata.topic_routes.get(message.topic)
+#            if handler is not None:
+#                userdata.worker.add_job(handler, message)
         except Exception as ex:
             userdata.lgr.error(to_string("Exception on MQ message dispatching: {}", ex))
 
@@ -268,7 +272,7 @@ class ControllerBase(object):
             for aname in self.trcfg.target_agents:
                 agent = self.nwcfg.agent_by_name(aname)
                 self.expected_agents.append(agent.get(T_HOST))
-            self.register_routes()
+#            self.register_routes()
             self.create_mqtt_client(*self.tcfg.mqtt)
             ControllerBase.initialized = True
         except Exception as ex:
@@ -278,9 +282,16 @@ class ControllerBase(object):
         """Create MQTT subscriber"""
         pass
 
-    def register_routes(self):
-        """Register topic routes and sub handlers"""
-        pass
+#    def register_routes(self):
+#        """Register topic routes and sub handlers"""
+#        self.lgr.info("Register routes")
+#        self.topic_routes = {
+#            INUITHY_TOPIC_HEARTBEAT:      self.on_topic_heartbeat,
+#            INUITHY_TOPIC_UNREGISTER:     self.on_topic_unregister,
+#            INUITHY_TOPIC_STATUS:         self.on_topic_status,
+#            INUITHY_TOPIC_REPORTWRITE:    self.on_topic_reportwrite,
+#            INUITHY_TOPIC_NOTIFICATION:   self.on_topic_notification,
+#        }
 
     def node_to_host(self):
         """Map node address to connected host
@@ -342,9 +353,13 @@ class ControllerBase(object):
         except Exception as ex:
             self.lgr.error(to_string("Exception on teardown: {}", ex))
 
-    def on_topic_heartbeat(self, message):
+#    def on_topic_heartbeat(self, message):
+    @staticmethod
+    def on_topic_heartbeat(client, userdata, message):
         """Heartbeat message format:
         """
+        self = userdata
+        self.lgr.info(to_string("On topic heartbeat"))
         data = extract_payload(message.payload)
         agentid, host, nodes, version = data.get(T_CLIENTID), data.get(T_HOST),\
                 data.get(T_NODES), data.get(T_VERSION)
@@ -356,10 +371,13 @@ class ControllerBase(object):
         except Exception as ex:
             self.lgr.error(to_string("Exception on registering agent {}: {}", agentid, ex))
 
-    def on_topic_unregister(self, message):
+#    def on_topic_unregister(self, message):
+    @staticmethod
+    def on_topic_unregister(client, userdata, message):
         """Unregister message format:
         <agentid>
         """
+        self = userdata
         data = extract_payload(message.payload)
         agentid = data.get(T_CLIENTID)
         self.lgr.info(to_string("On topic unregister: del {}", agentid))
@@ -371,8 +389,11 @@ class ControllerBase(object):
         except Exception as ex:
             self.lgr.error(to_string("Exception on unregistering agent {}: {}", agentid, ex))
 
-    def on_topic_status(self, message):
+#    def on_topic_status(self, message):
+    @staticmethod
+    def on_topic_status(client, userdata, message):
         """Status topic handler"""
+        self = userdata
         self.lgr.info(to_string("On topic status"))
         data = extract_payload(message.payload)
         if data.get(T_TRAFFIC_STATUS) == TrafficStatus.REGISTERED.name:
@@ -395,9 +416,12 @@ class ControllerBase(object):
         else:
             self.lgr.debug(to_string("Unhandled status message {}", data))
 
-    def on_topic_reportwrite(self, message):
+#    def on_topic_reportwrite(self, message):
+    @staticmethod
+    def on_topic_reportwrite(client, userdata, message):
         """Report-written topic handler"""
-#        self.lgr.info(to_string("On topic reportwrite"))
+        self = userdata
+        self.lgr.info(to_string("On topic reportwrite"))
         data = extract_payload(message.payload)
         try:
             if data.get(T_TRAFFIC_TYPE) == TrafficType.JOIN.name:
@@ -412,9 +436,12 @@ class ControllerBase(object):
             self.lgr.error(to_string("Failed to handle report write message: {}", ex))
             self.teardown()
 
-    def on_topic_notification(self, message):
+#    def on_topic_notification(self, message):
+    @staticmethod
+    def on_topic_notification(client, userdata, message):
         """Report-read topic handler"""
-#       self.lgr.info(to_string("On topic notification"))
+        self = userdata
+        self.lgr.info(to_string("On topic notification"))
         data = extract_payload(message.payload)
         try:
             self.lgr.debug(to_string("NOTIFY: {}", data))
@@ -432,3 +459,5 @@ class ControllerBase(object):
         except Exception as ex:
             self.lgr.error(to_string("Failed to handle notification message: {}", ex))
             self.teardown()
+
+

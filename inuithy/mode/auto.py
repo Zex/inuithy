@@ -1,4 +1,4 @@
-""" AutoController application main thread
+""" AutoCtrl application main thread
  @author: Zex Li <top_zlynch@yahoo.com>
 """
 from inuithy.common.version import INUITHY_VERSION
@@ -15,33 +15,33 @@ import time
 
 lconf.fileConfig(INUITHY_LOGCONFIG)
 
-class AutoController(ControllerBase):
+class AutoCtrl(ControllerBase):
     """Controller in automatic mode
     """
     def create_mqtt_client(self, host, port):
         self.lgr.info("Create MQTT client")
         self._mqclient = mqtt.Client(self.clientid, True, self)
-        self._mqclient.on_connect = AutoController.on_connect
-        self._mqclient.on_message = AutoController.on_message
-        self._mqclient.on_disconnect = AutoController.on_disconnect
-        self._mqclient.connect(host, port)
-        self._mqclient.subscribe([
+        self.mqclient.on_connect = AutoCtrl.on_connect
+        self.mqclient.on_message = AutoCtrl.on_message
+        self.mqclient.on_disconnect = AutoCtrl.on_disconnect
+        self.mqclient.connect(host, port)
+        self.mqclient.subscribe([
             (INUITHY_TOPIC_HEARTBEAT, self.tcfg.mqtt_qos),
             (INUITHY_TOPIC_UNREGISTER, self.tcfg.mqtt_qos),
             (INUITHY_TOPIC_STATUS, self.tcfg.mqtt_qos),
             (INUITHY_TOPIC_REPORTWRITE, self.tcfg.mqtt_qos),
             (INUITHY_TOPIC_NOTIFICATION, self.tcfg.mqtt_qos),
         ])
-
-    def register_routes(self):
-        self.lgr.info("Register routes")
-        self.topic_routes = {
-            INUITHY_TOPIC_HEARTBEAT:      self.on_topic_heartbeat,
-            INUITHY_TOPIC_UNREGISTER:     self.on_topic_unregister,
-            INUITHY_TOPIC_STATUS:         self.on_topic_status,
-            INUITHY_TOPIC_REPORTWRITE:    self.on_topic_reportwrite,
-            INUITHY_TOPIC_NOTIFICATION:   self.on_topic_notification,
-        }
+        self.mqclient.message_callback_add(\
+            INUITHY_TOPIC_HEARTBEAT, AutoCtrl.on_topic_heartbeat)
+        self.mqclient.message_callback_add(\
+            INUITHY_TOPIC_UNREGISTER, AutoCtrl.on_topic_unregister)
+        self.mqclient.message_callback_add(\
+            INUITHY_TOPIC_STATUS, AutoCtrl.on_topic_status)
+        self.mqclient.message_callback_add(\
+            INUITHY_TOPIC_REPORTWRITE, AutoCtrl.on_topic_reportwrite)
+        self.mqclient.message_callback_add(\
+            INUITHY_TOPIC_NOTIFICATION, AutoCtrl.on_topic_notification)
 
     def __init__(self, inuithy_cfgpath='config/inuithy.conf',\
         traffic_cfgpath='config/traffics.conf', lgr=None, delay=4):
@@ -49,12 +49,11 @@ class AutoController(ControllerBase):
         self.lgr = lgr
         if self.lgr is None:
             self.lgr = logging
-        self.register_routes()
 
     def start(self):
         """Start controller routine"""
-        if not AutoController.initialized:
-            self.lgr.error(to_string("AutoController not initialized"))
+        if not AutoCtrl.initialized:
+            self.lgr.error(to_string("AutoCtrl not initialized"))
             return
         try:
             self.lgr.info(to_string("Expected Agents({}): {}",\
@@ -67,23 +66,23 @@ class AutoController(ControllerBase):
             self.alive_notification()
             self._mqclient.loop_forever()
         except KeyboardInterrupt:
-            self.lgr.info(to_string("AutoController received keyboard interrupt"))
+            self.lgr.info(to_string("AutoCtrl received keyboard interrupt"))
 #            self.traffic_state.chk.done.set()
         except NameError as ex:
             self.lgr.error(to_string("ERR: {}", ex))
             self.teardown()
         except Exception as ex:
-            self.lgr.error(to_string("Exception on AutoController: {}", ex))
+            self.lgr.error(to_string("Exception on AutoCtrl: {}", ex))
             raise
-        self.lgr.info(to_string("AutoController terminated"))
+        self.lgr.info(to_string("AutoCtrl terminated"))
 
 def start_controller(tcfg, trcfg, lgr=None):
     """Shortcut to start controller"""
-    controller = AutoController(tcfg, trcfg, lgr)
+    controller = AutoCtrl(tcfg, trcfg, lgr)
     controller.start()
 
 if __name__ == '__main__':
-    lgr = logging.getLogger('InuithyAutoController')
-    lgr.info(to_string(INUITHY_TITLE, INUITHY_VERSION, "AutoController"))
+    lgr = logging.getLogger('InuithyAutoCtrl')
+    lgr.info(to_string(INUITHY_TITLE, INUITHY_VERSION, "AutoCtrl"))
     start_controller(INUITHY_CONFIG_PATH, TRAFFIC_CONFIG_PATH, lgr)
 
