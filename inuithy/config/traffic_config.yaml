@@ -12,6 +12,7 @@ traffic_0:
   pkgsize: 1
   dests: ['1122', '1123', '1124', '1134']
   srcs: ['1111', '1112', '1113', '1114']
+  noi: ['1122', '1112', '1124']
 traffic_1:
   duration: 180
   nwlayout: network_0
@@ -19,6 +20,7 @@ traffic_1:
   pkgsize: 2
   dests: ['1122', '1123', '1124', '1134']
   srcs: ['1114']
+  noi: ['1122', '1114', '1124']
 traffic_2:
   duration: 360
   nwlayout: network_1
@@ -26,6 +28,7 @@ traffic_2:
   pkgsize: 2
   dests: ['1122']
   srcs: ['1123']
+  noi: [] 
 traffic_3:
   duration: 360
   nwlayout: network_1
@@ -33,6 +36,7 @@ traffic_3:
   pkgsize: 2
   dests: ['*']
   srcs: ['1111']
+  noi: [] 
 traffic_4:
   duration: 360
   nwlayout: network_2
@@ -40,6 +44,7 @@ traffic_4:
   pkgsize: 2
   dests: ['1144']
   srcs: ['*']
+  noi: [] 
 traffic_5:
   duration: 10
   nwlayout: network_1
@@ -47,6 +52,7 @@ traffic_5:
   pkgsize: 2
   dests: ['11a1', '11c1', '1181', '1101', '1141', '1121', '11e1', '11f1', '1131', '1171']
   srcs: ['*']
+  noi: [] 
 traffic_6:
   duration: 10
   nwlayout: network_1
@@ -54,3 +60,4 @@ traffic_6:
   pkgsize: 2
   dests: ['11b1']
   srcs: ['11a2']
+  noi: ['11b1', '11a2'] 
