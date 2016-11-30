@@ -470,8 +470,15 @@ class Agent(object):
                 T_DEST: data.get(T_DEST),
                 T_PKGSIZE: data.get(T_PKGSIZE),
             }
-            te = TrafficExecutor(node, data.get(T_INTERVAL), data.get(T_DURATION),\
-                request=request, lgr=self.lgr, mqclient=self.mqclient, tid=data.get(T_TID))
+            te = None
+            if self.tcfg.enable_localdebug:
+                te = TrafficExecutor(node, data.get(T_INTERVAL), data.get(T_DURATION),\
+                    request=request, lgr=self.lgr, mqclient=self.mqclient, tid=data.get(T_TID),\
+                    data=self.addr2node(self.get(T_DEST)))
+            else:
+                te = TrafficExecutor(node, data.get(T_INTERVAL), data.get(T_DURATION),\
+                    request=request, lgr=self.lgr, mqclient=self.mqclient, tid=data.get(T_TID))
+
             self.__traffic_executors.put(te)
             pub_status(self.mqclient, self.tcfg.mqtt_qos, {
                 T_TRAFFIC_STATUS: TrafficStatus.REGISTERED.name,
@@ -555,7 +562,7 @@ class Agent(object):
     def on_new_controller(self, message):
         """New controller command handler"""
         self.lgr.info(to_string("New controller"))
-#        self.register()
+        self.register()
 
     def on_agent_restart(self, message):
         """Agent restart command handler"""
