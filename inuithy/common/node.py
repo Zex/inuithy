@@ -43,7 +43,7 @@ class SerialNode(object):
         self.__listener = threading.Thread(target=self.__listener_routine, name="Listener")
         self.run_listener = False
         self.genid = None
-        self.done = threading.Event()
+        self.read_event = threading.Event()
 
     def __str__(self):
         return json.dumps({T_TYPE:self.ntype.name})
@@ -70,7 +70,7 @@ class SerialNode(object):
             written = self.__serial.write(data)
         #TODO -->
         self.report_write(data, request)
-        self.done.set()
+        self.read_event.set()
 
     def start_listener(self):
         """Start listening incoming package"""
@@ -84,16 +84,16 @@ class SerialNode(object):
         while self.run_listener:
             try:
                 if self.__serial is None: #DEBUG
-                    self.done.wait()#random.randint(30, 50))
+                    self.read_event.wait()#random.randint(30, 50))
                 self.read()
-                self.done.clear()
+                self.read_event.clear()
             except Exception as ex:
                 self.lgr.error(to_string("Exception in listener routine: {}", ex))
 
     def stop_listener(self):
         """Stop running listener"""
         self.run_listener = False
-        self.done.set()
+        self.read_event.set()
 
     def join(self, data):
         """General join adapter"""
