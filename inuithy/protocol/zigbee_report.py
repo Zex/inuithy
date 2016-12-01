@@ -73,23 +73,28 @@ class ZbeeReport(object):
                     df = df.iloc[iloc_range[0]:iloc_range[1]]
                 if title is None or len(title) == 0:
                     title = to_string("{} by {}", item, T_ZBEE_NWK_ADDR)
-                df.plot(xticks=[], figsize=ginfo.figsize, lw=1.5, colormap='Accent')
+#                df.plot(xticks=[], lw=1.5, colormap='brg_r', figsize=ginfo.figsize)
+                df.plot(xticks=[], lw=1.5, colormap='jet_r', figsize=ginfo.figsize)
             else:
                 lgr.warning("WARN: DataFrame is empty")
-            plt.autoscale(enable=False, axis='y', tight=False)
+
 #            plt.ylim(0, df.max()[1])
 #            plt.ylim(df.min()[1], df.max()[1])
+            plt.autoscale(enable=False, axis='y', tight=True)
             plt.xlabel(T_TIME)
             plt.ylabel(item)
             plt.title(title)
-            plt.legend(loc=2, bbox_to_anchor=(1, 1), borderpad=0.5, framealpha=0.0)
+            legend_ncol = len(nodes) > 24 and (len(nodes) // 24 + 1) or 1
+            plt.legend(loc=2, bbox_to_anchor=(1, 1), borderpad=0.5,\
+                framealpha=0.0, ncol=legend_ncol, fontsize='medium')
             plt.grid(axis='x')
             plt.yscale('linear')
 
             if ginfo.fig_base is not None:
-                plt.savefig(to_string("{}/{}.png", ginfo.fig_base, title), transparent=False, facecolor='w', edgecolor='b')
+                plt.savefig(to_string("{}/{}.png", ginfo.fig_base, title), transparent=False, facecolor='w', edgecolor='b', bbox_inches='tight')
             if pdf_pg is not None:
-                pdf_pg.savefig(transparent=False, facecolor='w', edgecolor='b')
+                pdf_pg.savefig(transparent=False, facecolor='w', edgecolor='b', bbox_inches='tight')
+            plt.close()
         except Exception as ex:
             lgr.error(to_string("Exception on creating item based figure {}: {}", item, ex))
             raise
@@ -117,7 +122,7 @@ class ZbeeReport(object):
                 df = df.fillna(value=0)
                 if title is None or len(title) == 0:
                     title = to_string("Package summary")
-                df.plot(kind='bar', colormap='Accent', grid=False, figsize=ginfo.figsize)
+                df.plot(kind='bar', colormap='plasma', grid=False, figsize=ginfo.figsize)
             else:
                 lgr.warning("WARN: DataFrame is empty")
 
@@ -127,9 +132,10 @@ class ZbeeReport(object):
             plt.grid(axis='y')
 
             if ginfo.fig_base is not None:
-                plt.savefig(to_string("{}/{}.png", ginfo.fig_base, title))
+                plt.savefig(to_string("{}/{}.png", ginfo.fig_base, title), bbox_inches='tight')
             if pdf_pg is not None:
-                pdf_pg.savefig()
+                pdf_pg.savefig(bbox_inches='tight')
+            plt.close()
         except Exception as ex:
             lgr.error(to_string("Exception on creating package summary figure: {}", ex))
 
