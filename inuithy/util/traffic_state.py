@@ -278,8 +278,13 @@ class TrafficState:
         self.lgr.info(to_string("Wait for agents all up", str(self.current_state)))
         if not self.traf_running:
             return
-        self.chk._is_agents_all_up.wait()
-        self.chk._is_agents_all_up.clear()
+        try:
+            self.chk._is_agents_all_up.wait()
+            self.chk._is_agents_all_up.clear()
+        except KeyboardInterrupt:
+            self.lgr.info("Terminating ...")
+        except Exception as rex:
+            self.lgr.error(to_string("Traffic runtime error: {}", rex))
 
     @after('wait_nwlayout')
     def do_waitfor_nwlayout_done(self):
@@ -287,8 +292,13 @@ class TrafficState:
         self.lgr.info(to_string("Wait for network layout done: {}", str(self.current_state)))
         if not self.traf_running:
             return
-        self.chk._is_network_layout_done.wait()
-        self.chk._is_network_layout_done.clear()
+        try:
+            self.chk._is_network_layout_done.wait()
+            self.chk._is_network_layout_done.clear()
+        except KeyboardInterrupt:
+            self.lgr.info("Terminating ...")
+        except Exception as rex:
+            self.lgr.error(to_string("Traffic runtime error: {}", rex))
 
     @after('wait_traffic')
     def do_waitfor_traffic_all_set(self):
@@ -296,8 +306,13 @@ class TrafficState:
         self.lgr.info(to_string("Wait for traffic all set: {}", str(self.current_state)))
         if not self.traf_running:
             return
-        self.chk._is_traffic_all_registered.wait()
-        self.chk._is_traffic_all_registered.clear()
+        try:
+            self.chk._is_traffic_all_registered.wait()
+            self.chk._is_traffic_all_registered.clear()
+        except KeyboardInterrupt:
+            self.lgr.info("Terminating ...")
+        except Exception as rex:
+            self.lgr.error(to_string("Traffic runtime error: {}", rex))
 
     @before('create')
     def do_create(self):
@@ -507,8 +522,13 @@ class TrafficState:
         self.lgr.info(to_string("Traffic finished: {}", str(self.current_state)))
         if not self.traf_running:
             return
-        self.chk._is_traffic_finished.wait()
-        self.chk._is_traffic_finished.clear()
+        try:
+            self.chk._is_traffic_finished.wait()
+            self.chk._is_traffic_finished.clear()
+        except KeyboardInterrupt:
+            self.lgr.info("Terminating ...")
+        except Exception as rex:
+            self.lgr.error(to_string("Traffic runtime error: {}", rex))
 
     @after('genreport')
     def do_genreport(self):
@@ -543,6 +563,8 @@ class TrafficState:
                 self.chk._is_traffic_all_unregistered.wait()
                 self.chk._is_traffic_all_unregistered.clear()
                 self.lgr.info("Agents stopped")
+        except KeyboardInterrupt:
+            self.lgr.info("Terminating ...")
         except Exception as ex:
             self.lgr.error(to_string("Exception on stopping agents: {}", ex))
 
