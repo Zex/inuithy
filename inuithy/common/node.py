@@ -85,6 +85,8 @@ class SerialNode(object):
             try:
                 if self.__serial is None: #DEBUG
                     self.read_event.wait()#random.randint(30, 50))
+                    self.read_event.clear()
+                    self.read_event.wait(random.randint(1, 3))
                 self.read()
                 self.read_event.clear()
             except Exception as ex:
