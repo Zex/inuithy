@@ -459,6 +459,7 @@ class Agent(object):
             self.lgr.debug(to_string("JOIN: Found node: {}", node))
 #           data[T_CLIENTID] = self.clientid
 #           data[T_HOST] = self.host
+            node.joined = False
             node.join(data)
         else: # DEBUG
             self.lgr.error(to_string("{}: Node [{}] not found", self.clientid, naddr))
@@ -628,7 +629,7 @@ class Agent(object):
         """Heartbeat disable command handler"""
         self.lgr.info(to_string("Disable heartbeat"))
         self.__enable_heartbeat = False
-        self.__heartbeat.exit()
+        self.__heartbeat.stop()
 
 def start_agent(cfgpath, lgr=None):
     """Shortcut to start an Agent"""
