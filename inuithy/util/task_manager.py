@@ -12,61 +12,67 @@ logger = logging.getLogger('TaskManager')
 class ProcTaskManager(object):
     """Process task manager
     """
-    def __init__(self):
+    def __init__(self, lgr=None):
         self.__tasks = []
+        self.lgr = lgr
+        if self.lgr is None:
+           self.lgr = logging
 
     def waitall(self):
-        logger.info(to_string('[{}] tasks running', len(self.__tasks)))
+        self.lgr.info(to_string('[{}] tasks running', len(self.__tasks)))
         try:
             [os.waitpid(t.pid, 0) for t in self.__tasks if t.is_alive()]
-            logger.info('[{}] tasks finished'.format(len(self.__tasks)))
+            self.lgr.info(to_string('[{}] tasks finished', len(self.__tasks)))
         except Exception as ex:
-            logger.error(to_string("Exception on to waiting all: {}", ex))
+            self.lgr.error(to_string("Exception on to waiting all: {}", ex))
 
     def create_task(self, proc, args=()):
         try:
             t = multiprocessing.Process(target=proc, args=args)
             self.__tasks.append(t)
             t.start()
-            logger.info(to_string('[{}]/{} running', t.pid, len(self.__tasks)))
+            self.lgr.info(to_string('[{}]/{} running', t.pid, len(self.__tasks)))
         except Exception as ex:
-            logger.error(to_string("Create task with [{}] failed: {}", args, ex))
+            self.lgr.error(to_string("Create task with [{}] failed: {}", args, ex))
 
     def create_task_foreach(self, proc, objs):
-        logger.info("Tasks creation begin")
+        self.lgr.info("Tasks creation begin")
         [self.create_task(proc, (o,)) for o in objs]
-        logger.info("Tasks creation end")
+        self.lgr.info("Tasks creation end")
 
 class ThrTaskManager(object):
     """Thread task manager
     """
-    def __init__(self):
+    def __init__(self, lgr=None):
         self.__tasks = []
+        self.lgr = lgr
+        if self.lgr is None:
+           self.lgr = logging
 
     def waitall(self):
-        logger.info('[{}] tasks running'.format(len(self.__tasks)))
+        self.lgr.info(to_string('[{}] tasks running', len(self.__tasks)))
         try:
             [t.join() for t in self.__tasks if t.isAlive()]
-            logger.info('[{}] tasks finished'.format(len(self.__tasks)))
+            self.lgr.info(to_string('[{}] tasks finished', len(self.__tasks)))
         except Exception as ex:
-            logger.error(to_string("Exception on to waiting all: {}", ex))
+            self.lgr.error(to_string("Exception on to waiting all: {}", ex))
 
     def create_task(self, proc, args=()):
         try:
             t = threading.Thread(target=proc, args=args)
             self.__tasks.append(t)
             t.start()
-            logger.info('[{}]/{} running'.format(t.name, len(self.__tasks)))
+            self.lgr.info(to_string('[{}]/{} running', t.name, len(self.__tasks)))
         except Exception as ex:
-            logger.error(to_string("Create task with [{}] failed: {}", args, ex))
+            self.lgr.error(to_string("Create task with [{}] failed: {}", args, ex))
 
     def create_task_foreach(self, proc, objs):
-        logger.info("Tasks creation begin")
+        self.lgr.info("Tasks creation begin")
         [self.create_task(proc, (o,)) for o in objs]
-        logger.info("Tasks creation end")
+        self.lgr.info("Tasks creation end")
 
 def dummy_task(port):
-    logger.info("[{}:{}]running {}".format(os.getppid(), os.getpid(), port))
+    logger.info(to_string("[{}:{}]running {}", os.getppid(), os.getpid(), port))
     time.sleep(10)
 
 if __name__ == '__main__':
