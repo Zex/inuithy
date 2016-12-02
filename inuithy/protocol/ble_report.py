@@ -4,10 +4,10 @@
 from inuithy.common.predef import INUITHY_LOGCONFIG, INUITHY_CONFIG_PATH,\
 T_NODE, T_RECORDS, T_MSG_TYPE, T_TIME, T_GENID, T_REPORTDIR, T_PATH,\
 T_GATEWAY, to_console, to_string, MessageType, T_HOST, StorageType,\
-GenInfo, T_TYPE, TrafficStorage
+GenInfo, T_TYPE, TrafficStorage, T_SRC, T_DEST
 from inuithy.storage.storage import Storage
 from inuithy.util.config_manager import create_inuithy_cfg, create_traffic_cfg
-from inuithy.protocol.zigbee_proto import BleProtocol as BleProto
+from inuithy.protocol.ble_proto import BleProtocol as BleProto
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib as mplib
@@ -40,6 +40,7 @@ class BleReport(object):
 
     @staticmethod
     def item_based(ginfo, pdata, item, pdf_pg, nodes=None, iloc_range=None, title=None):
+# TODO
         lgr.info(to_string("Creating figure for item {}", item))
         try:
             df = None
@@ -62,28 +63,31 @@ class BleReport(object):
 
             if df is not None and not df.empty:
                 df = df.fillna(value=0)
-                df = df.diff()
+#                df = df.diff()
                 if iloc_range is not None:
                     df = df.iloc[iloc_range[0]:iloc_range[1]]
                 if title is None or len(title) == 0:
                     title = to_string("{} by {}", item, T_NODE)
-                df.plot(xticks=[], figsize=ginfo.figsize, lw=1.5, colormap='Accent')
+                df.plot(xticks=[], lw=1.5, colormap='jet_r', figsize=ginfo.figsize)
             else:
                 lgr.warning("WARN: DataFrame is empty")
-            plt.autoscale(enable=False, axis='y', tight=False)
 #            plt.ylim(0, df.max()[1])
 #            plt.ylim(df.min()[1], df.max()[1])
+            plt.autoscale(enable=False, axis='y', tight=False)
             plt.xlabel(T_TIME)
             plt.ylabel(item)
             plt.title(title)
-            plt.legend(loc=2, bbox_to_anchor=(1, 1), borderpad=0.5, framealpha=0.0)
+            legend_ncol = len(nodes) > 24 and (len(nodes) // 24 + 1) or 1
+            plt.legend(loc=2, bbox_to_anchor=(1, 1), borderpad=0.5,\
+                framealpha=0.0, ncol=legend_ncol, fontsize='medium')
             plt.grid(axis='x')
             plt.yscale('linear')
 
             if ginfo.fig_base is not None:
-                plt.savefig(to_string("{}/{}.png", ginfo.fig_base, title), transparent=False, facecolor='w', edgecolor='b')
+                plt.savefig(to_string("{}/{}.png", ginfo.fig_base, title), transparent=False, facecolor='w', edgecolor='b', bbox_inches='tight')
             if pdf_pg is not None:
-                pdf_pg.savefig(transparent=False, facecolor='w', edgecolor='b')
+                pdf_pg.savefig(transparent=False, facecolor='w', edgecolor='b', bbox_inches='tight')
+            plt.close()
         except Exception as ex:
             lgr.error(to_string("Exception on creating item based figure {}: {}", item, ex))
             raise
@@ -94,20 +98,21 @@ class BleReport(object):
         lgr.info("Create package summary")
 
         try:
-            total_send = len(pdata[T_TYPE][pdata.type == MessageType.SEND.name])
-            total_recv = len(pdata[T_TYPE][pdata.type == MessageType.RECV.name])
+            total_send = len(pdata[T_MSG_TYPE][pdata.msgtype == MessageType.SEND.name])
+            total_recv = len(pdata[T_MSG_TYPE][pdata.msgtype == MessageType.RECV.name])
     
             data = {
-                BleProto.MsgType.snd.name: total_send,
-                BleProto.MsgType.rcv.name: total_recv,
+                MessageType.SEND.name: total_send,
+                MessageType.RECV.name: total_recv,
             }
-            df = pd.DataFrame(list(data.values()), index=data.keys(), columns=[T_TYPE])
+            df = pd.DataFrame(list(data.values()), index=data.keys(), columns=[T_MSG_TYPE])
 
             if df is not None and not df.empty:
                 df = df.fillna(value=0)
                 if title is None or len(title) == 0:
                     title = to_string("Package summary")
-                df.plot(kind='bar', colormap='Accent', grid=False, figsize=ginfo.figsize)
+#                df.plot(kind='bar', colormap='Accent', grid=False, figsize=ginfo.figsize)
+                df.plot(kind='bar', colormap='plasma', grid=False, figsize=ginfo.figsize)
             else:
                 lgr.warning("WARN: DataFrame is empty")
 
@@ -117,9 +122,10 @@ class BleReport(object):
             plt.grid(axis='y')
 
             if ginfo.fig_base is not None:
-                plt.savefig(to_string("{}/{}.png", ginfo.fig_base, title))
+                plt.savefig(to_string("{}/{}.png", ginfo.fig_base, title), bbox_inches='tight')
             if pdf_pg is not None:
-                pdf_pg.savefig()
+                pdf_pg.savefig(bbox_inches='tight')
+            plt.close()
         except Exception as ex:
             lgr.error(to_string("Exception on creating package summary figure: {}", ex))
 
@@ -158,14 +164,14 @@ class BleReport(object):
         storage = Storage(ginfo.cfg, lgr)
 
         if ginfo.src_type == TrafficStorage.DB.name:
-            return BleReport.import_from_db(ginfo)
+            return BleReport.import_from_db(ginfo, storage)
         elif ginfo.src_type == TrafficStorage.FILE.name:
-            return BleReport.import_from_file(ginfo)
+            return BleReport.import_from_file(ginfo, storage)
         else:
             lgr.error(to_string("Unsupported storage type: {}", ginfo.src_type))
 
     @staticmethod
-    def import_from_db(ginfo):
+    def import_from_db(ginfo, storage):
         """Import traffic data from database"""
         raw, pdata = None, None
         for r in storage.trafrec.find({
@@ -176,7 +182,7 @@ class BleReport(object):
             raw = pd.DataFrame.from_records(recs)
             pdata = pd.DataFrame(raw[pd.notnull(raw[ginfo.header[2]])])
 #            pdata = pdata.fillna(value=0)
-            [pdata.__setitem__(item, pdata[item].astype(int)) for item in ginfo.header[2:]]
+#            [pdata.__setitem__(item, pdata[item].astype(int)) for item in ginfo.header[2:]]
             pdata.to_csv(ginfo.csv_path, columns=ginfo.header, index=False)
             return raw, pdata
             
@@ -184,7 +190,7 @@ class BleReport(object):
 #                fd.write(','.join(h for h in ginfo.header) + '\n')
 #                [fd.write(line + '\n') for line in csv_data]
     @staticmethod
-    def import_from_file(ginfo):
+    def import_from_file(ginfo, storage):
         """Import traffic data from file"""
         raw, pdata = None, None
         raw = pd.DataFrame.from_csv(ginfo.csv_path, index_col=None)
@@ -210,8 +216,8 @@ class BleReport(object):
                         for item in ginfo.header[2:]:
                             BleReport.item_based(ginfo, pdata, item, pdf_pg, [gwnode],\
                             title = to_string("{} by gateway", item))
-                for item in ginfo.header[2:]:
-                    BleReport.item_based(ginfo, pdata, item, pdf_pg, interest_nodes, irange)
+#                for item in ginfo.header[2:]:
+#                    BleReport.item_based(ginfo, pdata, item, pdf_pg, interest_nodes, irange)
             except Exception as ex:
                 lgr.error(to_string("Exception on saving report: {}", ex))
                 raise

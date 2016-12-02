@@ -2,15 +2,17 @@
  @author Zex Li <top_zlynch@yahoo.com>
  @reference BLE_Control_Protocol.pdf
 """
-from inuithy.common.predef import to_string, MessageType,\
+from inuithy.common.predef import to_string, MessageType, T_MSG,\
 TrafficType, T_SRC, T_DEST, T_CHANNEL, T_MSG_TYPE, T_TRAFFIC_TYPE,\
 T_GENID, T_ADDR, T_TIME, T_NODE, T_PANID
 from inuithy.protocol.protocol import Protocol
 import time
+from random import randint
 
 class BleProtocol(Protocol):
     """BLE control protocol
     """
+    NAME = "Bluetooth Lower Energy"
     LIGHTON = "lighton"
     LIGHTOFF = "lightoff"
     JOINGRP = "joingrp"
@@ -68,22 +70,29 @@ class BleProtocol(Protocol):
             T_MSG_TYPE: MessageType.RECV.name,\
             T_NODE: node.addr,\
 #            T_MSG: data,
-            T_SRC: hex(random.randint(4096, 65535))[2:], #TODO
-            T_DEST: node.addr,
         }
 #        if data.split(' ')[0] == 'joingrp':
-#            report[T_TRAFFIC_TYPE] = TrafficType.JOIN.name
-#        else
-#            report[T_TRAFFIC_TYPE] = TrafficType.SCMD.name
-        msg_type = random.randint(TrafficType.JOIN.value, TrafficType.SCMD.value)
-        report[T_TRAFFIC_TYPE] = msg_type == TrafficType.JOIN.value\
-            and TrafficType.JOIN.name or TrafficType.SCMD.name
+        if node.joined is False:
+            report[T_TRAFFIC_TYPE] = TrafficType.JOIN.name
+            node.joined = True
+        else:
+            report[T_SRC] = hex(randint(4096, 65535))[2:] #TODO
+            report[T_DEST] = node.addr
+            report[T_TRAFFIC_TYPE] = TrafficType.SCMD.name
+            
         return report
 
     @staticmethod
     def getfwver(params=None):
         """Get firmware version command builder"""
         return " ".join([PROTO.GETFWVER, Protocol.EOL])
+
+    @staticmethod
+    def isme(params=None):
+        """Message replied to `getfwver` to identify protocol"""
+        #TODO
+        msg = params.get(T_MSG)
+        return msg == PROTO.NAME
 
     @staticmethod
     def parse_wbuf(data, node, request):
@@ -97,6 +106,7 @@ class BleProtocol(Protocol):
             T_GENID: node.genid,
             T_TIME: time.time(),
             T_MSG_TYPE: MessageType.SEND.name,
+            T_TRAFFIC_TYPE: request.get(T_TRAFFIC_TYPE),#TrafficType.SCMD.name,
             T_NODE: node.addr,
 #            T_MSG: data,
             T_SRC: request.get(T_SRC),
