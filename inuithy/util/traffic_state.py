@@ -56,7 +56,7 @@ class TrafStatChk(object):
            self._is_traffic_all_registered,
            self._is_traffic_all_fired,
            self._is_traffic_finished,
-           self._is_traffic_all_unregistered,
+#           self._is_traffic_all_unregistered,
             ]:
             if not e.isSet():
                 e.set()
@@ -75,7 +75,6 @@ class TrafStatChk(object):
         try:
             if self.available_agents is None or len(self.available_agents) == 0:
                 raise ValueError("No agent available")
-#            for nw in self.nwlayout.values():
             nw = self.nwlayout
             chks = [chk for chk in nw.values() if chk is True]
             if len(chks) != len(nw):
@@ -540,8 +539,11 @@ class TrafficState:
             (TrafficStorage.DB.name, StorageType.MongoDB.name),]:
             if self.current_genid is not None:
                 tmg = ProcTaskManager()
-                tmg.create_task(ReportAdapter.generate, (self.current_genid,
-                    list(self.noi.get(T_GATEWAY)), list(self.noi.get(T_NODES))))
+                ReportAdapter.guess_proto(self.chk.available_nodes)
+                tmg.create_task(ReportAdapter.generate,\
+                    (self.current_genid,\
+                    list(self.noi.get(T_GATEWAY)),\
+                    list(self.noi.get(T_NODES))))
                 tmg.waitall()
         else:
             self.lgr.info(to_string("Unsupported storage type: {}", str(self.ctrl.tcfg.storagetype)))
@@ -562,7 +564,6 @@ class TrafficState:
                 self.lgr.info("Wait for last notifications")
                 self.chk._is_traffic_all_unregistered.wait()
                 self.chk._is_traffic_all_unregistered.clear()
-                self.lgr.info("Agents stopped")
         except KeyboardInterrupt:
             self.lgr.info("Terminating ...")
         except Exception as ex:
@@ -579,6 +580,8 @@ class TrafficState:
                 force_stop_agents(self.chk.expected_agents)
         except Exception as ex:
             self.lgr.error(to_string("Exception on force stopping agents: {}", ex))
+
+        self.lgr.info("Agents stopped")
 
 if __name__ == '__main__':
     pass
