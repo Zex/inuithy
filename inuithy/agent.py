@@ -505,7 +505,6 @@ class Agent(object):
                     dest = set(self.addr2node.values())
                 else:
                     dest = set([self.addr2node.get(data.get(T_DEST))])
-                self.lgr.debug(to_string("Dummy dests: {}", dest))
                 te = TrafficExecutor(node, data.get(T_INTERVAL), data.get(T_DURATION),\
                     request=request, lgr=self.lgr, mqclient=self.mqclient, tid=data.get(T_TID),\
                     data=dest)
