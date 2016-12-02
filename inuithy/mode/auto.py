@@ -67,13 +67,18 @@ class AutoCtrl(ControllerBase):
             self._mqclient.loop_forever()
         except KeyboardInterrupt:
             self.lgr.info(to_string("AutoCtrl received keyboard interrupt"))
-#            self.traffic_state.chk.done.set()
+            if self.traffic_state is not None:
+                self.traffic_state.traf_running = False
+                self.traffic_state.chk.set_all()
         except NameError as ex:
-            self.lgr.error(to_string("ERR: {}", ex))
-            self.teardown()
+            self.lgr.error(to_string("NameError: {}", ex))
+            if self.traffic_state is not None:
+                self.traffic_state.traf_running = False
+                self.traffic_state.chk.set_all()
+            raise
         except Exception as ex:
             self.lgr.error(to_string("Exception on AutoCtrl: {}", ex))
-            raise
+#        self.teardown()
         self.lgr.info(to_string("AutoCtrl terminated"))
 
 def start_controller(tcfg, trcfg, lgr=None):

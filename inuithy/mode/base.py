@@ -272,7 +272,6 @@ class ControllerBase(object):
             for aname in self.trcfg.target_agents:
                 agent = self.nwcfg.agent_by_name(aname)
                 self.expected_agents.append(agent.get(T_HOST))
-#            self.register_routes()
             self.create_mqtt_client(*self.tcfg.mqtt)
             ControllerBase.initialized = True
         except Exception as ex:
@@ -281,17 +280,6 @@ class ControllerBase(object):
     def create_mqtt_client(self, host, port):
         """Create MQTT subscriber"""
         pass
-
-#    def register_routes(self):
-#        """Register topic routes and sub handlers"""
-#        self.lgr.info("Register routes")
-#        self.topic_routes = {
-#            INUITHY_TOPIC_HEARTBEAT:      self.on_topic_heartbeat,
-#            INUITHY_TOPIC_UNREGISTER:     self.on_topic_unregister,
-#            INUITHY_TOPIC_STATUS:         self.on_topic_status,
-#            INUITHY_TOPIC_REPORTWRITE:    self.on_topic_reportwrite,
-#            INUITHY_TOPIC_NOTIFICATION:   self.on_topic_notification,
-#        }
 
     def node_to_host(self):
         """Map node address to connected host
@@ -338,15 +326,15 @@ class ControllerBase(object):
                 ControllerBase.initialized = False
 #                self.lgr.info("Stop agents")
 #                stop_agents(self._mqclient, self.tcfg.mqtt_qos)
-                if self.traffic_state:
-                    self.traffic_state.traf_running = False
-                    self.traffic_state.chk.set_all()
                 if self._traffic_timer:
                     self._traffic_timer.cancel()
                 if self.storage:
                     self.storage.close()
                 if self.worker:
                     self.worker.stop()
+                if self.traffic_state:
+                    self.traffic_state.traf_running = False
+                    self.traffic_state.chk.set_all()
                 if self.mqclient:
                     self.mqclient.disconnect()
 #                self.traffic_state.chk.done.set()
