@@ -4,10 +4,10 @@
 from inuithy.common.predef import TrafficType, T_MSG, T_GENID,\
 INUITHY_LOGCONFIG, to_string, T_TYPE, T_ADDR, T_PORT
 from inuithy.util.cmd_helper import pub_reportwrite, pub_notification
-from inuithy.protocol.ble_proto import BleProtocol as BleProt
-from inuithy.protocol.zigbee_proto import ZigbeeProtocol as ZbeeProt
+from inuithy.protocol.ble_proto import BleProtocol as BleProto
+from inuithy.protocol.zigbee_proto import ZigbeeProtocol as ZbeeProto
 from inuithy.protocol.zigbee_proto import T_RSP
-from inuithy.protocol.bzcombo_proto import BzProtocol as BZProt
+from inuithy.protocol.bzcombo_proto import BzProtocol as BZProto
 
 import logging.config as lconf
 from enum import Enum
@@ -15,7 +15,7 @@ import threading
 import logging
 import serial
 import json
-import random
+from random import randint
 
 lconf.fileConfig(INUITHY_LOGCONFIG)
 
@@ -84,9 +84,9 @@ class SerialNode(object):
         while self.run_listener:
             try:
                 if self.__serial is None: #DEBUG
-                    self.read_event.wait()#random.randint(30, 50))
+                    self.read_event.wait()
                     self.read_event.clear()
-                    self.read_event.wait(random.randint(1, 3))
+                    self.read_event.wait(randint(1, 3))
                 self.read()
                 self.read_event.clear()
             except Exception as ex:
@@ -136,8 +136,9 @@ class NodeBLE(SerialNode):
         super(NodeBLE, self).__init__(NodeType.BLE, port, reporter, lgr)
         self.addr = addr
         self.port = port
-        self.prot = BleProt
+        self.prot = BleProto
         self.prot.lgr = self.lgr
+        self.joined = False
 #        if port is not None and len(port) > 0:
 #            self.start_listener()
 
@@ -188,6 +189,9 @@ class NodeBLE(SerialNode):
         self.write(msg, request)
 #        self.addr = addr
 
+    def create(port='', addr='', reporter=None, lgr=None):
+        return NodeBLE(port, addr, reporter, lgr)
+
 class NodeZigbee(SerialNode):
     """Zigbee node definition
     """
@@ -199,7 +203,7 @@ class NodeZigbee(SerialNode):
         self.port = port
         self.sequence_nr = 0
         self.joined = False # DEBUG data
-        self.prot = ZbeeProt
+        self.prot = ZbeeProto
         self.prot.lgr = self.lgr
 
     def __str__(self):
@@ -228,6 +232,9 @@ class NodeZigbee(SerialNode):
         """Send writeattribute2 command"""
         msg = self.prot.writeattribute2(request)
         self.write(msg, request)
+
+    def create(port='', addr='', reporter=None, lgr=None):
+        return NodeZigbee(port, addr, reporter, lgr)
 
 class NodeBz(SerialNode):
     """BLE-Zigbee node definition
@@ -240,7 +247,7 @@ class NodeBz(SerialNode):
         self.port = port
         self.sequence_nr = 0
         self.joined = False # DEBUG data
-        self.prot = ZbeeProt
+        self.prot = ZbeeProto
         self.prot.lgr = self.lgr
 
     def __str__(self):
@@ -269,6 +276,9 @@ class NodeBz(SerialNode):
         """Send writeattribute2 command"""
         msg = self.prot.writeattribute2(request)
         self.write(msg, request)
+
+    def create(port='', addr='', reporter=None, lgr=None):
+        return NodeBz(port, addr, reporter, lgr)
 
 if __name__ == '__main__':
     lgr = logging.getLogger('InuithyNode')
