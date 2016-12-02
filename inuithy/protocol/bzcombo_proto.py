@@ -2,7 +2,7 @@
  @author Zex Li <top_zlynch@yahoo.com>
  @reference BLE_Control_Protocol.pdf
 """
-from inuithy.common.predef import to_string
+from inuithy.common.predef import to_string, T_MSG
 #, MessageType,\
 #TrafficType, T_SRC, T_DEST, T_CHANNEL, T_MSG_TYPE, T_TRAFFIC_TYPE,\
 #T_GENID, T_ADDR, T_TIME, T_NODE, T_PANID
@@ -13,6 +13,7 @@ from inuithy.protocol.protocol import Protocol
 class BzProtocol(Protocol):
     """BLE-Zigbee combo control protocol
     """
+    NAME = "BLE-Zigbee combo"
     # Sub protocols
     #TODO correct parser
     ble = BleProtocol
@@ -61,6 +62,13 @@ class BzProtocol(Protocol):
     @staticmethod
     def getfwver(params=None):
         return PROTO.ble.getfwver()
+
+    @staticmethod
+    def isme(params=None):
+        """Message replied to `getfwver` to identify protocol"""
+        #TODO
+        msg = params.get(T_MSG)
+        return msg == PROTO.NAME
 
     @staticmethod
     def parse_rbuf(data, node):

@@ -1,7 +1,7 @@
 """ Zigbee protocol definition
  @author: Zex Li <top_zlynch@yahoo.com>
 """
-from inuithy.common.predef import to_string, T_TIME, T_TYPE,\
+from inuithy.common.predef import to_string, T_TIME, T_TYPE, T_MSG,\
 MessageType, TrafficType, T_NODE, T_MSG_TYPE, T_TRAFFIC_TYPE,\
 T_GENID, T_CHANNEL, T_PANID, T_SPANID, T_DEST, T_PKGSIZE, T_SRC
 from inuithy.protocol.protocol import Protocol
@@ -44,6 +44,7 @@ T_ACK = 'ack'
 
 class ZigbeeProtocol(Protocol):
     """Protocol for communication with Zigbee firmware"""
+    NAME = 'minimalDevice'
     JOIN = "join"
     WRITEATTRIBUTE2 = "writeAttribute2"
     GETNETWORKADDRESS = 'getNetworkAddress'
@@ -85,6 +86,13 @@ class ZigbeeProtocol(Protocol):
     def getfwver(params=None):
         """Get firmware version command builder"""
         return " ".join([PROTO.GETFWVER, Protocol.EOL])
+
+    @staticmethod
+    def isme(params=None):
+        """Message replied to `getfwver` to identify protocol"""
+        #TODO
+        msg = params.get(T_MSG)
+        return msg == PROTO.NAME
 
     @staticmethod
     def parse_rbuf(data, node):
@@ -222,7 +230,7 @@ class ZigbeeProtocol(Protocol):
             T_GENID: node.genid,
             T_TIME: time.time(),
             T_MSG_TYPE: MessageType.SEND.name,
-            T_TRAFFIC_TYPE: TrafficType.SCMD.name,
+            T_TRAFFIC_TYPE: request.get(T_TRAFFIC_TYPE),#TrafficType.SCMD.name,
             T_NODE: node.addr,
             T_TYPE: PROTO.MsgType.snd_req.name,
             T_ZBEE_NWK_SRC: request.get(T_SRC),#node.addr,
