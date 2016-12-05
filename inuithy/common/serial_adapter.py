@@ -10,6 +10,7 @@ from inuithy.protocol.bzcombo_proto import BzProtocol as BZProto
 from inuithy.util.task_manager import ThrTaskManager
 import glob, logging
 import logging.config as lconf
+from multiprocessing import Queue as JQ
 
 lconf.fileConfig(INUITHY_LOGCONFIG)
 
@@ -82,7 +83,6 @@ class SerialAdapter(SupportedProto):
                 SerialAdapter.lgr.error(to_string("Unsupported protocol {}", ptype))
             if node is not None:
                 self.__nodes.append(node)
-                node.start_listener()
         except Exception as ex:
             SerialAdapter.lgr.error(to_string("Exception on creating node: {}", ex))
 #        SerialAdapter.lgr.debug("Creation finished " + port)
@@ -95,6 +95,11 @@ class SerialAdapter(SupportedProto):
         mng = ThrTaskManager(SerialAdapter.lgr)
         mng.create_task_foreach(self.create_node, ports)
         mng.waitall()
+        self.start_nodes()
+    
+    def start_nodes(self):
+        SerialAdapter.lgr.info("Start connected nodes")
+        [n.start_listener() for n in self.__nodes]
 
     def stop_nodes(self):
         SerialAdapter.lgr.info("Stop connected nodes")
@@ -104,8 +109,9 @@ if __name__ == '__main__':
 
     sad = SerialAdapter()
 
-    print(SerialAdapter.protocols)
+#    print(SerialAdapter.protocols)
     sad.scan_nodes(targets='/dev/ttyS1*')
     print(sad.nodes)
+    sad.stop_nodes()
 
 
