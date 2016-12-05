@@ -26,7 +26,7 @@ class Command(object):
         """Execute handler"""
         if self.handler is not None:
             try:
-                self.handler(args, kwargs)
+                self.handler(*args, **kwargs)
             except Exception as ex:
                 to_console(TSH_ERR_HANDLING_CMD, self.name, ex)
                 
