@@ -25,15 +25,15 @@ class Config(object):
     @config_path.setter
     def config_path(self, val):
         if val is None or len(val) == 0:
-            self.lgr.error("Invalid config path")
+            Config.lgr.error("Invalid config path")
             return
         self.__config_path = val
 
     def __init__(self, path, lgr=None):
         __metaclass__ = ABCMeta
-        self.lgr = lgr
-        if self.lgr is None:
-            self.lgr = logging
+        Config.lgr = lgr
+        if Config.lgr is None:
+            Config.lgr = logging
         self.__config_path = None
         self.config_path = path
         self.config = {}
@@ -42,7 +42,7 @@ class Config(object):
         return '\n'.join([self.config_path, str(self.config)])
 
     def load(self):
-        self.lgr.info(to_string("Loading configure from [{}]", self.config_path))
+        Config.lgr.info(to_string("Loading configure from [{}]", self.config_path))
         ret = True
         if self.config_path.endswith('yaml'):
             ret = self.load_yaml()
@@ -50,7 +50,7 @@ class Config(object):
             ret = self.load_json()
         else:
             if self.load_yaml() is False and self.load_json() is False:
-                self.lgr.error("Unsupported format for config file")
+                Config.lgr.error("Unsupported format for config file")
                 ret = False
         return ret
 
@@ -60,7 +60,7 @@ class Config(object):
             with open(self.config_path, 'w') as fd:
                 yaml.dump(self.config, fd)
         except Exception as ex:
-            self.lgr.error(to_string("dumping yaml config file [{}]: {}", self.config_path, ex))
+            Config.lgr.error(to_string("dumping yaml config file [{}]: {}", self.config_path, ex))
 
     def dump_json(self):
         try:
@@ -68,7 +68,7 @@ class Config(object):
             with open(self.config_path, 'w') as fd:
                 json.dump(self.config, fd)
         except Exception as ex:
-            self.lgr.error(to_string("dumping json config file [{}]: {}", self.config_path, ex))
+            Config.lgr.error(to_string("dumping json config file [{}]: {}", self.config_path, ex))
 
     def load_yaml(self):
         ret = True
@@ -77,7 +77,7 @@ class Config(object):
             with open(self.config_path, 'r') as fd:
                 self.config = yaml.load(fd)
         except Exception as ex:
-            self.lgr.error(to_string("loading yaml config file [{}]: {}", self.config_path, ex))
+            Config.lgr.error(to_string("loading yaml config file [{}]: {}", self.config_path, ex))
             ret = False
         return ret
 
@@ -88,16 +88,16 @@ class Config(object):
             with open(self.config_path, 'r') as fd:
                 self.config = json.load(fd)
         except Exception as ex:
-            self.lgr.error(to_string("loading json config file [{}]: {}", self.config_path, ex))
+            Config.lgr.error(to_string("loading json config file [{}]: {}", self.config_path, ex))
             ret = False
         return ret
 
     def dump_protobuf(self):
-        self.lgr.error("Not implemented")
+        Config.lgr.error("Not implemented")
         return False
 
     def load_protobuf(self):
-        self.lgr.error("Not implemented")
+        Config.lgr.error("Not implemented")
         return False
 
 class InuithyConfig(Config):
@@ -279,7 +279,7 @@ class NetworkConfig(Config):
         """
         for agent in self.nwcfg.config.agents:
             if addr in agent[T_NODES]:
-                self.lgr.info(to_string("Found [{}] on agent [{}]", addr, agent[T_HOST]))
+                Config.lgr.info(to_string("Found [{}] on agent [{}]", addr, agent[T_HOST]))
                 return agent
         return None
 

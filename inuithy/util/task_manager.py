@@ -3,8 +3,11 @@
 """
 from inuithy.common.predef import to_string, INUITHY_LOGCONFIG,\
 T_EVERYONE
+import os
+import multiprocessing as mp
+import threading
 import logging.config as lconf
-import os, multiprocessing, logging, threading
+import logging
 
 lconf.fileConfig(INUITHY_LOGCONFIG)
 logger = logging.getLogger('TaskManager')
@@ -27,17 +30,21 @@ class ProcTaskManager(object):
             self.lgr.error(to_string("Exception on to waiting all: {}", ex))
 
     def create_task(self, proc, args=()):
+        """Create one task with args
+        """
         try:
-            t = multiprocessing.Process(target=proc, args=args)
+            t = mp.Process(target=proc, args=args)
             self.__tasks.append(t)
             t.start()
             self.lgr.info(to_string('[{}]/{} running', t.pid, len(self.__tasks)))
         except Exception as ex:
             self.lgr.error(to_string("Create task with [{}] failed: {}", args, ex))
 
-    def create_task_foreach(self, proc, objs):
+    def create_task_foreach(self, proc, objs, *args):
+        """Create task foreach object with args
+        """
         self.lgr.info("Tasks creation begin")
-        [self.create_task(proc, (o,)) for o in objs]
+        [self.create_task(proc, (o, *args)) for o in objs]
         self.lgr.info("Tasks creation end")
 
 class ThrTaskManager(object):
@@ -58,6 +65,8 @@ class ThrTaskManager(object):
             self.lgr.error(to_string("Exception on to waiting all: {}", ex))
 
     def create_task(self, proc, args=()):
+        """Create one task with args
+        """
         try:
             t = threading.Thread(target=proc, args=args)
             self.__tasks.append(t)
@@ -66,9 +75,11 @@ class ThrTaskManager(object):
         except Exception as ex:
             self.lgr.error(to_string("Create task with [{}] failed: {}", args, ex))
 
-    def create_task_foreach(self, proc, objs):
+    def create_task_foreach(self, proc, objs, *args):
+        """Create task foreach object with args
+        """
         self.lgr.info("Tasks creation begin")
-        [self.create_task(proc, (o,)) for o in objs]
+        [self.create_task(proc, (o, *args)) for o in objs]
         self.lgr.info("Tasks creation end")
 
 def dummy_task(port):
