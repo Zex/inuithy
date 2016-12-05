@@ -34,6 +34,7 @@ TSH_CMD_HELP = "help"
 TSH_CMD_QUIT = "quit"
 TSH_CMD_EXCLAM = "!"
 TSH_CMD_AT = "@"
+TSH_CMD_SHARP = "#"
 
 TSH_CMD_RESTART = "restart"
 TSH_CMD_START = "start"
@@ -95,7 +96,9 @@ class Console(object):#threading.Thread):
     Command(TSH_CMD_EXCLAM, "<system command>", desc="Execute shell command"),\
     Command(TSH_CMD_AT, "<host> <system command>",\
         desc="Execute shell command on remote host"),\
-    ]),
+    Command(TSH_CMD_SHARP, "<path|command>",\
+        desc="Execute Python command or script")
+            ]),
             "usage_agent": Usage(self._title, [\
     Command(delimstr(' ', TSH_CMD_AGENT, TSH_CMD_LIST), desc="Print available agents"),\
     Command(delimstr(' ', TSH_CMD_AGENT, TSH_CMD_LIST_LESS),\
@@ -109,7 +112,7 @@ class Console(object):#threading.Thread):
     Command(delimstr(' ', TSH_CMD_AGENT, TSH_CMD_FORCE_STOP),\
         desc="Force stop agent on <host>\n"\
     "'*' for all targetted hosts"),\
-    ]),
+            ]),
             "usage_traffic": Usage(self._title, [\
     Command(delimstr(' ', TSH_CMD_TRAFFIC, TSH_CMD_HOST),\
     "<host>:<node addr> <serial command>",\
@@ -136,6 +139,9 @@ class Console(object):#threading.Thread):
         "usage_@": Usage(self._title, [\
     Command(TSH_CMD_AT, "<host> <system command>",\
         desc="Execute shell command on remote host"),]),
+        "usage_#": Usage(self._title, [\
+    Command(TSH_CMD_SHARP, "<path|command>",\
+        desc="Execute Python command or script")])
         }
         self._cmd_routes = {
             TSH_CMD_AGENT:      self.on_cmd_agent,
@@ -145,6 +151,7 @@ class Console(object):#threading.Thread):
             TSH_CMD_QUIT:       self.on_cmd_quit,
             TSH_CMD_EXCLAM:     self.on_cmd_sys,
             TSH_CMD_AT:         self.on_cmd_rsys,
+            TSH_CMD_SHARP:      self.on_cmd_py,
         }
         self._cmd_agent_routes = {
             TSH_CMD_START: self.on_cmd_agent_start,
@@ -340,7 +347,26 @@ class Console(object):#threading.Thread):
         self.lgr.info("On command sys")
         if args is None or len(args) == 0:
             return
-        os.system(args[0])
+        os.system(' '.join(list(args)))
+
+    def on_cmd_py(self, *args, **kwargs):
+        """Execute python script"""
+        self.lgr.info("On command sys")
+        if args is None or len(args) == 0:
+            return
+        path = args[0]
+        try:
+            if os.path.isfile(path):
+                with open(path) as fd:
+                    exec(fd.read())
+            elif len(path) == 1:
+                exec(path, globals(), locals())
+            elif len(path) > 1:
+                exec(' '.join(list(args)), globals(), locals())
+            else:
+                to_console("Unable to execute {}, no such file or command", path)
+        except Exception as ex:
+            to_console("Exception on executing {}: {}", args, ex)
 
     def console_loop(self, tshhist=None):
         """Console main loop"""
