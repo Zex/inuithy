@@ -6,7 +6,7 @@ from inuithy.common.predef import INUITHY_TOPIC_HEARTBEAT, INUITHY_TOPIC_STATUS,
 INUITHY_TOPIC_REPORTWRITE, INUITHY_TOPIC_NOTIFICATION, INUITHY_TOPIC_UNREGISTER,\
 TRAFFIC_CONFIG_PATH, INUITHY_CONFIG_PATH, INUITHY_TITLE, INUITHY_LOGCONFIG,\
 to_string, to_console
-from inuithy.mode.base import ControllerBase
+from inuithy.mode.base import CtrlBase
 from inuithy.util.cmd_helper import stop_agents, extract_payload
 from inuithy.util.console import Console
 import paho.mqtt.client as mqtt
@@ -17,7 +17,7 @@ import threading
 
 lconf.fileConfig(INUITHY_LOGCONFIG)
 
-class ManualCtrl(ControllerBase):
+class ManualCtrl(CtrlBase):
     """Controller in automatic mode
     """
     def create_mqtt_client(self, host, port):
@@ -46,27 +46,27 @@ class ManualCtrl(ControllerBase):
 
     def __init__(self, inuithy_cfgpath='config/inuithy.conf',\
         traffic_cfgpath='config/traffics.conf', lgr=None, delay=4):
-        ControllerBase.__init__(self, inuithy_cfgpath, traffic_cfgpath, lgr, delay)
-        self.lgr = lgr
-        if self.lgr is None:
-            self.lgr = logging
+        CtrlBase.__init__(self, inuithy_cfgpath, traffic_cfgpath, lgr, delay)
+        ManualCtrl.lgr = lgr
+        if ManualCtrl.lgr is None:
+            ManualCtrl.lgr = logging
 #        self.mqworker = threading.Thread(target=self._mqclient.loop_forever)
 #        self.mqworker = threading.Thread(target=self.keep_looping)
         self.term = Console(self)
 
     def keep_looping(self):
-        self.lgr.info("Manual controller working")
+        ManualCtrl.lgr.info("Manual controller working")
         while ManualCtrl.initialized:
             self.mqclient.loop()
 
     def start(self):
         """Start controller routine"""
         if not ManualCtrl.initialized:
-            self.lgr.error(to_string("ManualCtrl not initialized"))
+            ManualCtrl.lgr.error(to_string("ManualCtrl not initialized"))
             return
 
         try:
-            self.lgr.info(to_string("Expected Agents({}): {}",\
+            ManualCtrl.lgr.info(to_string("Expected Agents({}): {}",\
                 len(self.expected_agents), self.expected_agents))
             if self.worker is not None:
                 self.worker.start()
@@ -79,21 +79,21 @@ class ManualCtrl(ControllerBase):
                 if ret is None or ret == mqtt.MQTT_ERR_SUCCESS:
                     break
                 self.mqclient.loop_stop()
-                self.lgr.warning(to_string('Retry [{}] ...', retry_cnt))
+                ManualCtrl.lgr.warning(to_string('Retry [{}] ...', retry_cnt))
             if ret is not None and ret != mqtt.MQTT_ERR_SUCCESS:
                 raise Exception("Start MQTT loop failed")
             self.term.start()
             to_console("\nBye~\n")
             self.mqclient.loop_stop()
         except KeyboardInterrupt:
-            self.lgr.info(to_string("ManualCtrl received keyboard interrupt"))
+            ManualCtrl.lgr.info(to_string("ManualCtrl received keyboard interrupt"))
             self.term.on_cmd_quit()
         except NameError as ex:
-            self.lgr.error(to_string("ERR: {}", ex))
+            ManualCtrl.lgr.error(to_string("ERR: {}", ex))
         except Exception as ex:
-            self.lgr.error(to_string("Exception on ManualCtrl: {}", ex))
+            ManualCtrl.lgr.error(to_string("Exception on ManualCtrl: {}", ex))
         self.teardown()
-        self.lgr.info(to_string("ManualCtrl terminated"))
+        ManualCtrl.lgr.info(to_string("ManualCtrl terminated"))
 
 def start_controller(tcfg, trcfg, lgr=None):
     """Shortcut to start controller"""

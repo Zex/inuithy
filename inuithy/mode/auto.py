@@ -6,7 +6,7 @@ from inuithy.common.predef import INUITHY_TOPIC_HEARTBEAT, INUITHY_TOPIC_STATUS,
 INUITHY_TOPIC_REPORTWRITE, INUITHY_TOPIC_NOTIFICATION, INUITHY_TOPIC_UNREGISTER,\
 TRAFFIC_CONFIG_PATH, INUITHY_CONFIG_PATH, INUITHY_TITLE, INUITHY_LOGCONFIG,\
 to_string
-from inuithy.mode.base import ControllerBase
+from inuithy.mode.base import CtrlBase
 from inuithy.util.cmd_helper import stop_agents
 import paho.mqtt.client as mqtt
 import logging
@@ -15,7 +15,7 @@ import time
 
 lconf.fileConfig(INUITHY_LOGCONFIG)
 
-class AutoCtrl(ControllerBase):
+class AutoCtrl(CtrlBase):
     """Controller in automatic mode
     """
     def create_mqtt_client(self, host, port):
@@ -45,7 +45,7 @@ class AutoCtrl(ControllerBase):
 
     def __init__(self, inuithy_cfgpath='config/inuithy.conf',\
         traffic_cfgpath='config/traffics.conf', lgr=None, delay=4):
-        ControllerBase.__init__(self, inuithy_cfgpath, traffic_cfgpath, lgr, delay)
+        CtrlBase.__init__(self, inuithy_cfgpath, traffic_cfgpath, lgr, delay)
         self.lgr = lgr
         if self.lgr is None:
             self.lgr = logging

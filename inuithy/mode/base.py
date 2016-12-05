@@ -27,7 +27,7 @@ lconf.fileConfig(INUITHY_LOGCONFIG)
 INUITHY_MQTTMSGFMT = "dup:{}, info:{}, mid:{}, payload:[{}], \
 qos:{}, retain:{}, state:{}, timestamp:{}, topic:[{}]"
 
-class ControllerBase(object):
+class CtrlBase(object):
     """Base of controllers
     """
     """General mutex"""
@@ -142,13 +142,13 @@ class ControllerBase(object):
     @property
     def initialized():
         """Indicate Controller initialization status"""
-        return ControllerBase.__initialized
+        return CtrlBase.__initialized
     @initialized.setter
     def initialized(val):
-        if ControllerBase.__mutex.acquire_lock():
-            if not ControllerBase.__initialized:
-                ControllerBase.__initialized = val
-            ControllerBase.__mutex.release()
+        if CtrlBase.__mutex.acquire_lock():
+            if not CtrlBase.__initialized:
+                CtrlBase.__initialized = val
+            CtrlBase.__mutex.release()
 
 
     def __init__(self, inuithy_cfgpath='config/inuithy.conf',\
@@ -273,7 +273,7 @@ class ControllerBase(object):
                 agent = self.nwcfg.agent_by_name(aname)
                 self.expected_agents.append(agent.get(T_HOST))
             self.create_mqtt_client(*self.tcfg.mqtt)
-            ControllerBase.initialized = True
+            CtrlBase.initialized = True
         except Exception as ex:
             self.lgr.error(to_string("Failed to initialize: {}", ex))
 
@@ -322,8 +322,8 @@ class ControllerBase(object):
     def teardown(self):
         """Cleanup"""
         try:
-            if ControllerBase.initialized:
-                ControllerBase.initialized = False
+            if CtrlBase.initialized:
+                CtrlBase.initialized = False
 #                self.lgr.info("Stop agents")
 #                stop_agents(self._mqclient, self.tcfg.mqtt_qos)
                 if self._traffic_timer:
