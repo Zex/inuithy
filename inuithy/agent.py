@@ -13,7 +13,7 @@ from inuithy.common.traffic import TrafficExecutor, TRAFFIC_BROADCAST_ADDRESS
 from inuithy.util.helper import getpredefaddr
 from inuithy.util.cmd_helper import pub_status, pub_heartbeat, pub_unregister, extract_payload
 from inuithy.util.config_manager import create_inuithy_cfg
-#from inuithy.util.heartbeat import Heartbeat
+from inuithy.util.cmd_helper import Heartbeat
 import paho.mqtt.client as mqtt
 import logging.config as lconf
 import threading
@@ -104,10 +104,9 @@ class Agent(object):
         return Agent.__initialized
     @initialized.setter
     def initialized(val):
-        if Agent.__mutex.acquire_lock():
+        with Agent.__mutex:
             if not Agent.__initialized:
                 Agent.__initialized = True
-            Agent.__mutex.release()
 
     @staticmethod
     def on_connect(client, userdata, rc):
@@ -193,24 +192,28 @@ class Agent(object):
     def __str__(self):
         return to_string("clientid:[{}] host:[{}]", self.clientid, self.host)
 
-    def alive_notification(self):
+    def alive_notification(self, scan_nodes=True):
+        """Post alive notification
+        @scan_nodes Whether need to scan connected nodes before post
+        """
         self.lgr.info(to_string("Alive notification"))
         try:
+            with Agent.__mutex:
+                if scan_nodes:
+                    # TODO DEV_TTYS => DEV_TTYUSB
+                    self.__sad.scan_nodes(DEV_TTY.format(T_EVERYONE))
+                    self.addr_to_node()
+
+            self.lgr.info(to_string("Connected nodes: [{}]", len(self.__sad.nodes)))
             data = {
                 T_CLIENTID: self.clientid,
                 T_HOST: self.host,
                 T_NODES: [str(node) for node in self.__sad.nodes],
                 T_VERSION: INUITHY_VERSION,
             }
-            pub_heartbeat(self._mqclient, self.tcfg.mqtt_qos, data)
+            pub_heartbeat(self.mqclient, self.tcfg.mqtt_qos, data)
         except Exception as ex:
-            self.lgr.info(to_string("Alive notification exception:{}", ex))
-
-    def register(self):
-        """Register an agent to controller
-        """
-        self.lgr.info(to_string("Registering {}", self.clientid))
-        self.alive_notification()
+            self.lgr.error(to_string("Alive notification exception:{}", ex))
 
     def unregister(self):
         """Unregister an agent from controller
@@ -339,6 +342,7 @@ class Agent(object):
     def addr_to_node(self):
         """Map node address to SerialNode"""
         self.lgr.info("Map address to node")
+        self.__addr2node.clear()
         if not self.tcfg.enable_localdebug:
             [self.__addr2node.__setitem__(n.addr, n) for n in self.__sad.nodes]
             return
@@ -375,11 +379,7 @@ class Agent(object):
         status_msg = 'Agent fine'
         try:
             self.lgr.info(to_string("Starting Agent {}", self.clientid))
-            # TODO DEV_TTYS => DEV_TTYUSB
-            self.__sad.scan_nodes(DEV_TTY.format(T_EVERYONE))
-            self.lgr.info(to_string("Connected nodes: [{}]", len(self.__sad.nodes)))
-            self.addr_to_node()
-            self.register()
+            self.alive_notification()
 #            if self.worker:
 #                self.worker.start()
             self.mqclient.loop_forever()
@@ -583,7 +583,7 @@ class Agent(object):
     def on_new_controller(self, message):
         """New controller command handler"""
         self.lgr.info(to_string("New controller"))
-        self.register()
+        self.alive_notification(False)
 
     def on_agent_restart(self, message):
         """Agent restart command handler"""
@@ -614,21 +614,23 @@ class Agent(object):
         """Heartbeat enable command handler"""
         self.lgr.info(to_string("Enable heartbeat"))
         self.__enable_heartbeat = True
-        self.lgr.error(to_string("Heartbeat not implemented"))
-        #TODO Configure interval
+#        self.__sad.scan_nodes(DEV_TTY.format(T_EVERYONE))
 #        info = {
 #            T_CLIENTID: self.clientid,
 #            T_HOST: self.host,
 #            T_ADDR: self.tcfg.controller,
+#            T_VERSION: INUITHY_VERSION,
+#            T_NODES: [str(node) for node in self.__sad.nodes],
 #        }
-#        self.__heartbeat = Heartbeat(interval=float(self.tcfg.heartbeat.get(T_INTERVAL)), name="AgnetHeartbeat", info=info)
-#        self.__heartbeat.run()
+        self.__heartbeat = Heartbeat(interval=float(self.tcfg.heartbeat.get(T_INTERVAL)), target=self.alive_notification)
+        self.__heartbeat.run()
 
     def on_agent_disable_heartbeat(self, message):
         """Heartbeat disable command handler"""
         self.lgr.info(to_string("Disable heartbeat"))
+        if self.__heartbeat is not None:
+            self.__heartbeat.stop()
         self.__enable_heartbeat = False
-        self.__heartbeat.stop()
 
 def start_agent(cfgpath, lgr=None):
     """Shortcut to start an Agent"""
