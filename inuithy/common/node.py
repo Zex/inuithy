@@ -7,7 +7,7 @@ from inuithy.util.cmd_helper import pub_reportwrite, pub_notification
 from inuithy.protocol.ble_proto import BleProtocol as BleProto
 from inuithy.protocol.zigbee_proto import ZigbeeProtocol as ZbeeProto
 from inuithy.protocol.zigbee_proto import T_RSP
-from inuithy.protocol.bzcombo_proto import BzProtocol as BZProto
+from inuithy.protocol.bzcombo_proto import BzProtocol as BzProto
 
 import logging.config as lconf
 from enum import Enum
@@ -188,7 +188,7 @@ class NodeBLE(SerialNode):
         msg = self.prot.getaddr()
         self.write(msg, request)
 #        self.addr = addr
-
+    @staticmethod
     def create(port='', addr='', reporter=None, lgr=None):
         return NodeBLE(port, addr, reporter, lgr)
 
@@ -233,6 +233,7 @@ class NodeZigbee(SerialNode):
         msg = self.prot.writeattribute2(request)
         self.write(msg, request)
 
+    @staticmethod
     def create(port='', addr='', reporter=None, lgr=None):
         return NodeZigbee(port, addr, reporter, lgr)
 
@@ -247,7 +248,7 @@ class NodeBz(SerialNode):
         self.port = port
         self.sequence_nr = 0
         self.joined = False # DEBUG data
-        self.prot = ZbeeProto
+        self.prot = BzProto
         self.prot.lgr = self.lgr
 
     def __str__(self):
@@ -277,6 +278,7 @@ class NodeBz(SerialNode):
         msg = self.prot.writeattribute2(request)
         self.write(msg, request)
 
+    @staticmethod
     def create(port='', addr='', reporter=None, lgr=None):
         return NodeBz(port, addr, reporter, lgr)
 
