@@ -52,7 +52,7 @@ logmon:
 	$(TAILMON) $(LOGPATH)
 
 run_all_agents:
-	ssh root@127.0.0.1 "pushd $(PROJECT_PATH);nohup $(PYTHON) inuithy/agent.py" &
+	ssh root@127.0.0.1 "pushd $(PROJECT_PATH);$(PYTHON) inuithy/agent.py" &
 
 viewlog:
 	$(VIM) $(LOGPATH)
