@@ -5,9 +5,10 @@ from inuithy.common.version import INUITHY_VERSION
 from inuithy.common.predef import INUITHY_TOPIC_HEARTBEAT, INUITHY_TOPIC_STATUS,\
 INUITHY_TOPIC_REPORTWRITE, INUITHY_TOPIC_NOTIFICATION, INUITHY_TOPIC_UNREGISTER,\
 TRAFFIC_CONFIG_PATH, INUITHY_CONFIG_PATH, INUITHY_TITLE, INUITHY_LOGCONFIG,\
-to_string
+to_string, T_CLIENTID, T_HOST, T_NODES, T_VERSION
 from inuithy.mode.base import CtrlBase
-from inuithy.util.cmd_helper import pub_enable_hb, pub_disable_hb
+from inuithy.util.cmd_helper import pub_enable_hb, pub_disable_hb,\
+extract_payload
 import paho.mqtt.client as mqtt
 import logging
 import logging.config as lconf
@@ -49,36 +50,48 @@ class MoniCtrl(CtrlBase):
         if self.lgr is None:
             self.lgr = logging
 
+    @staticmethod
+    def on_topic_heartbeat(client, userdata, message):
+        """Heartbeat message format:
+        """
+        self = userdata
+        self.lgr.info(to_string("On topic heartbeat"))
+        data = extract_payload(message.payload)
+        agentid, host, nodes, version = data.get(T_CLIENTID), data.get(T_HOST),\
+                data.get(T_NODES), data.get(T_VERSION)
+        try:
+            self.lgr.info(to_string("On topic heartbeat: Agent Version {}", version))
+            agentid = agentid.strip('\t\n ')
+            self.add_agent(agentid, host, nodes)
+#            self.traffic_state.check("is_agents_all_up")
+            self.lgr.info(to_string("Found Agents({}): {}",\
+                len(self.available_agents), self.available_agents))
+            pub_enable_hb(self.mqclient, clientid=agentid)
+        except Exception as ex:
+            self.lgr.error(to_string("Exception on registering agent {}: {}", agentid, ex))
+
     def start(self):
         """Start controller routine"""
         if not MoniCtrl.initialized:
             self.lgr.error(to_string("MoniCtrl not initialized"))
             return
         try:
-            self.lgr.info(to_string("Expected Agents({}): {}",\
-                len(self.expected_agents), self.expected_agents))
 #            if self._traffic_timer is not None:
 #                self._traffic_timer.start()
             if self.worker is not None:
                 self.worker.start()
             self.alive_notification()
-            pub_enable_hb(self.mqclient)
+#            for agent in self.available_agents:
+#                self.lgr.debug(to_string("Enable heartbeat on {}", agent))
+#                pub_enable_hb(self.mqclient, clientid=agent.agentid)
             self._mqclient.loop_forever()
         except KeyboardInterrupt:
             self.lgr.info(to_string("MoniCtrl received keyboard interrupt"))
-#            self.traffic_state.chk.done.set()
-            pub_disable_hb(self.mqclient)
-            if self.traffic_state is not None:
-                self.traffic_state.traf_running = False
-                self.traffic_state.chk.set_all()
         except NameError as ex:
             self.lgr.error(to_string("ERR: {}", ex))
-            pub_disable_hb(self.mqclient)
-            if self.traffic_state is not None:
-                self.traffic_state.traf_running = False
-                self.traffic_state.chk.set_all()
         except Exception as ex:
             self.lgr.error(to_string("Exception on MoniCtrl: {}", ex))
+        pub_disable_hb(self.mqclient)
         self.teardown()
         self.lgr.info(to_string("MoniCtrl terminated"))
 

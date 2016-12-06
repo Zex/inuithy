@@ -351,6 +351,8 @@ class CtrlBase(object):
             agentid = agentid.strip('\t\n ')
             self.add_agent(agentid, host, nodes)
             self.traffic_state.check("is_agents_all_up")
+            self.lgr.info(to_string("Found Agents({}): {}",\
+                len(self.available_agents), self.available_agents))
         except Exception as ex:
             self.lgr.error(to_string("Exception on registering agent {}: {}", agentid, ex))
 
