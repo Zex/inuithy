@@ -10,17 +10,21 @@ INUITHY_LOGCONFIG, INUITHY_TOPIC_COMMAND, TrafficType, DEV_TTY, T_GENID,\
 T_SRC, T_PKGSIZE, T_EVERYONE, mqlog_map, T_VERSION, T_MSG_TYPE
 from inuithy.common.serial_adapter import SerialAdapter
 from inuithy.common.traffic import TrafficExecutor, TRAFFIC_BROADCAST_ADDRESS
-from inuithy.util.helper import getpredefaddr
+from inuithy.util.helper import getpredefaddr, clear_list
 from inuithy.util.cmd_helper import pub_status, pub_heartbeat, pub_unregister, extract_payload
 from inuithy.util.config_manager import create_inuithy_cfg
 from inuithy.util.cmd_helper import Heartbeat
+from inuithy.util.worker import Worker
 import paho.mqtt.client as mqtt
 import logging.config as lconf
 import threading
 import socket
 import logging
 import sys
-from queue import Queue
+try:
+    from queue import Queue, Empty
+except ImportError:
+    from Queue import Queue, Empty
 import time
 
 lconf.fileConfig(INUITHY_LOGCONFIG)
@@ -85,7 +89,7 @@ class Agent(object):
     @property
     def enable_heartbeat(self):
         """Indicate heartbeat enabled or disabled"""
-        return self.__enable_heartbeat
+        return self._enable_heartbeat
     @enable_heartbeat.setter
     def enable_heartbeat(self):
         pass
@@ -168,9 +172,12 @@ class Agent(object):
             if Agent.initialized:
                 Agent.initialized = False
                 msg = to_string("{}:{}", self.clientid, msg)
-                if self.__heartbeat is not None:
-                    self.__heartbeat.stop()
-                self.__sad.stop_nodes()
+                if self._heartbeat is not None:
+                    self._heartbeat.stop()
+                if self._sad is not None:
+                    self._sad.stop_nodes()
+                if self.worker:
+                    self.worker.stop()
                 self.lgr.info("Stopping traffic executors")
                 while not self.__traffic_executors.empty():
                     te = self.__traffic_executors.get()
@@ -198,17 +205,18 @@ class Agent(object):
         """
         self.lgr.info(to_string("Alive notification"))
         try:
-            with Agent.__mutex:
-                if scan_nodes:
+            if scan_nodes:
+                self.lgr.info(to_string("Got scan nodes request"))
+                with Agent.__mutex:
                     # TODO DEV_TTYS => DEV_TTYUSB
-                    self.__sad.scan_nodes(DEV_TTY.format(T_EVERYONE))
+                    self._sad.scan_nodes(DEV_TTY.format(T_EVERYONE))
                     self.addr_to_node()
 
-            self.lgr.info(to_string("Connected nodes: [{}]", len(self.__sad.nodes)))
+            self.lgr.info(to_string("Connected nodes: [{}]", len(self._sad.nodes)))
             data = {
                 T_CLIENTID: self.clientid,
                 T_HOST: self.host,
-                T_NODES: [str(node) for node in self.__sad.nodes],
+                T_NODES: [str(node) for node in self._sad.nodes],
                 T_VERSION: INUITHY_VERSION,
             }
             pub_heartbeat(self.mqclient, self.tcfg.mqtt_qos, data)
@@ -286,7 +294,7 @@ class Agent(object):
         self.lgr.info(to_string("Do initialization"))
         try:
             self.create_mqtt_client(*self.tcfg.mqtt)
-            self.__sad = SerialAdapter(self.mqclient, lgr=self.lgr)
+            self._sad = SerialAdapter(self.mqclient, lgr=self.lgr)
             Agent.initialized = True
         except Exception as ex:
             self.lgr.error(to_string("Failed to initialize: {}", ex))
@@ -301,10 +309,10 @@ class Agent(object):
         if self.lgr is None:
             self.lgr = logging
         Agent.__initialized = False
-        self.__enable_heartbeat = False
-        self.__heartbeat = None
+        self._enable_heartbeat = False
+        self._heartbeat = None
         self._mqclient = None
-#        self.topic_routes = {}
+        self.worker = Worker(2, self.lgr)
         self.ctrlcmd_routes = {}
         self.__traffic_executors = Queue()
         self.__inuithy_cfg = create_inuithy_cfg(cfgpath)
@@ -329,11 +337,13 @@ class Agent(object):
         ctrlcmd = command.get(T_CTRLCMD)
         self.lgr.debug(command)
         try:
-            if self.ctrlcmd_routes.get(ctrlcmd):
-                self.ctrlcmd_routes[ctrlcmd](command)
+#            if self.ctrlcmd_routes.get(ctrlcmd):
+#                self.ctrlcmd_routes[ctrlcmd](command)
+            handler = self.topic_routes.get(message.topic)
+            if handler is not None:
+                self.worker.add_job(handler, message)
             else:
-                self.lgr.error(to_string(\
-                'Invalid command [{}]', command))
+                self.lgr.error(to_string('Invalid command [{}]', command))
         except Exception as ex:
             self.lgr.error(to_string(\
                 'Exception on handling command [{}]:{}',
@@ -342,13 +352,14 @@ class Agent(object):
     def addr_to_node(self):
         """Map node address to SerialNode"""
         self.lgr.info("Map address to node")
-        self.__addr2node.clear()
+#        self.__addr2node.clear()
+        clear_list(self.__addr2node)
         if not self.tcfg.enable_localdebug:
-            [self.__addr2node.__setitem__(n.addr, n) for n in self.__sad.nodes]
+            [self.__addr2node.__setitem__(n.addr, n) for n in self._sad.nodes]
             return
 #       import random, string
 #       [self.__addr2node.__setitem__(''.join([random.choice(string.hexdigits)\
-#           for i in range(4)]), n) for n in self.__sad.nodes]
+#           for i in range(4)]), n) for n in self._sad.nodes]
         samples = [
                     '1101', '1102', '1103', '1104',
                     '1111', '1112', '1113', '1114',
@@ -367,9 +378,9 @@ class Agent(object):
                     '11e1', '11e2', '11e3', '11e4',
                     '11f1', '11f2', '11f3', '11f4',
                 ]
-        [n.__setattr__(T_ADDR, addr) for addr, n in zip(samples, self.__sad.nodes)]
-        [self.__addr2node.__setitem__(addr, n) for addr, n in zip(samples, self.__sad.nodes)]
-#        [str(n) for n in self.__sad.nodes]
+        [n.__setattr__(T_ADDR, addr) for addr, n in zip(samples, self._sad.nodes)]
+        [self.__addr2node.__setitem__(addr, n) for addr, n in zip(samples, self._sad.nodes)]
+#        [str(n) for n in self._sad.nodes]
 
     def start(self):
         """Start Agent routine"""
@@ -379,9 +390,9 @@ class Agent(object):
         status_msg = 'Agent fine'
         try:
             self.lgr.info(to_string("Starting Agent {}", self.clientid))
+            if self.worker:
+                self.worker.start()
             self.alive_notification()
-#            if self.worker:
-#                self.worker.start()
             self.mqclient.loop_forever()
         except KeyboardInterrupt:
             status_msg = to_string("Agent received keyboard interrupt")
@@ -613,24 +624,31 @@ class Agent(object):
     def on_agent_enable_heartbeat(self, message):
         """Heartbeat enable command handler"""
         self.lgr.info(to_string("Enable heartbeat"))
-        self.__enable_heartbeat = True
-#        self.__sad.scan_nodes(DEV_TTY.format(T_EVERYONE))
+        if self._enable_heartbeat:
+            return
+        self._enable_heartbeat = True
+#        self._sad.scan_nodes(DEV_TTY.format(T_EVERYONE))
 #        info = {
 #            T_CLIENTID: self.clientid,
 #            T_HOST: self.host,
 #            T_ADDR: self.tcfg.controller,
 #            T_VERSION: INUITHY_VERSION,
-#            T_NODES: [str(node) for node in self.__sad.nodes],
+#            T_NODES: [str(node) for node in self._sad.nodes],
 #        }
-        self.__heartbeat = Heartbeat(interval=float(self.tcfg.heartbeat.get(T_INTERVAL)), target=self.alive_notification)
-        self.__heartbeat.run()
+        self._heartbeat = Heartbeat(interval=float(self.tcfg.heartbeat.get(T_INTERVAL)),\
+            target=self.alive_notification)
+        self._heartbeat.run()
+        self.lgr.info(to_string("Heartbeat enabled"))
 
     def on_agent_disable_heartbeat(self, message):
         """Heartbeat disable command handler"""
         self.lgr.info(to_string("Disable heartbeat"))
-        if self.__heartbeat is not None:
-            self.__heartbeat.stop()
-        self.__enable_heartbeat = False
+        if not self._enable_heartbeat:
+            return
+        if self._heartbeat is not None:
+            self._heartbeat.stop()
+        self._enable_heartbeat = False
+        self.lgr.info(to_string("Heartbeat disabled"))
 
 def start_agent(cfgpath, lgr=None):
     """Shortcut to start an Agent"""
