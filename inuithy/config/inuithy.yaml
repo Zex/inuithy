@@ -14,4 +14,4 @@ traffic_storage: {passwd: '', path: '127.0.0.1:19713', type: 'DB:MongoDB', user:
 workmode: AUTO
 #workmode: MORNITOR
 #workmode: MANUAL
-heartbeat: {interval: 5}
+heartbeat: {interval: 60}
