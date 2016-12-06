@@ -7,7 +7,7 @@ INUITHY_TOPIC_REPORTWRITE, INUITHY_TOPIC_NOTIFICATION, INUITHY_TOPIC_UNREGISTER,
 TRAFFIC_CONFIG_PATH, INUITHY_CONFIG_PATH, INUITHY_TITLE, INUITHY_LOGCONFIG,\
 to_string
 from inuithy.mode.base import CtrlBase
-from inuithy.util.cmd_helper import stop_agents, extract_payload
+from inuithy.util.cmd_helper import pub_enable_hb, pub_disable_hb
 import paho.mqtt.client as mqtt
 import logging
 import logging.config as lconf
@@ -61,18 +61,25 @@ class MoniCtrl(CtrlBase):
 #                self._traffic_timer.start()
             if self.worker is not None:
                 self.worker.start()
-            stop_agents(self.mqclient)
             self.alive_notification()
+            pub_enable_hb(self.mqclient)
             self._mqclient.loop_forever()
         except KeyboardInterrupt:
             self.lgr.info(to_string("MoniCtrl received keyboard interrupt"))
 #            self.traffic_state.chk.done.set()
+            pub_disable_hb(self.mqclient)
+            if self.traffic_state is not None:
+                self.traffic_state.traf_running = False
+                self.traffic_state.chk.set_all()
         except NameError as ex:
             self.lgr.error(to_string("ERR: {}", ex))
-            self.teardown()
+            pub_disable_hb(self.mqclient)
+            if self.traffic_state is not None:
+                self.traffic_state.traf_running = False
+                self.traffic_state.chk.set_all()
         except Exception as ex:
             self.lgr.error(to_string("Exception on MoniCtrl: {}", ex))
-            raise
+        self.teardown()
         self.lgr.info(to_string("MoniCtrl terminated"))
 
 def start_controller(tcfg, trcfg, lgr=None):

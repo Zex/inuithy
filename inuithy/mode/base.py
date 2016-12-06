@@ -145,11 +145,9 @@ class CtrlBase(object):
         return CtrlBase.__initialized
     @initialized.setter
     def initialized(val):
-        if CtrlBase.__mutex.acquire_lock():
+        with CtrlBase.__mutex:
             if not CtrlBase.__initialized:
                 CtrlBase.__initialized = val
-            CtrlBase.__mutex.release()
-
 
     def __init__(self, inuithy_cfgpath='config/inuithy.conf',\
         traffic_cfgpath='config/traffics.conf', lgr=None, delay=4):
@@ -251,9 +249,7 @@ class CtrlBase(object):
         else:
             self.available_agents[agentid].nodes = nodes
             self.lgr.info(to_string("Agent {} updated", agentid))
-#        self.traffic_state.chk.host2aid.__setitem__(host, agentid)
         [self.traffic_state.chk.node2aid.__setitem__(node, agentid) for node in nodes]
-#        self.lgr.debug("n=>aid"+str(self.node2aid))
 
     def del_agent(self, agentid):
         """Unregister started agent"""
@@ -341,7 +337,6 @@ class CtrlBase(object):
         except Exception as ex:
             self.lgr.error(to_string("Exception on teardown: {}", ex))
 
-#    def on_topic_heartbeat(self, message):
     @staticmethod
     def on_topic_heartbeat(client, userdata, message):
         """Heartbeat message format:
@@ -359,7 +354,6 @@ class CtrlBase(object):
         except Exception as ex:
             self.lgr.error(to_string("Exception on registering agent {}: {}", agentid, ex))
 
-#    def on_topic_unregister(self, message):
     @staticmethod
     def on_topic_unregister(client, userdata, message):
         """Unregister message format:
@@ -377,7 +371,6 @@ class CtrlBase(object):
         except Exception as ex:
             self.lgr.error(to_string("Exception on unregistering agent {}: {}", agentid, ex))
 
-#    def on_topic_status(self, message):
     @staticmethod
     def on_topic_status(client, userdata, message):
         """Status topic handler"""
@@ -404,7 +397,6 @@ class CtrlBase(object):
         else:
             self.lgr.debug(to_string("Unhandled status message {}", data))
 
-#    def on_topic_reportwrite(self, message):
     @staticmethod
     def on_topic_reportwrite(client, userdata, message):
         """Report-written topic handler"""
@@ -424,7 +416,6 @@ class CtrlBase(object):
             self.lgr.error(to_string("Failed to handle report write message: {}", ex))
             self.teardown()
 
-#    def on_topic_notification(self, message):
     @staticmethod
     def on_topic_notification(client, userdata, message):
         """Report-read topic handler"""

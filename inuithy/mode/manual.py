@@ -7,7 +7,7 @@ INUITHY_TOPIC_REPORTWRITE, INUITHY_TOPIC_NOTIFICATION, INUITHY_TOPIC_UNREGISTER,
 TRAFFIC_CONFIG_PATH, INUITHY_CONFIG_PATH, INUITHY_TITLE, INUITHY_LOGCONFIG,\
 to_string, to_console
 from inuithy.mode.base import CtrlBase
-from inuithy.util.cmd_helper import stop_agents, extract_payload
+from inuithy.util.cmd_helper import stop_agents
 from inuithy.util.console import Console
 import paho.mqtt.client as mqtt
 import logging
@@ -47,26 +47,26 @@ class ManualCtrl(CtrlBase):
     def __init__(self, inuithy_cfgpath='config/inuithy.conf',\
         traffic_cfgpath='config/traffics.conf', lgr=None, delay=4):
         CtrlBase.__init__(self, inuithy_cfgpath, traffic_cfgpath, lgr, delay)
-        ManualCtrl.lgr = lgr
-        if ManualCtrl.lgr is None:
-            ManualCtrl.lgr = logging
+        self.lgr = lgr
+        if self.lgr is None:
+            self.lgr = logging
 #        self.mqworker = threading.Thread(target=self._mqclient.loop_forever)
 #        self.mqworker = threading.Thread(target=self.keep_looping)
         self.term = Console(self)
 
     def keep_looping(self):
-        ManualCtrl.lgr.info("Manual controller working")
+        self.lgr.info("Manual controller working")
         while ManualCtrl.initialized:
             self.mqclient.loop()
 
     def start(self):
         """Start controller routine"""
         if not ManualCtrl.initialized:
-            ManualCtrl.lgr.error(to_string("ManualCtrl not initialized"))
+            self.lgr.error(to_string("ManualCtrl not initialized"))
             return
 
         try:
-            ManualCtrl.lgr.info(to_string("Expected Agents({}): {}",\
+            self.lgr.info(to_string("Expected Agents({}): {}",\
                 len(self.expected_agents), self.expected_agents))
             if self.worker is not None:
                 self.worker.start()
@@ -79,21 +79,21 @@ class ManualCtrl(CtrlBase):
                 if ret is None or ret == mqtt.MQTT_ERR_SUCCESS:
                     break
                 self.mqclient.loop_stop()
-                ManualCtrl.lgr.warning(to_string('Retry [{}] ...', retry_cnt))
+                self.lgr.warning(to_string('Retry [{}] ...', retry_cnt))
             if ret is not None and ret != mqtt.MQTT_ERR_SUCCESS:
                 raise Exception("Start MQTT loop failed")
             self.term.start()
             to_console("\nBye~\n")
             self.mqclient.loop_stop()
         except KeyboardInterrupt:
-            ManualCtrl.lgr.info(to_string("ManualCtrl received keyboard interrupt"))
+            self.lgr.info(to_string("ManualCtrl received keyboard interrupt"))
             self.term.on_cmd_quit()
         except NameError as ex:
-            ManualCtrl.lgr.error(to_string("ERR: {}", ex))
+            self.lgr.error(to_string("ERR: {}", ex))
         except Exception as ex:
-            ManualCtrl.lgr.error(to_string("Exception on ManualCtrl: {}", ex))
+            self.lgr.error(to_string("Exception on ManualCtrl: {}", ex))
         self.teardown()
-        ManualCtrl.lgr.info(to_string("ManualCtrl terminated"))
+        self.lgr.info(to_string("ManualCtrl terminated"))
 
 def start_controller(tcfg, trcfg, lgr=None):
     """Shortcut to start controller"""
