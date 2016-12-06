@@ -105,39 +105,37 @@ def pub_heartbeat(publisher, qos=0, data=None):
     payload = json.dumps(data)
     publisher.publish(INUITHY_TOPIC_HEARTBEAT, payload, qos, False)
 
-#class Heartbeat(threading.Thread):
-#    """Heartbeat generator
-#    """
-#    __mutex = threading.Lock()
-#
-#    def __init__(self, interval=2, target=None, name="Heartbeat",\
-#        daemon=True, *args, **kwargs):
-#        threading.Thread.__init__(self, target=None, name=name,\
-#        args=args, kwargs=kwargs, daemon=daemon)
-#        self.__interval = interval
-#        self.__running = False
-#        self.__args = args
-#        self.__kwargs = kwargs
-#        self.__target = target
-#        self.done = threading.Event()
-#
-#    def run(self):
-#        if self.__target is None:
-#            return # or self.__src is None: return
-#        self.__running = True
-#
-#        while self.__running:
-#            if Heartbeat.__mutex.acquire():
-#                self.__target()
-#                Heartbeat.__mutex.release()
-#            self.done.wait(self.__interval)
-#            self.done.clear()
-#
-#    def stop(self):
-#        self.__running = False
-#
-#    def __del__(self):
-#        self.stop()
+class Heartbeat(threading.Thread):
+    """Heartbeat generator
+    """
+    __mutex = threading.Lock()
+
+    def __init__(self, interval=5, target=None, daemon=True, *args, **kwargs):
+        threading.Thread.__init__(self, target=None, daemon=daemon, args=args, kwargs=kwargs)
+        self.__interval = interval
+        self.__running = False
+        self.__target = target
+        self.__args = args
+        self.__kwargs = kwargs
+        self.done = threading.Event()
+
+    def run(self):
+        if self.__target is None:
+            return # or self.__src is None: return
+        self.__running = True
+
+        while self.__running:
+            with Heartbeat.__mutex:
+#                pub_heartbeat(self.__publisher, qos=0, data=None):
+                self.__target(*self.__args, **self.__kwargs)
+            self.done.wait(self.__interval)
+            self.done.clear()
+
+    def stop(self):
+        self.__running = False
+
+    def __del__(self):
+        self.stop()
 
 def start_agents(hosts):
     """Start agent remotely"""
@@ -155,6 +153,7 @@ def stop_agents(publisher, qos=0, clientid="*"):
 
 def force_stop_agents(hosts):
     """Force agent stop remotely"""
-    cmd = 'kill `ps aux|grep inuithy/agent.py|awk \'{print $2,\"@\"$11,$12}\'|grep @python|awk \'{printf \" \"$1}\'` &> /dev/null'
+#    cmd = 'kill `ps aux|grep inuithy/agent.py|awk \'{print $2,\"@\"$11,$12}\'|grep @python|awk \'{printf \" \"$1}\'` &> /dev/null'
+    cmd = 'kill `ps aux|grep \" python.*inuithy/agent.py\"|awk \'{printf \" \"$2}\'` &> /dev/null'
     [runonremote('root', host, cmd) for host in hosts]
 

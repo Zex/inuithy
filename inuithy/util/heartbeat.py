@@ -51,9 +51,8 @@ class Heartbeat(threading.Thread):
         self.__running = True
 
         while self.__running:
-            if Heartbeat.__mutex.acquire():
+            with Heartbeat.__mutex:
                 self.__target()
-                Heartbeat.__mutex.release()
             self.done.wait(self.__interval)
             self.done.clear()
 

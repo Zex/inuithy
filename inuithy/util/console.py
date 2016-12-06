@@ -35,6 +35,7 @@ TSH_CMD_QUIT = "quit"
 TSH_CMD_EXCLAM = "!"
 TSH_CMD_AT = "@"
 TSH_CMD_SHARP = "#"
+TSH_CMD_UPDATE = "update"
 
 TSH_CMD_RESTART = "restart"
 TSH_CMD_START = "start"
@@ -68,9 +69,8 @@ class Console(object):#threading.Thread):
 
     @running.setter
     def running(self, val):
-        if Console.__mutex.acquire():
+        with Console.__mutex:
             self._running = val
-            Console.__mutex.release()
 
     def _setup_banner(self):
         try:
@@ -86,34 +86,31 @@ class Console(object):#threading.Thread):
 
     def _register_routes(self):
         self.usages = {
-            "usage": Usage(self._title, [\
+        "usage": Usage(self._title, [\
     Command(TSH_CMD_HELP, desc="Print inuithy shell usage"),\
     Command(TSH_CMD_HELP, "<command>", desc="Print usage for <command>"),\
     Command(TSH_CMD_QUIT, desc="Leave me"),\
 #    Command(TSH_CMD_CONFIG, desc="Configure items"),
     Command(TSH_CMD_AGENT, desc="Operations on agents"),\
     Command(TSH_CMD_TRAFFIC, desc="Run traffic"),\
+    Command(TSH_CMD_UPDATE, desc="Update Inuithy components on hosts"),\
     Command(TSH_CMD_EXCLAM, "<system command>", desc="Execute shell command"),\
     Command(TSH_CMD_AT, "<host> <system command>",\
         desc="Execute shell command on remote host"),\
-    Command(TSH_CMD_SHARP, "<path|command>",\
-        desc="Execute Python command or script")
-            ]),
-            "usage_agent": Usage(self._title, [\
+    Command(TSH_CMD_SHARP, "<path|command>", desc="Execute Python command or script")
+        ]),
+        "usage_agent": Usage(self._title, [\
     Command(delimstr(' ', TSH_CMD_AGENT, TSH_CMD_LIST), desc="Print available agents"),\
     Command(delimstr(' ', TSH_CMD_AGENT, TSH_CMD_LIST_LESS),\
         desc="Print available agents with less details"),\
     Command(delimstr(' ', TSH_CMD_AGENT, TSH_CMD_START),\
-        desc="Start agent on <host>\n"\
-    "'*' for all targetted hosts"),
+        desc="Start agent on <host>\n'*' for all targetted hosts"),
     Command(delimstr(' ', TSH_CMD_AGENT, TSH_CMD_STOP),\
-        desc="Stop agent on <host>\n"\
-    "'*' for all targetted hosts"),\
+        desc="Stop agent on <host>\n'*' for all targetted hosts"),\
     Command(delimstr(' ', TSH_CMD_AGENT, TSH_CMD_FORCE_STOP),\
-        desc="Force stop agent on <host>\n"\
-    "'*' for all targetted hosts"),\
-            ]),
-            "usage_traffic": Usage(self._title, [\
+        desc="Force stop agent on <host>\n'*' for all targetted hosts"),\
+        ]),
+        "usage_traffic": Usage(self._title, [\
     Command(delimstr(' ', TSH_CMD_TRAFFIC, TSH_CMD_HOST),\
     "<host>:<node addr> <serial command>",\
     "Send serial command to agent on <host>"),\
@@ -124,11 +121,12 @@ class Console(object):#threading.Thread):
     Command(delimstr(' ', TSH_CMD_TRAFFIC, TSH_CMD_RUN),\
         desc="Run registed traffic"),\
     Command(delimstr(' ', TSH_CMD_TRAFFIC, TSH_CMD_GENREPORT),\
-        desc="Generate report for previous traffic"),]),
-#            "usage_config": Usage(self._title, [
-#    Command(delimstr(' ', TSH_CMD_CONFIG, 'nw'),\
-#        "<network_config_file>",\
-#        "Create network layout based on <network_config_file>"),]),
+        desc="Generate report for previous traffic"),
+        ]),
+        "usage_update": Usage(self._title, [\
+    Command(delimstr(' ', TSH_CMD_UPDATE, TSH_CMD_HOST),\
+        desc="Update Inuithy on <host>\n'*' for all targetted hosts"),\
+        ]),
         "usage_quit": Usage(self._title, [\
     Command(TSH_CMD_QUIT, desc="Leave me")]),\
         "usage_help": Usage(self._title, [\
@@ -152,6 +150,7 @@ class Console(object):#threading.Thread):
             TSH_CMD_EXCLAM:     self.on_cmd_sys,
             TSH_CMD_AT:         self.on_cmd_rsys,
             TSH_CMD_SHARP:      self.on_cmd_py,
+            TSH_CMD_UPDATE:     self.on_cmd_update,
         }
         self._cmd_agent_routes = {
             TSH_CMD_START: self.on_cmd_agent_start,
@@ -334,6 +333,13 @@ class Console(object):#threading.Thread):
                 self.ctrl.traffic_state.finish()
         except Exception as ex:
             to_console("Exception on quit: {}", ex)
+
+    def on_cmd_update(self, *args, **kwargs):
+        """Update inuithy handler"""
+        self.lgr.info("On command rsys")
+        if args is None or len(args) < 2:
+            return
+        runonremote('root', args[0], ' '.join(args[1:]))
 
     def on_cmd_rsys(self, *args, **kwargs):
         """Remote system command handler"""
