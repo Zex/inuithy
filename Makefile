@@ -33,7 +33,7 @@ run_controller: inuithy/controller.py
 	$(ECHO) "" > $(LOGPATH)
 	$(ULIMIT) -u unlimited
 	$(MAKE) all
-	$(PYTHON) $<
+	python3 $<
 
 run_tsh: inuithy/controller.py
 	$(ECHO) "" > $(LOGPATH)
@@ -52,7 +52,7 @@ logmon:
 	$(TAILMON) $(LOGPATH)
 
 run_all_agents:
-	ssh root@127.0.0.1 "pushd $(PROJECT_PATH);$(PYTHON) inuithy/agent.py" &
+	ssh root@127.0.0.1 "pushd $(PROJECT_PATH);nohup $(PYTHON) inuithy/agent.py &> /tmp/inuithy.nohup" &
 
 viewlog:
 	$(VIM) $(LOGPATH)
