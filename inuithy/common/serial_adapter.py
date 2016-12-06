@@ -7,10 +7,9 @@ from inuithy.common.supported_proto import SupportedProto
 from inuithy.protocol.ble_proto import BleProtocol as BleProto
 from inuithy.protocol.zigbee_proto import ZigbeeProtocol as ZbeeProto
 from inuithy.protocol.bzcombo_proto import BzProtocol as BZProto
-from inuithy.util.task_manager import ThrTaskManager
+from inuithy.util.task_manager import ProcTaskManager
 import glob, logging
 import logging.config as lconf
-from multiprocessing import Queue as JQ
 
 lconf.fileConfig(INUITHY_LOGCONFIG)
 
@@ -82,7 +81,7 @@ class SerialAdapter(SupportedProto):
             else: 
                 SerialAdapter.lgr.error(to_string("Unsupported protocol {}", ptype))
             if node is not None:
-                self.__nodes.append(node)
+                self.nodes.append(node)
         except Exception as ex:
             SerialAdapter.lgr.error(to_string("Exception on creating node: {}", ex))
 #        SerialAdapter.lgr.debug("Creation finished " + port)
@@ -90,16 +89,17 @@ class SerialAdapter(SupportedProto):
 
     def scan_nodes(self, targets=DEV_TTYUSB.format(T_EVERYONE)):
         SerialAdapter.lgr.info(to_string("Scan for connected nodes {}", targets))
-        self.__nodes = []
+        self.nodes = []
         ports = enumerate(name for name in glob.glob(targets))
-        mng = ThrTaskManager(SerialAdapter.lgr)
+        mng = ProcTaskManager(SerialAdapter.lgr)
         mng.create_task_foreach(self.create_node, ports)
         mng.waitall()
+        SerialAdapter.lgr.info("Scanning finished")
         self.start_nodes()
     
     def start_nodes(self):
         SerialAdapter.lgr.info("Start connected nodes")
-        [n.start_listener() for n in self.__nodes]
+        [n.start_listener() for n in self.nodes]
 
     def stop_nodes(self):
         SerialAdapter.lgr.info("Stop connected nodes")
