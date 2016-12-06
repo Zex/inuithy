@@ -36,7 +36,7 @@ class ProcTaskManager(object):
             t = mp.Process(target=proc, args=args)
             self.__tasks.append(t)
             t.run()
-            self.lgr.info(to_string('[{}]/{} running', t.pid, len(self.__tasks)))
+#            self.lgr.info(to_string('[{}]/{} running', t.pid, len(self.__tasks)))
         except Exception as ex:
             self.lgr.error(to_string("Create task with [{}] failed: {}", args, ex))
 
@@ -44,7 +44,8 @@ class ProcTaskManager(object):
         """Create task foreach object with args
         """
         self.lgr.info("Tasks creation begin")
-        [self.create_task(proc, (o, *args)) for o in objs]
+#        [self.create_task(proc, (o, *args)) for o in objs]
+        [self.create_task(proc, (o,)+args) for o in objs]
         self.lgr.info("Tasks creation end")
 
 class ThrTaskManager(object):
@@ -71,7 +72,7 @@ class ThrTaskManager(object):
             t = threading.Thread(target=proc, args=args)
             self.__tasks.append(t)
             t.run()
-            self.lgr.info(to_string('[{}]/{} running', t.name, len(self.__tasks)))
+#            self.lgr.info(to_string('[{}]/{} running', t.name, len(self.__tasks)))
         except Exception as ex:
             self.lgr.error(to_string("Create task with [{}] failed: {}", args, ex))
 
@@ -79,7 +80,8 @@ class ThrTaskManager(object):
         """Create task foreach object with args
         """
         self.lgr.info("Tasks creation begin")
-        [self.create_task(proc, (o, *args)) for o in objs]
+#        [self.create_task(proc, (o, *args)) for o in objs]
+        [self.create_task(proc, (o,)+args) for o in objs]
         self.lgr.info("Tasks creation end")
 
 def dummy_task(port):

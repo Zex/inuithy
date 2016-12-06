@@ -58,4 +58,7 @@ def valid_cmds(command):
     command = command.strip()
     return [c.strip() for c in command.split(' ') if len(c) != 0]
 
+def clear_list(l):
+#    l.clear()
+    while len(l) > 0: l.pop()
 

@@ -2,7 +2,10 @@
  @author: Zex Li <top_zlynch@yahoo.com>
 """
 from inuithy.common.predef import INUITHY_LOGCONFIG, to_string
-from queue import Queue, Empty
+try:
+    from queue import Queue, Empty
+except ImportError:
+    from Queue import Queue, Empty
 import threading
 import logging
 import logging.config as lconf
@@ -71,8 +74,8 @@ if __name__ == '__main__':
     import time
     work = Worker(2)
     work.start()
-    for i in range(10000):
-        threading.Thread(target=work.add_job, args=(print, time.time(), "morning",)).start()
-    input("Working ...")
+#    for i in range(10000):
+#        threading.Thread(target=work.add_job, args=(print, time.time(), "morning",)).start()
+#    input("Working ...")
     work.stop()
 
