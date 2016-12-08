@@ -19,6 +19,7 @@ class ReportAdapter(object):
     @staticmethod
     def guess_proto(nodes):
         """Guess protocol to use for analysing
+            [ntype.name] => (ntype, proto, node, report_hdr)
         @nodes List of Node, sample nodes for guessing
         """
         if nodes is None or len(nodes) == 0:
@@ -27,10 +28,10 @@ class ReportAdapter(object):
         cnt = {}
         try:
             for proto in SupportedProto.protocols.keys():
-                cnt[proto] = len([node for node in nodes if node.ntype == proto])
+                cnt[proto] = len([node for node in nodes if node.ntype.name == proto])
             lgr.info(to_string("Node summary: {}", cnt))
             proto = max(cnt)
-            ReportAdapter.handler = SupportedProto.protocols.get(proto)[2]
+            ReportAdapter.handler = SupportedProto.protocols.get(proto)[3]
         except Exception as ex:
             lgr.error(to_string("Exception on guessing protocol: {}", ex))
         
