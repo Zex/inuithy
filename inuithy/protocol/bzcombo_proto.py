@@ -20,6 +20,16 @@ class BzProtocol(Protocol):
     zbee = ZigbeeProtocol
 
     @staticmethod
+    def join(params=None):
+        """Join command"""
+        return PROTO.zbee.join(param) 
+
+    @staticmethod
+    def traffic(params=None):
+        """Traffic command"""
+        return PROTO.zbee.traffic(param) 
+
+    @staticmethod
     def joingrp(params=None):
         """Join group command builder"""
         return PROTO.ble.joingrp(params)

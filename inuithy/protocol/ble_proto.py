@@ -4,7 +4,7 @@
 """
 from inuithy.common.predef import to_string, MessageType, T_MSG,\
 TrafficType, T_SRC, T_DEST, T_CHANNEL, T_MSG_TYPE, T_TRAFFIC_TYPE,\
-T_GENID, T_ADDR, T_TIME, T_NODE, T_PANID
+T_GENID, T_ADDR, T_TIME, T_NODE, T_PANID, NodeType
 from inuithy.protocol.protocol import Protocol
 import time
 from random import randint
@@ -22,39 +22,49 @@ class BleProtocol(Protocol):
     GETFWVER = "getfwver"
 
     @staticmethod
+    def join(params=None):
+        """Join command"""
+        return PROTO.joingrp(params) 
+
+    @staticmethod
+    def traffic(params=None):
+        """Traffic command"""
+        return PROTO.lighton(params) 
+
+    @staticmethod
     def joingrp(params=None):
         """Join group command builder"""
         grpid = params.get(T_PANID)
-        return " ".join([BleProtocol.JOINGRP, grpid, Protocol.EOL])
+        return " ".join([PROTO.JOINGRP, grpid, Protocol.EOL])
 
     @staticmethod
     def leavegrp(params=None):
         """Leave group command builder"""
         grpid = params.get(T_PANID)
-        return " ".join([BleProtocol.LEAVEGRP, grpid, Protocol.EOL])
+        return " ".join([PROTO.LEAVEGRP, grpid, Protocol.EOL])
 
     @staticmethod
     def lighton(params=None):
         """Light on command builder"""
         raddr = params.get(T_DEST)
-        return " ".join([BleProtocol.LIGHTON, raddr, Protocol.EOL])
+        return " ".join([PROTO.LIGHTON, raddr, Protocol.EOL])
 
     @staticmethod
     def lightoff(params=None):
         """Light off command builder"""
         raddr = params.get(T_DEST)
-        return " ".join([BleProtocol.LIGHTOFF, raddr, Protocol.EOL])
+        return " ".join([PROTO.LIGHTOFF, raddr, Protocol.EOL])
 
     @staticmethod
     def setaddr(params=None):
         """Set address command builder"""
         raddr = params.get(T_ADDR)
-        return " ".join([BleProtocol.SETADDR, raddr, Protocol.EOL])
+        return " ".join([PROTO.SETADDR, raddr, Protocol.EOL])
 
     @staticmethod
     def getaddr(params=None):
         """Get address command builder"""
-        return " ".join([BleProtocol.GETADDR, Protocol.EOL])
+        return " ".join([PROTO.GETADDR, Protocol.EOL])
 
     @staticmethod
     def parse_rbuf(data, node):
@@ -63,6 +73,7 @@ class BleProtocol(Protocol):
         @node Node object
         @return Dict report for sending to controller
         """
+        data = data.strip('\t \r\n')
         #TODO parse data
         report = {
             T_GENID: node.genid,\

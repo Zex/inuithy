@@ -236,10 +236,10 @@ class ZbeeReport(object):
             try:
                 ZbeeReport.total_pack(ginfo, raw, pdf_pg)
                 if gw is not None and len(gw) > 0:
-                    for gwnode in gw: # Each subnet
-                        for item in ginfo.header[2:]:
+                    for item in ginfo.header[2:]:
+                        for gwnode in gw: # Each subnet
                             ZbeeReport.item_based(ginfo, pdata, item, pdf_pg, [gwnode],\
-                            title = to_string("{} by gateway", item))#fig_base=ginfo.fig_base)
+                            title = to_string("{} by gateway {}", item, gwnode))#fig_base=ginfo.fig_base)
                 for item in ginfo.header[2:]:
                     ZbeeReport.item_based(ginfo, pdata, item, pdf_pg, interest_nodes, irange)
             except Exception as ex:

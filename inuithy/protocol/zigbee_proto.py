@@ -3,7 +3,7 @@
 """
 from inuithy.common.predef import to_string, T_TIME, T_TYPE, T_MSG,\
 MessageType, TrafficType, T_NODE, T_MSG_TYPE, T_TRAFFIC_TYPE,\
-T_GENID, T_CHANNEL, T_PANID, T_SPANID, T_DEST, T_PKGSIZE, T_SRC
+T_GENID, T_CHANNEL, T_PANID, T_SPANID, T_DEST, T_PKGSIZE, T_SRC, NodeType
 from inuithy.protocol.protocol import Protocol
 from enum import Enum
 import time
@@ -61,6 +61,16 @@ class ZigbeeProtocol(Protocol):
     ])
 
     @staticmethod
+    def join(params=None):
+        """Join command"""
+        return PROTO.joinnw(params) 
+
+    @staticmethod
+    def traffic(params=None):
+        """Traffic command"""
+        return PROTO.writeattribute2(params) 
+
+    @staticmethod
     def joinnw(params=None):
         """Join network command builder"""
         ch, ext_panid, panid, addr = \
@@ -95,19 +105,19 @@ class ZigbeeProtocol(Protocol):
         return msg == PROTO.NAME
 
     @staticmethod
-    def parse_rbuf(data, node):
+    def parse_rbuf(data, node, adapter=None):
         """Parse recieved data
         @data Serial command sent
         @node Node object
         @return Dict report for sending to controller
         """
         report = {}
+        data = data.strip('\t \r\n')
         params = data.split(' ')
-
+       
         # DEBUG data
         rand = random.randint(MessageType.RECV.value, MessageType.UNKNOWN.value)
         if node.joined is False:
-#        if rand == MessageType.JOINING.value
             params = []
             params.append(MessageType.JOINING.name)
         else:
@@ -129,6 +139,7 @@ class ZigbeeProtocol(Protocol):
                 params = [PROTO.DGN]
                 params.extend([str(random.randint(0, 2000)) for _ in range(21)])
         #------------end debug data--------------
+
         msg_type = params[0].upper()
 
         if msg_type == MessageType.SEND.name:
