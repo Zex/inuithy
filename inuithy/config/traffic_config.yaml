@@ -1,63 +1,56 @@
-network_config: inuithy/config/network_config.yaml
-target_agents: [agent_0, agent_1, agent_2, agent_3,
-                agent_4, agent_5, agent_6, agent_7,
-                agent_8, agent_9, agent_a, agent_b,
-                agent_c, agent_d, agent_e, agent_f,]
-target_traffics: [traffic_3, traffic_0, traffic_2]
-traffin_delay: 3
-traffic_0:
-  duration: 5
-  nwlayout: network_0
-  pkgrate: 0.5
-  pkgsize: 1
-  dests: ['1122', '1123', '1124', '1134']
-  srcs: ['1111', '1112', '1113', '1114']
-  noi: ['1122', '1112', '1124']
-traffic_1:
-  duration: 180
-  nwlayout: network_0
-  pkgrate: 0.5
-  pkgsize: 2
-  dests: ['1122', '1123', '1124', '1134']
-  srcs: ['1114']
-  noi: ['1122', '1114', '1124']
-traffic_2:
-  duration: 360
-  nwlayout: network_1
-  pkgrate: 0.2
-  pkgsize: 2
-  dests: ['1122']
-  srcs: ['1123']
-  noi: [] 
-traffic_3:
-  duration: 360
-  nwlayout: network_1
-  pkgrate: 0.2
-  pkgsize: 2
-  dests: ['*']
-  srcs: ['1111']
-  noi: [] 
-traffic_4:
-  duration: 360
+network_config: /opt/inuithy/inuithy/config/network_config.yaml
+target_agents: [agent_0, agent_1, agent_2, agent_3, agent_4, agent_5, agent_6, agent_7,
+  agent_8, agent_9, agent_a, agent_b, agent_c, agent_d, agent_e, agent_f]
+target_phases:
+#- noi: ['1122', '1112', '1124']
+#  nwlayout: network_1
+#  traffics: [traffic_3, traffic_0, traffic_2]
+#- noi: ['1122', '1112', '1124']
+#  nwlayout: network_0
+#  traffics: [traffic_2]
+- noi: ['*']
   nwlayout: network_2
-  pkgrate: 0.2
+  traffics: [traffic_0, traffic_1]
+traffic_0:
+  dests: ['1122', '1123', '1124', '1134']
+  duration: 18
+  interval: 5
+  pkgsize: 1
+  srcs: ['1111', '1112', '1113', '1114']
+traffic_1:
+  dests: ['1122', '1123', '1124', '1134']
+  duration: 18
+  interval: 5
   pkgsize: 2
+  srcs: ['1114']
+traffic_2:
+  dests: ['1122']
+  duration: 360
+  interval: 2
+  pkgsize: 2
+  srcs: ['1123']
+traffic_3:
+  dests: ['*']
+  duration: 360
+  interval: 3
+  pkgsize: 2
+  srcs: ['1111']
+traffic_4:
   dests: ['1144']
+  duration: 360
+  interval: 5
+  pkgsize: 2
   srcs: ['*']
-  noi: [] 
 traffic_5:
+  dests: ['*']
   duration: 10
-  nwlayout: network_1
-  pkgrate: 0.2
+  interval: 2
   pkgsize: 2
-  dests: ['11a1', '11c1', '1181', '1101', '1141', '1121', '11e1', '11f1', '1131', '1171']
   srcs: ['*']
-  noi: [] 
 traffic_6:
+  dests: [11b1]
   duration: 10
-  nwlayout: network_1
-  pkgrate: 0.2
+  interval: 2
   pkgsize: 2
-  dests: ['11b1']
-  srcs: ['11a2']
-  noi: ['11b1', '11a2'] 
+  srcs: [11a2]
+traffin_delay: 30
