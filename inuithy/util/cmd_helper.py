@@ -5,7 +5,7 @@ from inuithy.common.version import INUITHY_ROOT, PROJECT_PATH
 from inuithy.common.predef import T_CLIENTID, INUITHY_TOPIC_COMMAND,\
 T_CTRLCMD, CtrlCmd, INUITHY_TOPIC_UNREGISTER, INUITHY_TOPIC_STATUS,\
 INUITHY_TOPIC_NOTIFICATION, INUITHY_TOPIC_REPORTWRITE, INUITHY_NOHUP_OUTPUT,\
-INUITHY_TOPIC_HEARTBEAT, INUITHY_TOPIC_TRAFFIC, to_string
+INUITHY_TOPIC_HEARTBEAT, INUITHY_TOPIC_TRAFFIC, INUITHY_TOPIC_NWLAYOUT, to_string
 from inuithy.util.helper import runonremote
 import json
 import threading
@@ -47,6 +47,13 @@ def pub_disable_hb(publisher, qos=0, clientid="*"):
     }
     pub_ctrlcmd(publisher, qos, data)
 
+#             network layout
+# Agent <------------------------ Controller
+def pub_nwlayout(publisher, qos=0, data=None):
+    """Publish traffic message
+    """
+    payload = json.dumps(data)
+    publisher.publish(INUITHY_TOPIC_NWLAYOUT, payload, qos, False)
 
 #            traffic
 # Agent <------------------------ Controller

@@ -7,10 +7,10 @@ T_MQTT, T_WORKMODE, T_HEARTBEAT, T_ENABLE_MQDEBUG, T_TSH, T_HISTORY, T_QOS,\
 T_TARGET_AGENTS, T_NODES, T_PANID, T_SPANID, T_NWCONFIG_PATH, T_TYPE,\
 T_AGENTS, T_CONTROLLER, T_USER, T_TRAFFIC_STORAGE, T_GENID, T_PATH,\
 T_PORT, WorkMode, TrafficStorage, StorageType, T_PASSWD, T_CHANNEL,\
-T_GATEWAY, T_TARGET_TRAFFICS, T_DURATION, T_PKGSIZE, T_PKGRATE,\
+T_GATEWAY, T_TRAFFICS, T_DURATION, T_PKGSIZE, T_INTERVAL,\
 T_DESTS, T_SRCS, T_NWLAYOUT, NETWORK_CONFIG_PATH, T_NOI,\
-TRAFFIC_CONFIG_PATH, T_HOST, T_REPORTDIR, T_TRAFFIC_FINISH_DELAY
-from abc import ABCMeta#, abstractmethod
+TRAFFIC_CONFIG_PATH, T_HOST, T_REPORTDIR, T_TRAFFIC_FINISH_DELAY,\
+T_TARGET_PHASES, T_EVERYONE
 import logging
 import logging.config as lconf
 
@@ -25,15 +25,14 @@ class Config(object):
     @config_path.setter
     def config_path(self, val):
         if val is None or len(val) == 0:
-            Config.lgr.error("Invalid config path")
+            self.lgr.error("Invalid config path")
             return
         self.__config_path = val
 
     def __init__(self, path, lgr=None):
-        __metaclass__ = ABCMeta
-        Config.lgr = lgr
-        if Config.lgr is None:
-            Config.lgr = logging
+        self.lgr = lgr
+        if self.lgr is None:
+            self.lgr = logging
         self.__config_path = None
         self.config_path = path
         self.config = {}
@@ -42,7 +41,7 @@ class Config(object):
         return '\n'.join([self.config_path, str(self.config)])
 
     def load(self):
-        Config.lgr.info(to_string("Loading configure from [{}]", self.config_path))
+        self.lgr.info(to_string("Loading configure from [{}]", self.config_path))
         ret = True
         if self.config_path.endswith('yaml'):
             ret = self.load_yaml()
@@ -50,7 +49,7 @@ class Config(object):
             ret = self.load_json()
         else:
             if self.load_yaml() is False and self.load_json() is False:
-                Config.lgr.error("Unsupported format for config file")
+                self.lgr.error("Unsupported format for config file")
                 ret = False
         return ret
 
@@ -58,9 +57,9 @@ class Config(object):
         try:
             import yaml
             with open(self.config_path, 'w') as fd:
-                yaml.dump(self.config, fd)
+                yaml.dump(self.config, fd)#, default_style='"', canonical=False)
         except Exception as ex:
-            Config.lgr.error(to_string("dumping yaml config file [{}]: {}", self.config_path, ex))
+            self.lgr.error(to_string("dumping yaml config file [{}]: {}", self.config_path, ex))
 
     def dump_json(self):
         try:
@@ -68,7 +67,7 @@ class Config(object):
             with open(self.config_path, 'w') as fd:
                 json.dump(self.config, fd)
         except Exception as ex:
-            Config.lgr.error(to_string("dumping json config file [{}]: {}", self.config_path, ex))
+            self.lgr.error(to_string("dumping json config file [{}]: {}", self.config_path, ex))
 
     def load_yaml(self):
         ret = True
@@ -77,7 +76,7 @@ class Config(object):
             with open(self.config_path, 'r') as fd:
                 self.config = yaml.load(fd)
         except Exception as ex:
-            Config.lgr.error(to_string("loading yaml config file [{}]: {}", self.config_path, ex))
+            self.lgr.error(to_string("loading yaml config file [{}]: {}", self.config_path, ex))
             ret = False
         return ret
 
@@ -88,23 +87,23 @@ class Config(object):
             with open(self.config_path, 'r') as fd:
                 self.config = json.load(fd)
         except Exception as ex:
-            Config.lgr.error(to_string("loading json config file [{}]: {}", self.config_path, ex))
+            self.lgr.error(to_string("loading json config file [{}]: {}", self.config_path, ex))
             ret = False
         return ret
 
     def dump_protobuf(self):
-        Config.lgr.error("Not implemented")
+        self.lgr.error("Not implemented")
         return False
 
     def load_protobuf(self):
-        Config.lgr.error("Not implemented")
+        self.lgr.error("Not implemented")
         return False
 
 class InuithyConfig(Config):
     """Configure for Inuithy framework
     """
     def __init__(self, path, lgr=None):
-        Config.__init__(self, path, lgr=None)
+        Config.__init__(self, path, lgr=lgr)
 
     @property
     def mqtt(self):
@@ -137,7 +136,7 @@ class InuithyConfig(Config):
     @property
     def controller(self):
         """Controller host"""
-        return self.config[T_CONTROLLER][HOST]
+        return self.config[T_CONTROLLER][T_HOST]
 
     @controller.setter
     def controller(self, val):
@@ -188,7 +187,7 @@ class InuithyConfig(Config):
         self.config[T_MQTT] = {
             T_HOST: '192.168.100.131',
             T_PORT: 1883,
-            T_QOS:  0
+            T_QOS:  0,
         }
         # Work mode the framework should run in
         # - WorkMode.AUTO
@@ -196,7 +195,7 @@ class InuithyConfig(Config):
         # - WorkMode.MONITOR
         self.config[T_WORKMODE] = WorkMode.AUTO.name
         self.config[T_HEARTBEAT] = {
-            T_INTERVAL: 5,
+            T_INTERVAL: 60,
         }
         self.config[T_CONTROLLER] = {
             T_HOST:'192.168.100.131',
@@ -279,9 +278,12 @@ class NetworkConfig(Config):
         """
         for agent in self.nwcfg.config.agents:
             if addr in agent[T_NODES]:
-                Config.lgr.info(to_string("Found [{}] on agent [{}]", addr, agent[T_HOST]))
+                self.lgr.info(to_string("Found [{}] on agent [{}]", addr, agent[T_HOST]))
                 return agent
         return None
+
+    def __init__(self, path, lgr=None):
+        Config.__init__(self, path, lgr=lgr)
 
     def create_sample(self):
         # Expected agent list
@@ -472,140 +474,135 @@ class TrafficConfig(Config):
     """
     @property
     def nw_cfgpath(self):
-        return self.config[T_NWCONFIG_PATH]
-
+        return self.config.get(T_NWCONFIG_PATH)
     @nw_cfgpath.setter
     def nw_cfgpath(self, val):
         pass
 
     @property
-    def target_traffics(self):
-        return self.config[T_TARGET_TRAFFICS]
-
-    @target_traffics.setter
-    def target_traffics(self, val):
+    def target_phases(self):
+        return self.config.get(T_TARGET_PHASES)
+    @target_phases.setter
+    def target_phases(self, val):
         pass
 
     @property
     def target_agents(self):
-        return self.config[T_TARGET_AGENTS]
-
+        return self.config.get(T_TARGET_AGENTS)
     @target_agents.setter
     def target_agents(self, val):
         pass
 
+    def __init__(self, path, lgr=None):
+        Config.__init__(self, path, lgr=lgr)
+
     def create_sample(self):
+        # Delay befor finish one traffic, in second
+        self.config[T_TRAFFIC_FINISH_DELAY] = 30
         # Network config to use
         self.config["traffic_0"] = {
-            T_NWLAYOUT: 'network_2',
             T_SRCS: [
                 '1111', '1112', '1113', '1114',
             ],
             T_DESTS: [
                 '1122', '1123', '1124', '1134',
             ],
-            # package / seconds
-            T_PKGRATE: 0.5,
+            T_INTERVAL: 5,
             T_PKGSIZE: 1,
             # seconds
             T_DURATION: 180,
-            T_NOI: ['1122', '1112', '1124'],
         }
         self.config["traffic_1"] = {
-            T_NWLAYOUT: 'network_0',
             T_SRCS: [
                 '1114'
             ],
             T_DESTS: [
                 '1122', '1123', '1124', '1134'
             ],
-            # package / seconds
-            T_PKGRATE: 0.5,
+            T_INTERVAL: 5,
             T_PKGSIZE: 2,
             # seconds
             T_DURATION: 180,
-            T_NOI: ['1122', '1114', '1124'],
         }
         self.config["traffic_2"] = {
-            T_NWLAYOUT: 'network_1',
             T_SRCS: [
                 '1123',
             ],
             T_DESTS: [
                 '1122',
             ],
-            # package / seconds
-            T_PKGRATE: 0.2,
+            T_INTERVAL: 2,
             T_PKGSIZE: 2,
             # seconds
             T_DURATION: 360,
-            T_NOI: [],
         }
         self.config["traffic_3"] = {
-            T_NWLAYOUT: 'network_1',
             T_SRCS: [
                 '1111',
             ],
             T_DESTS: [
-                '*',
+                T_EVERYONE,
             ],
-            # package / seconds
-            T_PKGRATE: 0.2,
+            T_INTERVAL: 3,
             T_PKGSIZE: 2,
             # seconds
             T_DURATION: 360,
-            T_NOI: [],
         }
         self.config["traffic_4"] = {
-            T_NWLAYOUT: 'network_2',
             T_SRCS: [
-                '*',
+                T_EVERYONE,
             ],
             T_DESTS: [
                 '1144',
             ],
-            # package / seconds
-            T_PKGRATE: 0.2,
+            T_INTERVAL: 5,
             T_PKGSIZE: 2,
             # seconds
             T_DURATION: 360,
-            T_NOI: [],
         }
         self.config["traffic_5"] = {
-            T_NWLAYOUT: 'network_1',
             T_SRCS: [
-                '*',
+                T_EVERYONE,
             ],
             T_DESTS: [
-                '*',
+                T_EVERYONE,
             ],
-            # package / seconds
-            T_PKGRATE: 0.2,
+            T_INTERVAL: 2,
             T_PKGSIZE: 2,
             # seconds
             T_DURATION: 10,
-            T_NOI: [],
         }
         self.config["traffic_6"] = {
-            T_NWLAYOUT: 'network_1',
             T_SRCS: [
                 '11a2',
             ],
             T_DESTS: [
                 '11b1',
             ],
-            # package / seconds
-            T_PKGRATE: 0.2,
+            T_INTERVAL: 2,
             T_PKGSIZE: 2,
             # seconds
             T_DURATION: 10,
-            T_NOI: ['11b1', '11a2'],
         }
         # Network layout configure path
         self.config[T_NWCONFIG_PATH] = NETWORK_CONFIG_PATH
         # Traffics to run
-        self.config[T_TARGET_TRAFFICS] = [
-            "traffic_0", "traffic_2",
+        self.config[T_TARGET_PHASES] = [
+            {
+                T_NWLAYOUT: 'network_1',
+                T_NOI: ['1122', '1112', '1124'],
+                T_TRAFFICS: ["traffic_3", "traffic_0", "traffic_2"],
+            },
+            {
+                T_NWLAYOUT: 'network_0',
+                T_NOI: ['1122', '1112', '1124'],
+                T_TRAFFICS: ["traffic_2"],
+            },
+            {
+                T_NWLAYOUT: 'network_2',
+                T_NOI: [T_EVERYONE],
+                T_TRAFFICS: ["traffic_0", "traffic_1"],
+            },
         ]
         self.config[T_TARGET_AGENTS] = [
             "agent_0", "agent_1", "agent_2", "agent_3",
@@ -613,50 +610,52 @@ class TrafficConfig(Config):
             "agent_8", "agent_9", "agent_a", "agent_b",
             "agent_c", "agent_d", "agent_e", "agent_f",
         ]
-        # Delay befor finish one traffic, in second
-        self.config[T_TRAFFIC_FINISH_DELAY] = 30
 
 def create_inuithy_cfg(cfgpath):
     """Create inuithy config object and load configure from given path
     """
     cfg = InuithyConfig(cfgpath)
-    if False == cfg.load(): return None
+    if cfg.load() is False:
+        return None
     return cfg
 
 def create_traffic_cfg(cfgpath):
     cfg = TrafficConfig(cfgpath)
-    if False == cfg.load():
+    if cfg.load() is False:
         return None
     return cfg
 
 def create_network_cfg(cfgpath):
     cfg = NetworkConfig(cfgpath)
-    if False == cfg.load():
+    if cfg.load() is False:
         return None
     return cfg
 
-if __name__ == '__main__':
-    lgr = logging.getLogger("InuithyConfig")
-    lgr.info(to_string(INUITHY_TITLE, INUITHY_VERSION, "InuithyConfig"))
-
-    cfg = InuithyConfig(INUITHY_CONFIG_PATH)
+def generate_samples(lgr):
+    cfg = InuithyConfig(INUITHY_CONFIG_PATH, lgr)
     cfg.create_sample()
-#    cfg.dump_yaml()
+    cfg.dump_yaml()
     cfg.config_path = INUITHY_CONFIG_PATH.replace('yaml', 'json')
     cfg.dump_json()
 
-    cfg = NetworkConfig(NETWORK_CONFIG_PATH)
+    cfg = NetworkConfig(NETWORK_CONFIG_PATH, lgr)
     cfg.create_sample()
     cfg.dump_yaml()
     cfg.config_path = NETWORK_CONFIG_PATH.replace('yaml', 'json')
     cfg.dump_json()
 
-    cfg = TrafficConfig(TRAFFIC_CONFIG_PATH)
+    cfg = TrafficConfig(TRAFFIC_CONFIG_PATH, lgr)
     cfg.create_sample()
-#    cfg.dump_yaml()
+    cfg.dump_yaml()
     cfg.config_path = TRAFFIC_CONFIG_PATH.replace('yaml', 'json')
     cfg.dump_json()
 
-    cfg = TrafficConfig(TRAFFIC_CONFIG_PATH)
+#    cfg = TrafficConfig(TRAFFIC_CONFIG_PATH)
 #   print(dir(cfg))
 
+if __name__ == '__main__':
+    lgr = logging.getLogger("InuithyConfig")
+    lgr.info(to_string(INUITHY_TITLE, INUITHY_VERSION, "InuithyConfig"))
+    
+    cfg = create_traffic_cfg(TRAFFIC_CONFIG_PATH)
+    

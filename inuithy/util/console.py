@@ -275,7 +275,7 @@ class Console(object):#threading.Thread):
     def on_cmd_traffic_deploy(self, *args, **kwargs):
         """Traffic deploy command handler
             self.deploy, self.wait_nwlayout, self.register, self.wait_traffic,
-            self.fire, self.traffic_finish, self.genreport,
+            self.fire, self.phase_finish, self.genreport,
         """
         self.lgr.info("On command traffic deploy")
         self.ctrl.traffic_state.next()
@@ -304,7 +304,7 @@ class Console(object):#threading.Thread):
         self.lgr.info("On command traffic run")
         to_console("Start firing")
         self.ctrl.traffic_state.fire()
-        self.ctrl.traffic_state.traffic_finish()
+        self.ctrl.traffic_state.phase_finish()
         to_console("One traffic fired")
 
     def on_cmd_help(self, *args, **kwargs):

@@ -35,7 +35,7 @@ class ProcTaskManager(object):
         try:
             t = mp.Process(target=proc, args=args)
             self.__tasks.append(t)
-            t.run()
+            t.start()
 #            self.lgr.info(to_string('[{}]/{} running', t.pid, len(self.__tasks)))
         except Exception as ex:
             self.lgr.error(to_string("Create task with [{}] failed: {}", args, ex))
