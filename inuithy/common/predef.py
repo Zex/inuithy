@@ -12,6 +12,8 @@ INUITHY_TOPIC_COMMAND = "inuithy/topic/command"
 INUITHY_TOPIC_CONFIG = "inuithy/topic/config"
 # Traffc data to send via serial port on agent
 INUITHY_TOPIC_TRAFFIC = "inuithy/topic/traffic"
+# Configure network layout as given configure
+INUITHY_TOPIC_NWLAYOUT = "inuithy/topic/nwlayout"
 # Agents => Controller
 # Unregister agent
 INUITHY_TOPIC_UNREGISTER = "inuithy/topic/unregister"
@@ -77,12 +79,12 @@ T_SUBNET = 'subnet'
 T_NODES = 'nodes'
 T_GATEWAY = 'gateway'
 T_PKGSIZE = 'pkgsize'
-T_PKGRATE = 'pkgrate'
 T_DESTS = 'dests'
 T_DEST = 'dest'
 T_SRCS = 'srcs'
 T_SRC = 'src'
 T_DURATION = 'duration'
+T_TARGET_PHASES = 'target_phases'
 T_TARGET_TRAFFICS = 'target_traffics'
 T_TARGET_AGENTS = 'target_agents'
 T_NWLAYOUT = 'nwlayout'
@@ -212,3 +214,9 @@ def to_console(fmt, *params):
         return
     print(fmt.format(*params))
 
+NodeType = Enum("NodeType", [
+    "BLE",
+    "Zigbee",
+    "BleZbee",
+    "UNKNOWN",
+])
