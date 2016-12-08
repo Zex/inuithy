@@ -1,6 +1,7 @@
 """ Controller base
  @author: Zex Li <top_zlynch@yahoo.com>
 """
+from inuithy.common.version import INUITHY_VERSION
 from inuithy.common.predef import T_CTRLCMD, CtrlCmd, T_CLIENTID,\
 T_HOST, T_NODES, AgentStatus, INUITHY_LOGCONFIG, mqlog_map, T_TID,\
 to_string, INUITHYCONTROLLER_CLIENT_ID, T_TRAFFIC_STATUS, T_MSG,\
@@ -161,7 +162,6 @@ class CtrlBase(object):
             self.lgr = logging
         self._mqclient = None
         self._storage = None
-#        self.topic_routes = {}
         self._current_nwlayout = ('', '')
         self._host = socket.gethostname()
         self._clientid = to_string(INUITHYCONTROLLER_CLIENT_ID, self.host)
@@ -346,13 +346,15 @@ class CtrlBase(object):
         data = extract_payload(message.payload)
         agentid, host, nodes, version = data.get(T_CLIENTID), data.get(T_HOST),\
                 data.get(T_NODES), data.get(T_VERSION)
+        if version != INUITHY_VERSION:
+            self.lgr.error(to_string("Agent version not match"))
         try:
             self.lgr.info(to_string("On topic heartbeat: Agent Version {}", version))
             agentid = agentid.strip('\t\n ')
             self.add_agent(agentid, host, nodes)
             self.traffic_state.check("is_agents_all_up")
-            self.lgr.info(to_string("Found Agents({}): {}",\
-                len(self.available_agents), self.available_agents))
+            self.lgr.info(to_string("Found Agents({})", len(self.available_agents)))
+#            self.lgr.debug(to_string("{}", [str(a) for a in self.available_agents.values()]))
         except Exception as ex:
             self.lgr.error(to_string("Exception on registering agent {}: {}", agentid, ex))
 
@@ -389,7 +391,7 @@ class CtrlBase(object):
             self.traffic_state.update_stat(data.get(T_TID), TrafficStatus.RUNNING)
         elif data.get(T_TRAFFIC_STATUS) == TrafficStatus.FINISHED.name:
             self.lgr.info(to_string("Traffic {} finished", data.get(T_TID)))
-            self.traffic_state.update_stat(data.get(T_TID), TrafficStatus.FINISHED, "is_traffic_finished")
+            self.traffic_state.update_stat(data.get(T_TID), TrafficStatus.FINISHED, "is_phase_finished")
         elif data.get(T_TRAFFIC_STATUS) == TrafficStatus.INITFAILED.name:
             self.lgr.error(to_string("Agent {} failed to initialize: {}",\
                 data.get(T_CLIENTID), data.get(T_MSG)))
@@ -429,7 +431,7 @@ class CtrlBase(object):
             if data.get(T_TRAFFIC_TYPE) == TrafficType.JOIN.name:
                 if self.traffic_state.chk.nwlayout.get(data.get(T_NODE)) is not None:
                     self.traffic_state.chk.nwlayout[data.get(T_NODE)] = True
-                    self.traffic_state.check("is_network_layout_done")
+                    self.traffic_state.check("is_nwlayout_done")
             elif data.get(T_TRAFFIC_TYPE) == TrafficType.SCMD.name:
             # Record traffic only
 #                if data.get(T_MSG_TYPE) == MessageType.RECV.name and data.get(T_NODE) is not None:
