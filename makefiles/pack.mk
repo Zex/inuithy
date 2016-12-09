@@ -30,7 +30,7 @@ $(VERSION_PATH):
 	$(ECHO) "\033[01;36m[Creating $@]\033[00m"
 	$(ECHO) "\"\"\" Inuithy version info - AUTO GENERATED ON `date`\"\"\"" > $@
 	$(ECHO) "" >> $@
-	$(ECHO) "INUITHY_VERSION = \""$(VERSION)"\"" >> $@
+	$(ECHO) "__version__ = \""$(VERSION)"\"" >> $@
 	$(ECHO) "PROJECT_PATH = \""$(PROJECT_PATH)"\"" >> $@
 	$(ECHO) "INUITHY_ROOT = \""$(PROJECT_PATH)/inuithy"\"" >> $@
 	$(ECHO) "" >> $@
