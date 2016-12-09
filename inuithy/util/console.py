@@ -1,14 +1,14 @@
 """ Console for manual mode
  @author: Zex Li <top_zlynch@yahoo.com>
 """
-from inuithy.common.version import INUITHY_ROOT, INUITHY_VERSION
+from inuithy.common.version import INUITHY_ROOT, __version__
 from inuithy.common.predef import INUITHY_LOGCONFIG, INUITHY_TITLE,\
-INUITHY_CONFIG_PATH, TRAFFIC_CONFIG_PATH, to_console, to_string,\
-T_EVERYONE
+to_console, to_string, T_EVERYONE
 from inuithy.common.command import TSH_ERR_GENERAL, TSH_ERR_HANDLING_CMD,\
 Command, Usage, TSH_ERR_INVALID_CMD
 from inuithy.util.helper import valid_cmds, runonremote, delimstr
 from inuithy.util.cmd_helper import start_agents, stop_agents
+from inuithy.common.runtime import Runtime as rt
 import multiprocessing as mp
 import socket
 import threading
@@ -171,7 +171,7 @@ class Console(object):#threading.Thread):
         self.lgr = lgr
         if self.lgr is None:
             self.lgr = logging #logging.getLogger("InuithyShell")
-        self._title = INUITHY_TITLE.format(INUITHY_VERSION, "Shell")
+        self._title = INUITHY_TITLE.format(__version__, "Shell")
         self._running = True
         self._banner = ""
         self._host = socket.gethostname()#socket.gethostbyname(socket.gethostname())
@@ -270,7 +270,7 @@ class Console(object):#threading.Thread):
             T_CLIENTID:     self.ctrl.node2aid.get(node),
             T_MSG:          ' '.join(list(args[1:])),
         }
-        pub_traffic(self.ctrl.mqclient, self.ctrl.tcfg.mqtt_qos, data)
+        pub_traffic(self.ctrl.mqclient, rt.tcfg.mqtt_qos, data)
 
     def on_cmd_traffic_deploy(self, *args, **kwargs):
         """Traffic deploy command handler
@@ -397,8 +397,8 @@ class Console(object):#threading.Thread):
         self.lgr.info("Start console")
         to_console(self._title)
         to_console(self._banner)
-        mod = os.path.exists(self.ctrl.tcfg.tsh_hist) and 'a+' or 'w+'
-        with open(self.ctrl.tcfg.tsh_hist, mod) as tshhist:
+        mod = os.path.exists(rt.tcfg.tsh_hist) and 'a+' or 'w+'
+        with open(rt.tcfg.tsh_hist, mod) as tshhist:
             self.console_loop(tshhist)
 
     def dispatch(self, command):

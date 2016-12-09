@@ -5,7 +5,8 @@ from inuithy.common.predef import T_TID, T_GENID, T_TRAFFIC_TYPE,\
 T_CLIENTID, T_NODE, T_HOST, T_DURATION, T_INTERVAL, T_GATEWAY, T_SRC,\
 T_DEST, T_PKGSIZE, T_NODES, T_PATH, T_NWLAYOUT, T_PANID, T_SPANID,\
 to_console, to_string, TrafficType, T_TRAFFIC_FINISH_DELAY,\
-TrafficStorage, StorageType, INUITHY_CONFIG_PATH, TrafficStatus
+TrafficStorage, StorageType, TrafficStatus
+from inuithy.common.runtime import Runtime as rt
 from inuithy.util.helper import getnwlayoutname
 from inuithy.util.cmd_helper import pub_nwlayout, pub_traffic, start_agents,\
 stop_agents, force_stop_agents
@@ -338,7 +339,7 @@ class TrafficState:
             return
         try:
             self.current_genid = genid
-            with open(self.ctrl.tcfg.config[T_GENID][T_PATH], 'a') as fd:
+            with open(rt.tcfg.config[T_GENID][T_PATH], 'a') as fd:
                 fd.write(to_string("{},{}\n", genid, str(dt.now())))
         except Exception as ex:
             TrafficState.lgr.error(to_string("Record genid failed: {}", ex))
@@ -398,7 +399,7 @@ class TrafficState:
         TrafficState.lgr.info(to_string("Create traffic from configure: {}", str(self.current_state)))
         if not self.traf_running:
             return
-        self.phases = create_phases(self.ctrl.trcfg, self.ctrl.nwcfg)
+        self.phases = create_phases(rt.trcfg, rt.nwcfg)
         TrafficState.lgr.info(to_string("Total phase: [{}]", len(self.phases)))
         self.next_phase = self.yield_traffic()
 
@@ -441,7 +442,7 @@ class TrafficState:
         self.current_phase = next(self.next_phase)
         nwlayoutname = getnwlayoutname(self.current_phase.nwlayoutid)
         cfg = {
-            T_NWLAYOUT: deepcopy(self.ctrl.nwcfg.config.get(nwlayoutname))
+            T_NWLAYOUT: deepcopy(rt.nwcfg.config.get(nwlayoutname))
         }
         self.current_phase.genid = self.ctrl.storage.insert_config(cfg)
         to_console("Current phase: {}", self.current_phase)
@@ -471,7 +472,7 @@ class TrafficState:
         if not self.traf_running:
             return
         publish_nwlayout(nwlayoutname,
-            self.ctrl.nwcfg, self.ctrl.tcfg,
+            rt.nwcfg, rt.tcfg,
             self.chk, self.current_phase.genid,
             self.ctrl.mqclient)
 
@@ -497,7 +498,7 @@ class TrafficState:
         TrafficState.lgr.info(to_string("Register traffic task: {}", str(self.current_state)))
         phase = self.current_phase
         TrafficState.lgr.info(to_string("Register traffic: [{}]", str(phase)))
-        publish_phase(phase, self.chk, self.ctrl.mqclient, self.ctrl.tcfg.enable_localdebug)
+        publish_phase(phase, self.chk, self.ctrl.mqclient, rt.tcfg.enable_localdebug)
 
     @after('fire')
     def do_fire(self):
@@ -514,7 +515,7 @@ class TrafficState:
                 T_CLIENTID: agent,
                 T_TRAFFIC_TYPE: TrafficType.START.name,
             }
-            pub_traffic(self.ctrl.mqclient, self.ctrl.tcfg.mqtt_qos, data)
+            pub_traffic(self.ctrl.mqclient, rt.tcfg.mqtt_qos, data)
 
     @before('phase_finish')
     def do_phase_finish(self):
@@ -535,7 +536,7 @@ class TrafficState:
         TrafficState.lgr.info(to_string("Try analysing: {}", str(self.current_state)))
         if not self.traf_running:
             return
-        if self.ctrl.tcfg.storagetype in [\
+        if rt.tcfg.storagetype in [\
             (TrafficStorage.DB.name, StorageType.MongoDB.name),]:
             if self.current_genid is not None:
                 tmg = ProcTaskManager()
@@ -549,7 +550,7 @@ class TrafficState:
                     list(self.current_phase.noi.get(T_NODES))))
                 tmg.waitall()
         else:
-            TrafficState.lgr.info(to_string("Unsupported storage type: {}", str(self.ctrl.tcfg.storagetype)))
+            TrafficState.lgr.info(to_string("Unsupported storage type: {}", str(rt.tcfg.storagetype)))
 
     @after('finish')
     def do_finish(self):
@@ -561,7 +562,7 @@ class TrafficState:
         try:
             self.phases.clear()
             TrafficState.lgr.info("Stopping agents ...")
-            stop_agents(self.ctrl.mqclient, self.ctrl.tcfg.mqtt_qos)
+            stop_agents(self.ctrl.mqclient, rt.tcfg.mqtt_qos)
 
             if len(self.chk.available_agents) > 0:
                 TrafficState.lgr.info("Wait for last notifications")
@@ -574,7 +575,7 @@ class TrafficState:
 
         TrafficState.lgr.info("Stopping controller ...")
         self.ctrl.teardown()
-#        self.chk.done.wait(self.ctrl.trcfg.config.get(T_TRAFFIC_FINISH_DELAY))
+#        self.chk.done.wait(rt.trcfg.config.get(T_TRAFFIC_FINISH_DELAY))
 #        self.chk.done.clear()
 
         try:

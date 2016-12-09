@@ -1,7 +1,7 @@
 """ Heartbeart over UDP
  @author: Zex Li <top_zlynch@yahoo.com>
 """
-from inuithy.common.version import INUITHY_VERSION
+from inuithy.common.version import __version__
 from inuithy.common.predef import T_CLIENTID, T_HOST,\
 T_VERSION, T_ADDR, to_string, INUITHY_LOGCONFIG
 import json
@@ -71,7 +71,7 @@ class Heartbeat(threading.Thread):
             data = {
                 T_CLIENTID: self.info.get(T_CLIENTID),
                 T_HOST: self.info.get(T_HOST),
-                T_VERSION: INUITHY_VERSION,
+                T_VERSION: __version__,
             }
             self.__sock.sendto(json.dumps(data), addr)
         except Exception as ex:

@@ -2,7 +2,7 @@
  @uthor: Zex Li <top_zlynch@yahoo.com>
 """
 from inuithy.common.predef import INUITHY_LOGCONFIG, to_string,\
-INUITHY_TITLE, INUITHY_VERSION, INUITHY_CONFIG_PATH, T_ENABLE_LDEBUG,\
+INUITHY_TITLE, __version__, INUITHY_CONFIG_PATH, T_ENABLE_LDEBUG,\
 T_MQTT, T_WORKMODE, T_HEARTBEAT, T_ENABLE_MQDEBUG, T_TSH, T_HISTORY, T_QOS,\
 T_TARGET_AGENTS, T_NODES, T_PANID, T_SPANID, T_NWCONFIG_PATH, T_TYPE,\
 T_AGENTS, T_CONTROLLER, T_USER, T_TRAFFIC_STORAGE, T_GENID, T_PATH,\
@@ -611,25 +611,6 @@ class TrafficConfig(Config):
             "agent_c", "agent_d", "agent_e", "agent_f",
         ]
 
-def create_inuithy_cfg(cfgpath):
-    """Create inuithy config object and load configure from given path
-    """
-    cfg = InuithyConfig(cfgpath)
-    if cfg.load() is False:
-        return None
-    return cfg
-
-def create_traffic_cfg(cfgpath):
-    cfg = TrafficConfig(cfgpath)
-    if cfg.load() is False:
-        return None
-    return cfg
-
-def create_network_cfg(cfgpath):
-    cfg = NetworkConfig(cfgpath)
-    if cfg.load() is False:
-        return None
-    return cfg
 
 def generate_samples(lgr):
     cfg = InuithyConfig(INUITHY_CONFIG_PATH, lgr)
@@ -655,7 +636,7 @@ def generate_samples(lgr):
 
 if __name__ == '__main__':
     lgr = logging.getLogger("InuithyConfig")
-    lgr.info(to_string(INUITHY_TITLE, INUITHY_VERSION, "InuithyConfig"))
+    lgr.info(to_string(INUITHY_TITLE, __version__, "InuithyConfig"))
     
-    cfg = create_traffic_cfg(TRAFFIC_CONFIG_PATH)
+#    cfg = load_trcfg(TRAFFIC_CONFIG_PATH)
     
