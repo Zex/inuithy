@@ -9,6 +9,7 @@ T_TRAFFIC_STATUS, TrafficStatus, T_TID, T_NOI, T_TRAFFICS
 from inuithy.util.helper import getnwlayoutid, is_number
 from inuithy.util.cmd_helper import pub_status
 from inuithy.common.node import SerialNode
+from inuithy.common.runtime import Runtime as rt
 import time
 import threading
 import random
@@ -261,9 +262,7 @@ def create_phases(trcfg, nwcfg):
 
 if __name__ == '__main__':
 
-    from inuithy.util.config_manager import create_traffic_cfg, create_network_cfg
-    trcfg = create_traffic_cfg(TRAFFIC_CONFIG_PATH)
-    nwcfg = create_network_cfg(trcfg.nw_cfgpath)
+    load_configs()
     phases = create_phases(trcfg, nwcfg)
     to_console("---------------------------------------------")
     [to_console(str(phase)) for phase in phases]

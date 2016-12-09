@@ -1,7 +1,7 @@
 """ Common definition for inuithy
  @author: Zex Li <top_zlynch@yahoo.com>
 """
-from inuithy.common.version import INUITHY_VERSION, INUITHY_ROOT
+from inuithy.common.version import __version__, INUITHY_ROOT
 import paho.mqtt.client as mqtt
 from enum import Enum
 
@@ -34,8 +34,8 @@ INUITHYAGENT_MSGFMT = "INUITHYAGENT [{}]"
 INUITHYAGENT_CLIENT_ID = "inuithy/agent/{}"
 #INUITHYAGENT_TOPIC_ID = "inuithy/agent/{}/topic/status"
 
-INUITHYCONTROLLER_MSGFMT = "INUITHYCONTROLLER [{}]"
-INUITHYCONTROLLER_CLIENT_ID = "inuithy/controller/{}"
+CTRL_MSGFMT = "INUITHYCTRL [{}]"
+CTRL_CLIENT_ID = "inuithy/ctrl/{}"
 
 # command message from Controller to Agents
 # <command> <parameters>
@@ -147,7 +147,6 @@ class GenInfo(object):
         self.csv_path = None
         self.pdf_path = None
         self.fig_base = None
-        self.cfg = None
         self.genid = None
 
     def __str__(self):
@@ -220,3 +219,4 @@ NodeType = Enum("NodeType", [
     "BleZbee",
     "UNKNOWN",
 ])
+
