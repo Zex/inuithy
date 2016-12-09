@@ -1,8 +1,7 @@
 """ Data analysis with Pandas
  @uthor: Zex Li <top_zlynch@yahoo.com>
 """
-from inuithy.common.predef import INUITHY_LOGCONFIG, INUITHY_CONFIG_PATH,\
-to_console, to_string
+from inuithy.common.predef import INUITHY_LOGCONFIG, to_console, to_string
 from inuithy.common.supported_proto import SupportedProto
 import logging
 import logging.config as lconf
@@ -42,7 +41,7 @@ class ReportAdapter(object):
         pass
 
     @staticmethod
-    def gen_report(inuithy_cfgpath=INUITHY_CONFIG_PATH, genid=None):
+    def gen_report(genid=None):
         """Report generation helper"""
         pass
 
@@ -52,23 +51,39 @@ class ReportAdapter(object):
         pass
 
     @staticmethod
-    def generate(genid, gw=None, nodes=None, irange=None, cfgpath=INUITHY_CONFIG_PATH):
+    def generate(genid, gw=None, nodes=None, irange=None, csv_path=None):
         """Generate CSV data and traffic analysis figures"""
         if ReportAdapter.handler is not None:
-            ReportAdapter.handler.generate(genid, gw, nodes, irange, cfgpath)
+            ReportAdapter.handler.generate(genid, gw, nodes, irange, csv_path)
         else:
             lgr.error("No report handler avalable")
 
+    @staticmethod
+    def handle_args():
+        """Arguments handler"""    
+        args = None
+        try:
+            rt.parser.description = 'Report Adapter'
+            rt.parser.add_argument('proto', help='Generate report based on protocol')
+            rt.parser.add_argument('-gid', '--genid', required=True, help='Traffic generation identifier')
+            rt.parser.add_argument('-n', '--nodes', help='Nodes of interest', nargs="+")
+            rt.parser.add_argument('-gw', '--gateways', help='Gateway node', nargs="+")
+            rt.parser.add_argument('-csv', '--csv_path', help='Path to CSV data source')
+            args = rt.handle_args()
+            to_console("GENID {}", args.genid)
+            to_console("Nodes of interest {}", args.nodes)
+            to_console("Subnet gateway {}", args.gateways)
+            to_console("CSV Path {}", args.csv_path)
+        except Exception as ex:
+            to_console("Exception on handlin report arguments: {}", ex)
+            return None
+        return args
+
 if __name__ == '__main__':
 
-#    ReportAdapter.gen_report(genid='581fdfe3362ac719d1c96eb3')
-#    ReportAdapter.gen_report(genid='1478508817')
-#    ReportAdapter.gen_report(genid='1478585096')
-    if len(sys.argv) > 1:
-        ReportAdapter.handler = SupportedProto.protocols.get(sys.argv[1])[2]
+    args = ReportAdapter.handler_args()
+    if args is not None:
+        ReportAdapter.handler = SupportedProto.protocols.get(args.[1])[2]
         to_console("Using report handler {}", ReportAdapter.handler)
-    if len(sys.argv) > 2:
-        ReportAdapter.generate(sys.argv[2], gw=None, nodes=None, irange=None)
-    else:
-        to_console("Genid not given")
+        ReportAdapter.generate(args.genid, gw=args.gateways, nodes=args.nodes, irange=None, csv_path=args.csv_path)
 

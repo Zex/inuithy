@@ -6,7 +6,7 @@ T_NODE, T_RECORDS, T_MSG_TYPE, T_TIME, T_GENID, T_REPORTDIR, T_PATH,\
 T_GATEWAY, to_console, to_string, MessageType, T_HOST, StorageType,\
 GenInfo, T_TYPE, TrafficStorage, T_SRC, T_DEST
 from inuithy.storage.storage import Storage
-from inuithy.util.config_manager import create_inuithy_cfg, create_traffic_cfg
+from inuithy.common.runtime import Runtime as rt
 from inuithy.protocol.ble_proto import BleProtocol as BleProto
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
@@ -20,7 +20,6 @@ import json
 import sys
 from os import path, mkdir
 from copy import deepcopy
-import argparse as ap
 
 mplib.style.use('ggplot')
 lconf.fileConfig(INUITHY_LOGCONFIG)
@@ -136,19 +135,18 @@ class BleReport(object):
         lgr.info(to_string("Prepare generation info with {}", genid))
         ginfo = GenInfo()
 
-        ginfo.cfg = create_inuithy_cfg(inuithy_cfgpath)
-        if ginfo.cfg is None:
+        if rt.tcfg is None:
             lgr.error(to_string("Failed to load inuithy configure"))
             return None
 
         ginfo.genid = genid
         ginfo.fig_base = to_string('{}/{}',\
-            ginfo.cfg.config[T_REPORTDIR][T_PATH], ginfo.genid)
+            rt.tcfg.config[T_REPORTDIR][T_PATH], ginfo.genid)
         ginfo.csv_path = to_string('{}/{}.csv',\
-            ginfo.cfg.config[T_REPORTDIR][T_PATH], ginfo.genid)
+            rt.tcfg.config[T_REPORTDIR][T_PATH], ginfo.genid)
         ginfo.pdf_path = to_string('{}/{}.pdf',\
-            ginfo.cfg.config[T_REPORTDIR][T_PATH], ginfo.genid)
-        ginfo.src_type = ginfo.cfg.storagetype[0]
+            rt.tcfg.config[T_REPORTDIR][T_PATH], ginfo.genid)
+        ginfo.src_type = rt.tcfg.storagetype[0]
         ginfo.figsize = (15, 6)
 
         ginfo.header = [T_TIME, T_NODE, T_SRC, T_DEST, T_MSG_TYPE]
@@ -161,7 +159,7 @@ class BleReport(object):
         """
         """
         lgr.info(to_string("Generate csv with ginfo[{}]", ginfo))
-        storage = Storage(ginfo.cfg, lgr)
+        storage = Storage(rt.tcfg, lgr)
 
         if ginfo.src_type == TrafficStorage.DB.name:
             return BleReport.import_from_db(ginfo, storage)
@@ -240,24 +238,21 @@ class BleReport(object):
         """Arguments handler"""    
         args = None
         try:
-            parser = ap.ArgumentParser(description='Report generation tool')
-#           parser.add_mutually_exclusive_group()
-            parser.add_argument('-gid', '--genid', required=True, help='Traffic generation identifier')
-            parser.add_argument('-n', '--nodes', help='Nodes of interest', nargs="+")
-            parser.add_argument('-gw', '--gateways', help='Gateway node', nargs="+")
-            parser.add_argument('-csv', '--csv_path', help='Path to CSV data source')
-            args = parser.parse_args()
-    
+            rt.parser.description = 'BLE Traffic Report Generator'
+            rt.parser.add_argument('-gid', '--genid', required=True, help='Traffic generation identifier')
+            rt.parser.add_argument('-n', '--nodes', help='Nodes of interest', nargs="+")
+            rt.parser.add_argument('-gw', '--gateways', help='Gateway node', nargs="+")
+            rt.parser.add_argument('-csv', '--csv_path', help='Path to CSV data source')
+            args = rt.handle_args()
             to_console("GENID {}", args.genid)
             to_console("Nodes of interest {}", args.nodes)
-#            [to_console(node) for node in args.nodes is not None and args.nodes or []]
             to_console("Subnet gateway {}", args.gateways)
-#            [to_console(node) for node in args.gateways is not None and args.gateways or []]
             to_console("CSV Path {}", args.csv_path)
         except Exception as ex:
             to_console("Exception on handlin report arguments: {}", ex)
             return None
         return args
+
 
 if __name__ == '__main__':
 

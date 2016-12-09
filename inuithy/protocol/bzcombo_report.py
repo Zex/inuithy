@@ -12,7 +12,7 @@ T_RTDISCINIT, T_RELAYEDUCAST, T_PKGBUFALLOCFAIL, T_APSTXBCAST,\
 T_APSTXUCASTSUCCESS, T_APSTXUCASTFAIL, T_APSTXUCASTRETRY, T_APSRXBCAST,\
 T_APSRXUCAST, T_MACRXBCAST
 from inuithy.storage.storage import Storage
-from inuithy.util.config_manager import create_inuithy_cfg, create_traffic_cfg
+from inuithy.common.runtime import Runtime as rt
 from inuithy.protocol.ble_proto import BleProtocol as BleProto
 from inuithy.protocol.zigbee_proto import ZigbeeProtocol as ZbeeProto
 import matplotlib.pyplot as plt
@@ -27,7 +27,6 @@ import json
 import sys
 from os import path, mkdir
 from copy import deepcopy
-import argparse as ap
 
 mplib.style.use('ggplot')
 lconf.fileConfig(INUITHY_LOGCONFIG)
@@ -141,7 +140,7 @@ class BzReport(object):
             lgr.error(to_string("Exception on creating package summary figure: {}", ex))
 
     @staticmethod
-    def prep_info(genid, inuithy_cfgpath=INUITHY_CONFIG_PATH):
+    def prep_info(genid):
         """
         time,"zbee_nwk_addr",
         macTxBcast,macTxUcastRetry,macTxUcastFail,macTxUcast,macRxBcast,macRxUcast,
@@ -152,11 +151,7 @@ class BzReport(object):
         lgr.info(to_string("Prepare generation info with {}", genid))
         ginfo = GenInfo()
 
-        ginfo.cfg = create_inuithy_cfg(inuithy_cfgpath)
-        if ginfo.cfg is None:
-            lgr.error(to_string("Failed to load inuithy configure"))
-            return None
-
+        ginfo.cfg = rt.tcfg
         ginfo.genid = genid
         ginfo.fig_base = to_string('{}/{}',\
             ginfo.cfg.config[T_REPORTDIR][T_PATH], ginfo.genid)
@@ -248,10 +243,10 @@ class BzReport(object):
                 raise
 
     @staticmethod
-    def generate(genid, gw=None, nodes=None, irange=None, cfgpath=INUITHY_CONFIG_PATH, csv_path=None):
+    def generate(genid, gw=None, nodes=None, irange=None, csv_path=None):
         """Generate CSV data and traffic analysis figures"""
         try:
-            ginfo = BzReport.prep_info(genid, cfgpath)
+            ginfo = BzReport.prep_info(genid)
             """
             nodes = ['0x0000', '0x0001', '0x0102', '0x0103',\
                      '0x0205', '0x0206', '0x0303', '0x0304',\
@@ -288,30 +283,24 @@ class BzReport(object):
         """Arguments handler"""    
         args = None
         try:
-            parser = ap.ArgumentParser(description='Report generation tool')
-#           parser.add_mutually_exclusive_group()
-            parser.add_argument('-gid', '--genid', required=True, help='Traffic generation identifier')
-            parser.add_argument('-n', '--nodes', help='Nodes of interest', nargs="+")
-            parser.add_argument('-gw', '--gateways', help='Gateway node', nargs="+")
-            parser.add_argument('-csv', '--csv_path', help='Path to CSV data source')
-            args = parser.parse_args()
-    
+            rt.parser.description = 'BLE-Zigbee Combo Report Generator'
+            rt.parser.add_argument('-gid', '--genid', required=True, help='Traffic generation identifier')
+            rt.parser.add_argument('-n', '--nodes', help='Nodes of interest', nargs="+")
+            rt.parser.add_argument('-gw', '--gateways', help='Gateway node', nargs="+")
+            rt.parser.add_argument('-csv', '--csv_path', help='Path to CSV data source')
+            args = rt.handle_args()
             to_console("GENID {}", args.genid)
             to_console("Nodes of interest {}", args.nodes)
-#            [to_console(node) for node in args.nodes is not None and args.nodes or []]
             to_console("Subnet gateway {}", args.gateways)
-#            [to_console(node) for node in args.gateways is not None and args.gateways or []]
             to_console("CSV Path {}", args.csv_path)
         except Exception as ex:
             to_console("Exception on handlin report arguments: {}", ex)
             return None
         return args
 
+
 if __name__ == '__main__':
 
-#    BzReport.gen_report(genid='581fdfe3362ac719d1c96eb3')
-#    BzReport.gen_report(genid='1478508817')
-#    BzReport.gen_report(genid='1478585096')
     args = BzReport.handle_args()
     if args is not None:
         BzReport.generate(args.genid, gw=args.gateways, nodes=args.nodes, irange=None, csv_path=args.csv_path)
