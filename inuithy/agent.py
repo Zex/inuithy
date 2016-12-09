@@ -2,17 +2,17 @@
  @author: Zex Li <top_zlynch@yahoo.com>
 """
 from inuithy.common.predef import to_string, INUITHY_TITLE, INUITHY_TOPIC_NWLAYOUT,\
-INUITHY_VERSION, INUITHY_CONFIG_PATH, CtrlCmd, INUITHY_TOPIC_TRAFFIC,\
+__version__, INUITHY_CONFIG_PATH, CtrlCmd, INUITHY_TOPIC_TRAFFIC,\
 INUITHY_TOPIC_CONFIG, INUITHYAGENT_CLIENT_ID, T_ADDR, T_HOST, T_NODE,\
 T_CLIENTID, T_TID, T_INTERVAL, T_DURATION, T_NODES, T_DEST,\
 T_TRAFFIC_STATUS, T_MSG, T_CTRLCMD, TrafficStatus, T_TRAFFIC_TYPE,\
 INUITHY_LOGCONFIG, INUITHY_TOPIC_COMMAND, TrafficType, DEV_TTY, T_GENID,\
 T_SRC, T_PKGSIZE, T_EVERYONE, mqlog_map, T_VERSION, T_MSG_TYPE
+from inuithy.common.runtime import Runtime as rt
 from inuithy.common.serial_adapter import SerialAdapter
 from inuithy.common.traffic import TrafficExecutor, TRAFFIC_BROADCAST_ADDRESS
 from inuithy.util.helper import getpredefaddr, clear_list
 from inuithy.util.cmd_helper import pub_status, pub_heartbeat, pub_unregister, extract_payload
-from inuithy.util.config_manager import create_inuithy_cfg
 from inuithy.util.cmd_helper import Heartbeat
 from inuithy.util.worker import Worker
 import paho.mqtt.client as mqtt
@@ -26,6 +26,7 @@ try:
 except ImportError:
     from Queue import Queue, Empty
 import time
+import argparse as ap
 
 lconf.fileConfig(INUITHY_LOGCONFIG)
 
@@ -76,14 +77,6 @@ class Agent(object):
         return self.__host
     @host.setter
     def host(self, val):
-        pass
-
-    @property
-    def tcfg(self):
-        """Inuithy configure"""
-        return self.__inuithy_cfg
-    @tcfg.setter
-    def tcfg(self, val):
         pass
 
     @property
@@ -190,7 +183,7 @@ class Agent(object):
 #                    if len([te for te in self.__traffic_executors if te.isAlive()]) == 0:
 #                        break
 #                [te.stop_trigger() for te in self.__traffic_executors if te is not None]
-                pub_status(self.mqclient, self.tcfg.mqtt_qos, {T_MSG: msg})
+                pub_status(self.mqclient, rt.tcfg.mqtt_qos, {T_MSG: msg})
                 self.unregister()
                 time.sleep(2)
                 self.mqclient.disconnect()
@@ -221,9 +214,9 @@ class Agent(object):
                 T_CLIENTID: self.clientid,
                 T_HOST: self.host,
                 T_NODES: [str(node) for node in self._sad.nodes],
-                T_VERSION: INUITHY_VERSION,
+                T_VERSION: __version__,
             }
-            pub_heartbeat(self.mqclient, self.tcfg.mqtt_qos, data)
+            pub_heartbeat(self.mqclient, rt.tcfg.mqtt_qos, data)
         except Exception as ex:
             self.lgr.error(to_string("Alive notification exception:{}", ex))
 
@@ -232,7 +225,7 @@ class Agent(object):
         """
         self.lgr.info(to_string("Unregistering {}", self.clientid))
         try:
-            pub_unregister(self.mqclient, self.tcfg.mqtt_qos, self.clientid)
+            pub_unregister(self.mqclient, rt.tcfg.mqtt_qos, self.clientid)
         except Exception as ex:
             self.lgr.error(to_string("Unregister failed: {}", ex))
 
@@ -247,10 +240,10 @@ class Agent(object):
 #        self.mqclient.on_subscribe = Agent.on_subscribe
         self.mqclient.connect(host, port)
         self.mqclient.subscribe([
-            (INUITHY_TOPIC_COMMAND, self.tcfg.mqtt_qos),
-            (INUITHY_TOPIC_TRAFFIC, self.tcfg.mqtt_qos),
-            (INUITHY_TOPIC_NWLAYOUT, self.tcfg.mqtt_qos),
-            (INUITHY_TOPIC_CONFIG, self.tcfg.mqtt_qos),
+            (INUITHY_TOPIC_COMMAND, rt.tcfg.mqtt_qos),
+            (INUITHY_TOPIC_TRAFFIC, rt.tcfg.mqtt_qos),
+            (INUITHY_TOPIC_NWLAYOUT, rt.tcfg.mqtt_qos),
+            (INUITHY_TOPIC_CONFIG, rt.tcfg.mqtt_qos),
         ])
         self.mqclient.message_callback_add(INUITHY_TOPIC_COMMAND, Agent.on_topic_command)
         self.mqclient.message_callback_add(INUITHY_TOPIC_CONFIG, Agent.on_topic_config)
@@ -268,7 +261,7 @@ class Agent(object):
         rd = ''
         if cid_surf is not None:
             rd = cid_surf
-        elif self.tcfg.enable_localdebug:
+        elif rt.tcfg.enable_localdebug:
             from random import randint
             rd = to_string('-{}', hex(randint(1048576, 10000000))[2:])
         return to_string(INUITHYAGENT_CLIENT_ID, self.host+rd)
@@ -293,12 +286,12 @@ class Agent(object):
         """
         self.lgr.info(to_string("Do initialization"))
         try:
-            self.create_mqtt_client(*self.tcfg.mqtt)
+            self.create_mqtt_client(*rt.tcfg.mqtt)
             self._sad = SerialAdapter(self.mqclient, lgr=self.lgr)
             Agent.initialized = True
         except Exception as ex:
             self.lgr.error(to_string("Failed to initialize: {}", ex))
-            pub_status(self.mqclient, self.tcfg.mqtt_qos, {
+            pub_status(self.mqclient, rt.tcfg.mqtt_qos, {
                 T_TRAFFIC_STATUS: TrafficStatus.INITFAILED.name,
                 T_CLIENTID: self.clientid,
                 T_MSG: str(ex),
@@ -315,14 +308,12 @@ class Agent(object):
         self.worker = Worker(2, self.lgr)
         self.ctrlcmd_routes = {}
         self.__traffic_executors = Queue()
-        self.__inuithy_cfg = create_inuithy_cfg(cfgpath)
+
+        load_configs()
         self.set_host()
         self.__addr2node = {}
         self.__clientid = self.get_clientid(cid_surf)
-        if self.__inuithy_cfg is None:
-            self.lgr.error(to_string("Failed to load configure"))
-        else:
-            self.__do_init()
+        self.__do_init()
 
     def ctrlcmd_dispatch(self, command):
         """
@@ -353,7 +344,7 @@ class Agent(object):
         self.lgr.info("Map address to node")
 #        self.__addr2node.clear()
         clear_list(self.__addr2node)
-        if not self.tcfg.enable_localdebug:
+        if not rt.tcfg.enable_localdebug:
             [self.__addr2node.__setitem__(n.addr, n) for n in self._sad.nodes]
             return
 #       import random, string
@@ -499,7 +490,7 @@ class Agent(object):
                 T_PKGSIZE: data.get(T_PKGSIZE),
             }
             te = None
-            if self.tcfg.enable_localdebug:
+            if rt.tcfg.enable_localdebug:
                 dest = None
                 if data.get(T_DEST) == TRAFFIC_BROADCAST_ADDRESS:
                     dest = set(self.addr2node.values())
@@ -513,7 +504,7 @@ class Agent(object):
                     request=request, lgr=self.lgr, mqclient=self.mqclient, tid=data.get(T_TID))
 
             self.__traffic_executors.put(te)
-            pub_status(self.mqclient, self.tcfg.mqtt_qos, {
+            pub_status(self.mqclient, rt.tcfg.mqtt_qos, {
                 T_TRAFFIC_STATUS: TrafficStatus.REGISTERED.name,
                 T_CLIENTID: self.clientid,
                 T_TID: data.get(T_TID),
@@ -555,7 +546,7 @@ class Agent(object):
                 self.lgr.info(to_string("{}: executors: {}, agent init: {}", self.clientid, self.__traffic_executors.qsize(), Agent.initialized))
                 te = self.__traffic_executors.get()
                 te.start()
-                pub_status(self.mqclient, self.tcfg.mqtt_qos, {
+                pub_status(self.mqclient, rt.tcfg.mqtt_qos, {
                     T_TRAFFIC_STATUS: TrafficStatus.RUNNING.name,
                     T_CLIENTID: self.clientid,
                     T_TID: te.tid,
@@ -604,7 +595,7 @@ class Agent(object):
         if self._enable_heartbeat:
             return
         self._enable_heartbeat = True
-        self._heartbeat = Heartbeat(interval=float(self.tcfg.heartbeat.get(T_INTERVAL)),\
+        self._heartbeat = Heartbeat(interval=float(rt.tcfg.heartbeat.get(T_INTERVAL)),\
             target=self.alive_notification)
         self._heartbeat.run()
         self.lgr.info(to_string("Heartbeat enabled"))
@@ -619,13 +610,14 @@ class Agent(object):
         self._enable_heartbeat = False
         self.lgr.info(to_string("Heartbeat disabled"))
 
-def start_agent(cfgpath, lgr=None):
+def start_agent(args=None, lgr=None):
     """Shortcut to start an Agent"""
-    agent = Agent(cfgpath, lgr)
+    rt.handle_args(args)
+    agent = Agent(lgr)
     agent.start()
 
 if __name__ == '__main__':
     lgr = logging.getLogger("InuithyAgent")
-    lgr.info(to_string(INUITHY_TITLE, INUITHY_VERSION, "Agent"))
-    start_agent(INUITHY_CONFIG_PATH, lgr)
+    lgr.info(to_string(INUITHY_TITLE, __version__, "Agent"))
+    start_agent(lgr=lgr)
 
