@@ -1,13 +1,14 @@
 """ AutoCtrl application main thread
  @author: Zex Li <top_zlynch@yahoo.com>
 """
-from inuithy.common.version import INUITHY_VERSION
+from inuithy.common.version import __version__
 from inuithy.common.predef import INUITHY_TOPIC_HEARTBEAT, INUITHY_TOPIC_STATUS,\
 INUITHY_TOPIC_REPORTWRITE, INUITHY_TOPIC_NOTIFICATION, INUITHY_TOPIC_UNREGISTER,\
-TRAFFIC_CONFIG_PATH, INUITHY_CONFIG_PATH, INUITHY_TITLE, INUITHY_LOGCONFIG,\
+INUITHY_TITLE, INUITHY_LOGCONFIG,\
 to_string
 from inuithy.mode.base import CtrlBase
 from inuithy.util.cmd_helper import stop_agents
+from inuithy.common.runtime import Runtime as rt
 import paho.mqtt.client as mqtt
 import logging
 import logging.config as lconf
@@ -26,11 +27,11 @@ class AutoCtrl(CtrlBase):
         self.mqclient.on_disconnect = AutoCtrl.on_disconnect
         self.mqclient.connect(host, port)
         self.mqclient.subscribe([
-            (INUITHY_TOPIC_HEARTBEAT, self.tcfg.mqtt_qos),
-            (INUITHY_TOPIC_UNREGISTER, self.tcfg.mqtt_qos),
-            (INUITHY_TOPIC_STATUS, self.tcfg.mqtt_qos),
-            (INUITHY_TOPIC_REPORTWRITE, self.tcfg.mqtt_qos),
-            (INUITHY_TOPIC_NOTIFICATION, self.tcfg.mqtt_qos),
+            (INUITHY_TOPIC_HEARTBEAT, rt.tcfg.mqtt_qos),
+            (INUITHY_TOPIC_UNREGISTER, rt.tcfg.mqtt_qos),
+            (INUITHY_TOPIC_STATUS, rt.tcfg.mqtt_qos),
+            (INUITHY_TOPIC_REPORTWRITE, rt.tcfg.mqtt_qos),
+            (INUITHY_TOPIC_NOTIFICATION, rt.tcfg.mqtt_qos),
         ])
         self.mqclient.message_callback_add(\
             INUITHY_TOPIC_HEARTBEAT, AutoCtrl.on_topic_heartbeat)
@@ -43,12 +44,9 @@ class AutoCtrl(CtrlBase):
         self.mqclient.message_callback_add(\
             INUITHY_TOPIC_NOTIFICATION, AutoCtrl.on_topic_notification)
 
-    def __init__(self, inuithy_cfgpath='config/inuithy.conf',\
-        traffic_cfgpath='config/traffics.conf', lgr=None, delay=4):
+    def __init__(self, lgr=None, delay=4):
         CtrlBase.__init__(self, inuithy_cfgpath, traffic_cfgpath, lgr, delay)
-        self.lgr = lgr
-        if self.lgr is None:
-            self.lgr = logging
+        self.lgr = lgr is None and logging or lgr
 
     def start(self):
         """Start controller routine"""
@@ -81,13 +79,14 @@ class AutoCtrl(CtrlBase):
 #        self.teardown()
         self.lgr.info(to_string("AutoCtrl terminated"))
 
-def start_controller(tcfg, trcfg, lgr=None):
+def start_controller(args=None, lgr=None):
     """Shortcut to start controller"""
-    controller = AutoCtrl(tcfg, trcfg, lgr)
+    rt.handle_args(args)
+    controller = AutoCtrl(lgr)
     controller.start()
 
 if __name__ == '__main__':
     lgr = logging.getLogger('InuithyAutoCtrl')
-    lgr.info(to_string(INUITHY_TITLE, INUITHY_VERSION, "AutoCtrl"))
-    start_controller(INUITHY_CONFIG_PATH, TRAFFIC_CONFIG_PATH, lgr)
+    lgr.info(to_string(INUITHY_TITLE, __version__, "AutoCtrl"))
+    start_controller(lgr=lgr)
 

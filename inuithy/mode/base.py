@@ -1,24 +1,22 @@
 """ Controller base
  @author: Zex Li <top_zlynch@yahoo.com>
 """
-from inuithy.common.version import INUITHY_VERSION
+from inuithy.common.version import __version__
 from inuithy.common.predef import T_CTRLCMD, CtrlCmd, T_CLIENTID,\
 T_HOST, T_NODES, AgentStatus, INUITHY_LOGCONFIG, mqlog_map, T_TID,\
-to_string, INUITHYCONTROLLER_CLIENT_ID, T_TRAFFIC_STATUS, T_MSG,\
+to_string, CTRL_CLIENT_ID, T_TRAFFIC_STATUS, T_MSG,\
 T_TRAFFIC_TYPE, TrafficType, T_NODE, TrafficStatus, T_VERSION,\
 MessageType
 from inuithy.common.predef import INUITHY_TOPIC_HEARTBEAT, INUITHY_TOPIC_STATUS,\
-INUITHY_TOPIC_REPORTWRITE, INUITHY_TOPIC_NOTIFICATION, INUITHY_TOPIC_UNREGISTER,\
-TRAFFIC_CONFIG_PATH, INUITHY_CONFIG_PATH, INUITHY_TITLE, INUITHY_LOGCONFIG,\
-to_string, to_console
+INUITHY_TOPIC_REPORTWRITE, INUITHY_TOPIC_NOTIFICATION, INUITHY_TOPIC_UNREGISTER
+from inuithy.common.runtime import Runtime as rt
+from inuithy.common.runtime import load_configs
 from inuithy.util.helper import getnwlayoutid
 from inuithy.util.cmd_helper import pub_ctrlcmd, extract_payload
 from inuithy.util.traffic_state import TrafficState
 from inuithy.storage.storage import Storage
 from inuithy.common.agent_info import AgentInfo
 from inuithy.util.worker import Worker
-from inuithy.util.config_manager import create_inuithy_cfg, create_traffic_cfg,\
-create_network_cfg
 import threading
 import logging, socket
 import logging.config as lconf
@@ -77,30 +75,6 @@ class CtrlBase(object):
         pass
 
     @property
-    def tcfg(self):
-        """Inuithy configure"""
-        return self._inuithy_cfg
-    @tcfg.setter
-    def tcfg(self, val):
-        pass
-
-    @property
-    def nwcfg(self):
-        """Network configure"""
-        return self._network_cfg
-    @nwcfg.setter
-    def nwcfg(self, val):
-        pass
-
-    @property
-    def trcfg(self):
-        """Traffic configure """
-        return self._traffic_cfg
-    @trcfg.setter
-    def trcfg(self, val):
-        pass
-
-    @property
     def available_agents(self):
         """Available agent, agentid => AgentInfo"""
         return self.traffic_state.chk.available_agents
@@ -150,27 +124,23 @@ class CtrlBase(object):
             if not CtrlBase.__initialized:
                 CtrlBase.__initialized = val
 
-    def __init__(self, inuithy_cfgpath='config/inuithy.conf',\
-        traffic_cfgpath='config/traffics.conf', lgr=None, delay=4):
+    def __init__(self, lgr=None, delay=4):
         """
-        @inuithy_cfgpath Path to inuithy configure
-        @traffic_cfgpath Path to traffic configure
         @delay Start traffic after @delay seconds
         """
-        self.lgr = lgr
-        if self.lgr is None:
-            self.lgr = logging
+        self.lgr = lgr is None and logging or lgr
         self._mqclient = None
         self._storage = None
         self._current_nwlayout = ('', '')
         self._host = socket.gethostname()
-        self._clientid = to_string(INUITHYCONTROLLER_CLIENT_ID, self.host)
+        self._clientid = to_string(CTRL_CLIENT_ID, self.host)
         self.worker = Worker(2, self.lgr)
-        if self.load_configs(inuithy_cfgpath, traffic_cfgpath):
-            self._traffic_state = TrafficState(self, self.lgr)
-            self._traffic_timer = threading.Timer(delay, self.traffic_state.start)
-            self._do_init()
-            self.load_storage()
+        load_configs()
+
+        self._traffic_state = TrafficState(self, self.lgr)
+        self._traffic_timer = threading.Timer(delay, self.traffic_state.start)
+        self._do_init()
+        self.load_storage()
 
     def __del__(self):
         pass
@@ -238,7 +208,7 @@ class CtrlBase(object):
             T_CTRLCMD:  CtrlCmd.NEW_CONTROLLER.name,
             T_CLIENTID: self.clientid,
         }
-        pub_ctrlcmd(self.mqclient, self.tcfg.mqtt_qos, data)
+        pub_ctrlcmd(self.mqclient, rt.tcfg.mqtt_qos, data)
 
     def add_agent(self, agentid, host, nodes):
         """Register started agent"""
@@ -265,10 +235,10 @@ class CtrlBase(object):
         self.lgr.info(to_string("Do initialization"))
         try:
             self.node_to_host()
-            for aname in self.trcfg.target_agents:
-                agent = self.nwcfg.agent_by_name(aname)
+            for aname in rt.trcfg.target_agents:
+                agent = rt.nwcfg.agent_by_name(aname)
                 self.expected_agents.append(agent.get(T_HOST))
-            self.create_mqtt_client(*self.tcfg.mqtt)
+            self.create_mqtt_client(*rt.tcfg.mqtt)
             CtrlBase.initialized = True
         except Exception as ex:
             self.lgr.error(to_string("Failed to initialize: {}", ex))
@@ -281,37 +251,14 @@ class CtrlBase(object):
         """Map node address to connected host
         """
         self.lgr.info("Map node address to host")
-        for agent in self.nwcfg.agents:
+        for agent in rt.nwcfg.agents:
             [self.traffic_state.chk.node2host.__setitem__(node, agent[T_HOST]) for node in agent[T_NODES]]
 
-    def load_configs(self, inuithy_cfgpath, traffic_cfgpath):
-        """Load runtime configure from inuithy configure file,
-        load traffic definitions from traffic file
-        """
-        is_configured = True
-        try:
-            self._inuithy_cfg = create_inuithy_cfg(inuithy_cfgpath)
-            if self._inuithy_cfg is None:
-                self.lgr.error(to_string("Failed to load inuithy configure"))
-                return False
-            self._traffic_cfg = create_traffic_cfg(traffic_cfgpath)
-            if self._traffic_cfg is None:
-                self.lgr.error(to_string("Failed to load traffics configure"))
-                return False
-            self._network_cfg = create_network_cfg(self._traffic_cfg.nw_cfgpath)
-            if self._network_cfg is None:
-                self.lgr.error(to_string("Failed to load network configure"))
-                return False
-            is_configured = True
-        except Exception as ex:
-            self.lgr.error(to_string("Configure failed: {}", ex))
-            is_configured = False
-        return is_configured
 
     def load_storage(self):
-        self.lgr.info(to_string("Load DB plugin:{}", self.tcfg.storagetype))
+        self.lgr.info(to_string("Load DB plugin:{}", rt.tcfg.storagetype))
         try:
-            self._storage = Storage(self.tcfg, self.lgr)
+            self._storage = Storage(rt.tcfg, self.lgr)
         except Exception as ex:
             self.lgr.error(to_string("Failed to load plugin: {}", ex))
 
@@ -321,7 +268,7 @@ class CtrlBase(object):
             if CtrlBase.initialized:
                 CtrlBase.initialized = False
 #                self.lgr.info("Stop agents")
-#                stop_agents(self._mqclient, self.tcfg.mqtt_qos)
+#                stop_agents(self._mqclient, rt.tcfg.mqtt_qos)
                 if self._traffic_timer:
                     self._traffic_timer.cancel()
                 if self.storage:
@@ -346,7 +293,7 @@ class CtrlBase(object):
         data = extract_payload(message.payload)
         agentid, host, nodes, version = data.get(T_CLIENTID), data.get(T_HOST),\
                 data.get(T_NODES), data.get(T_VERSION)
-        if version != INUITHY_VERSION:
+        if version != __version__:
             self.lgr.error(to_string("Agent version not match"))
         try:
             self.lgr.info(to_string("On topic heartbeat: Agent Version {}", version))
