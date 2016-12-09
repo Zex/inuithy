@@ -63,7 +63,9 @@ sfood: $(BUILD_DOCS)
 	$(PS2PDF) $(BUILD_DOCS)/inuithy.ps $(BUILD_DOCS)/inuithy.pdf
 	$(RM) $(BUILD_DOCS)/inuithy.dot $(BUILD_DOCS)/inuithy.ps
 
-install: $(LOGPATH) $(REPORTBASE) install_dir
+preset: $(LOGBASE) $(REPORTBASE)                      
+
+install: preset install_dir
 	$(ECHO) "\033[01;36m[Installing Inuithy]\033[00m"
 	$(CP) $(OUTPUT_TAR_SOURCE) $(INSTALL_PREFIX)/$(PROJECT_ALIAS)
 	$(ECHO) "\033[01;32m[Inuithy installed @ $(INSTALL_PREFIX)/$(PROJECT_ALIAS)]\033[00m"
