@@ -2,10 +2,10 @@
  @author: Zex Li <top_zlynch@yahoo.com>
 """
 from inuithy.common.version import INUITHY_ROOT
-from inuithy.common.predef import INUITHY_LOGCONFIG, INUITHY_CONFIG_PATH,\
-TRAFFIC_CONFIG_PATH, INUITHY_TITLE, INUITHY_VERSION, to_string,\
+from inuithy.common.predef import INUITHY_LOGCONFIG, INUITHY_TITLE, __version__, to_string,\
 WorkMode
-from inuithy.util.config_manager import create_inuithy_cfg
+from inuithy.common.runtime import Runtime as rt
+from inuithy.common.runtime import Runtime as load_tcfg
 import inuithy.mode.auto as auto
 import inuithy.mode.manual as manu
 import inuithy.mode.monitor as moni
@@ -16,25 +16,25 @@ import logging.config as lconf
 lconf.fileConfig(INUITHY_LOGCONFIG)
 controller = None
 
-def auto_mode_handler(tcfg, trcfg):
+def auto_mode_handler():
     """Handler for automatic mode
     """
     global controller
-    controller = auto.AutoCtrl(tcfg, trcfg)
+    controller = auto.AutoCtrl()
     controller.start()
 
-def manual_mode_handler(tcfg, trcfg):
+def manual_mode_handler():
     """Handler for manual mode
     """
     global controller
-    controller = manu.ManualCtrl(tcfg, trcfg)
+    controller = manu.ManualCtrl()
     controller.start()
 
-def monitor_mode_handler(tcfg, trcfg):
+def monitor_mode_handler():
     """Handler for monitoring mode
     """
     global controller
-    controller = moni.MoniCtrl(tcfg, trcfg)
+    controller = moni.MoniCtrl()
     controller.start()
 
 mode_route = {
@@ -43,18 +43,17 @@ mode_route = {
     WorkMode.MONITOR.name:  monitor_mode_handler,
 }
 
-def start_controller(tcfg, trcfg):
+def start_controller():
     global controller
     lgr.info(to_string("Start controller"))
-    cfg = create_inuithy_cfg(tcfg)
-    if cfg is None:
-        lgr.error("Preload failed")
-        return
-    if mode_route.get(cfg.workmode) is None:
+    rt.handle_args()
+    load_tcfg(Runtime.tcfg_path)
+
+    if mode_route.get(rt.tcfg.workmode) is None:
         lgr.error("Unknown work mode")
         return
     try:
-        mode_route[cfg.workmode](tcfg, trcfg)
+        mode_route[rt.tcfg.workmode]()
     except KeyboardInterrupt:
         lgr.info(to_string("Controller received keyboard interrupt"))
         controller.teardown()
@@ -65,6 +64,6 @@ def start_controller(tcfg, trcfg):
 
 if __name__ == '__main__':
     lgr = logging.getLogger('InuithyController')
-    lgr.info(to_string(INUITHY_TITLE, INUITHY_VERSION, "Controller"))
-    start_controller(INUITHY_CONFIG_PATH, TRAFFIC_CONFIG_PATH)
+    lgr.info(to_string(INUITHY_TITLE, __version__, "Controller"))
+    start_controller()
 
