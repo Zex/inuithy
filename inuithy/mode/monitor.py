@@ -44,9 +44,8 @@ class MoniCtrl(CtrlBase):
         self.mqclient.message_callback_add(\
             INUITHY_TOPIC_NOTIFICATION, MoniCtrl.on_topic_notification)
 
-    def __init__(self, inuithy_cfgpath='config/inuithy.conf',\
-        traffic_cfgpath='config/traffics.conf', lgr=None, delay=4):
-        CtrlBase.__init__(self, inuithy_cfgpath, traffic_cfgpath, lgr, delay)
+    def __init__(self, lgr=None, delay=4):
+        CtrlBase.__init__(self, lgr, delay)
         self.lgr = lgr is None and logging or lgr
 
     @staticmethod

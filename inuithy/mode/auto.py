@@ -45,7 +45,7 @@ class AutoCtrl(CtrlBase):
             INUITHY_TOPIC_NOTIFICATION, AutoCtrl.on_topic_notification)
 
     def __init__(self, lgr=None, delay=4):
-        CtrlBase.__init__(self, inuithy_cfgpath, traffic_cfgpath, lgr, delay)
+        CtrlBase.__init__(self, lgr, delay)
         self.lgr = lgr is None and logging or lgr
 
     def start(self):
