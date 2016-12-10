@@ -2,7 +2,8 @@
  @uthor: Zex Li <top_zlynch@yahoo.com>
 """
 from inuithy.common.predef import INUITHY_LOGCONFIG, to_console, to_string
-from inuithy.common.supported_proto import SupportedProto
+from inuithy.common.runtime import Runtime as rt
+from inuithy.common.agent_info import SupportedProto
 import logging
 import logging.config as lconf
 #from bson.objectid import ObjectId
@@ -64,7 +65,8 @@ class ReportAdapter(object):
         args = None
         try:
             rt.parser.description = 'Report Adapter'
-            rt.parser.add_argument('proto', help='Generate report based on protocol')
+            rt.parser.add_argument('-proto', required=True, help=\
+            'Generate report based on protocol', choices=SupportedProto.protocols.keys())
             rt.parser.add_argument('-gid', '--genid', required=True, help='Traffic generation identifier')
             rt.parser.add_argument('-n', '--nodes', help='Nodes of interest', nargs="+")
             rt.parser.add_argument('-gw', '--gateways', help='Gateway node', nargs="+")
@@ -81,9 +83,9 @@ class ReportAdapter(object):
 
 if __name__ == '__main__':
 
-    args = ReportAdapter.handler_args()
+    args = ReportAdapter.handle_args()
     if args is not None:
-        ReportAdapter.handler = SupportedProto.protocols.get(args.[1])[2]
+        ReportAdapter.handler = SupportedProto.protocols.get(args.proto)[3]
         to_console("Using report handler {}", ReportAdapter.handler)
         ReportAdapter.generate(args.genid, gw=args.gateways, nodes=args.nodes, irange=None, csv_path=args.csv_path)
 
