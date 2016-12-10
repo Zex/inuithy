@@ -1,6 +1,7 @@
 """ Runtime data block
  @author: Zex Li <top_zlynch@yahoo.com>
 """
+from inuithy.common.version import __version__, __package__
 from inuithy.common.predef import INUITHY_CONFIG_PATH, NETWORK_CONFIG_PATH, TRAFFIC_CONFIG_PATH
 from inuithy.util.config_manager import InuithyConfig, NetworkConfig, TrafficConfig
 import argparse as ap
@@ -55,4 +56,5 @@ def load_configs():
 
 Runtime.parser.add_argument('-tcfg', nargs=1, help='Inuithy configure path')
 Runtime.parser.add_argument('-trcfg', nargs=1, help='Traffic configure path')
+Runtime.parser.add_argument('-v', '--version', action='version', version='{} {}'.format(__package__, __version__), help='Print version number and exit')
 
