@@ -129,7 +129,7 @@ class BleReport(object):
             lgr.error(to_string("Exception on creating package summary figure: {}", ex))
 
     @staticmethod
-    def prep_info(genid, inuithy_cfgpath=INUITHY_CONFIG_PATH):
+    def prep_info(genid):
         """
         """
         lgr.info(to_string("Prepare generation info with {}", genid))
