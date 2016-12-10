@@ -31,6 +31,7 @@ $(VERSION_PATH):
 	$(ECHO) "\"\"\" Inuithy version info - AUTO GENERATED ON `date`\"\"\"" > $@
 	$(ECHO) "" >> $@
 	$(ECHO) "__version__ = \""$(VERSION)"\"" >> $@
+	$(ECHO) "__package__ = \""$(PROJECT_ALIAS)"\"" >> $@
 	$(ECHO) "PROJECT_PATH = \""$(PROJECT_PATH)"\"" >> $@
 	$(ECHO) "INUITHY_ROOT = \""$(PROJECT_PATH)/inuithy"\"" >> $@
 	$(ECHO) "" >> $@
