@@ -5,7 +5,7 @@ from inuithy.common.version import INUITHY_ROOT
 from inuithy.common.predef import INUITHY_LOGCONFIG, INUITHY_TITLE, __version__, to_string,\
 WorkMode
 from inuithy.common.runtime import Runtime as rt
-from inuithy.common.runtime import Runtime as load_tcfg
+from inuithy.common.runtime import load_tcfg
 import inuithy.mode.auto as auto
 import inuithy.mode.manual as manu
 import inuithy.mode.monitor as moni
@@ -47,7 +47,7 @@ def start_controller():
     global controller
     lgr.info(to_string("Start controller"))
     rt.handle_args()
-    load_tcfg(Runtime.tcfg_path)
+    load_tcfg(rt.tcfg_path)
 
     if mode_route.get(rt.tcfg.workmode) is None:
         lgr.error("Unknown work mode")
