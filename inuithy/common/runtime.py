@@ -18,6 +18,7 @@ class Runtime:
     nwcfg = None
     trcfg = None
 
+    @staticmethod
     def handle_args(in_args=None):
         """Arguments handler"""    
     #   Runtime.parser.add_mutually_exclusive_group()
