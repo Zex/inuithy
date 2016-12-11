@@ -190,39 +190,42 @@ def publish_nwlayout(nwlayoutname, nwcfg, tcfg, chk, genid, pub):
                     pub_nwlayout(pub, data=data)
                     break
 
+def publish_traffic(tr, chk, pub, enable_localdebug=False):
+    try:
+        target_host = chk.node2host.get(tr.src)
+        data = {
+            T_TID: tr.tid,
+            T_GENID: phase.genid,
+            T_TRAFFIC_TYPE: TrafficType.SCMD.name,
+            T_NODE: tr.src,
+            T_HOST: target_host,
+            T_DURATION: tg.duration,
+            T_INTERVAL: tg.interval,
+            T_SRC: tr.src,
+            T_DEST: tr.dest,
+            T_PKGSIZE: tr.pkgsize,
+        }
+        if not enable_localdebug:
+            data[T_CLIENTID] = chk.node2aid.get(tr.src)
+            pub_traffic(pub, data=data)
+        else: # DEBUG
+            for aid in chk.node2aid.values():
+                data[T_CLIENTID] = aid
+                pub_traffic(pub, data=data)
+                break
+        chk.traffic_stat[tr.tid] = TrafficStatus.REGISTERING
+        TrafficState.lgr.debug(to_string("TRAFFIC: {}:{}:{}", data.get(T_TID), data.get(T_CLIENTID), tr))
+    except Exception as ex:
+        TrafficState.lgr.error(to_string(
+            "Exception on registering traffic, network [{}], traffic [{}]: {}",
+            phase.nwlayoutid, tg.traffic_name, str(ex)))
+
 def publish_phase(phase, chk, pub, enable_localdebug=False):
     """Register one phase to agent"""
     chk.traffic_stat.clear()
     for tg in phase.tgs:
         for tr in tg.traffics:
-            try:
-                target_host = chk.node2host.get(tr.src)
-                data = {
-                    T_TID: tr.tid,
-                    T_GENID: phase.genid,
-                    T_TRAFFIC_TYPE: TrafficType.SCMD.name,
-                    T_NODE: tr.src,
-                    T_HOST: target_host,
-                    T_DURATION: tg.duration,
-                    T_INTERVAL: tg.interval,
-                    T_SRC: tr.src,
-                    T_DEST: tr.dest,
-                    T_PKGSIZE: tr.pkgsize,
-                }
-                if not enable_localdebug:
-                    data[T_CLIENTID] = chk.node2aid.get(tr.src)
-                    pub_traffic(pub, data=data)
-                else: # DEBUG
-                    for aid in chk.node2aid.values():
-                        data[T_CLIENTID] = aid
-                        pub_traffic(pub, data=data)
-                        break
-                chk.traffic_stat[tr.tid] = TrafficStatus.REGISTERING
-                TrafficState.lgr.debug(to_string("TRAFFIC: {}:{}:{}", data.get(T_TID), data.get(T_CLIENTID), tr))
-            except Exception as ex:
-                TrafficState.lgr.error(to_string(
-                    "Exception on registering traffic, network [{}], traffic [{}]: {}",
-                    phase.nwlayoutid, tg.traffic_name, str(ex)))
+            publish_traffic(tr, chk, pub, enable_localdebug)
     TrafficState.lgr.debug(to_string("Total traffic: [{}]", len(chk.traffic_stat)))
 
 @acts_as_state_machine
@@ -417,7 +420,9 @@ class TrafficState:
             self.wait_agent()
             try:
                 while self.traf_running:
-                    gid = self.next()
+#                    gid = self.next()
+                    self.current_phase = next(self.next_phase)
+                    gid = self.record_phase()
                     if gid is not None:
                         self.start_phase()
             except StopIteration:
@@ -435,11 +440,14 @@ class TrafficState:
             return
         yield from self.phases
 
-    def next(self):
-        """Next traffic generator"""
-        if not self.traf_running or self.next_phase is None:
-            return
-        self.current_phase = next(self.next_phase)
+#    def next(self):
+#        """Next traffic generator"""
+#        if not self.traf_running or self.next_phase is None:
+#            return
+#        self.current_phase = next(self.next_phase)
+
+    def record_phase(self):
+        """Record running phase"""
         nwlayoutname = getnwlayoutname(self.current_phase.nwlayoutid)
         cfg = {
             T_NWLAYOUT: deepcopy(rt.nwcfg.config.get(nwlayoutname))
