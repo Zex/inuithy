@@ -9,6 +9,7 @@ T_TRAFFIC_STATUS, T_MSG, T_CTRLCMD, TrafficStatus, T_TRAFFIC_TYPE,\
 INUITHY_LOGCONFIG, INUITHY_TOPIC_COMMAND, TrafficType, DEV_TTY, T_GENID,\
 T_SRC, T_PKGSIZE, T_EVERYONE, mqlog_map, T_VERSION, T_MSG_TYPE
 from inuithy.common.runtime import Runtime as rt
+from inuithy.common.runtime import load_configs
 from inuithy.common.serial_adapter import SerialAdapter
 from inuithy.common.traffic import TrafficExecutor, TRAFFIC_BROADCAST_ADDRESS
 from inuithy.util.helper import getpredefaddr, clear_list
@@ -296,6 +297,7 @@ class Agent(object):
                 T_CLIENTID: self.clientid,
                 T_MSG: str(ex),
             })
+            raise RuntimeError(to_string("Failed to initialize: {}", ex))
 
     def __init__(self, cfgpath='config/inuithy.conf', lgr=None, cid_surf=None):
         self.lgr = lgr
