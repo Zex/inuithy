@@ -9,6 +9,7 @@ Command, Usage, TSH_ERR_INVALID_CMD
 from inuithy.util.helper import valid_cmds, runonremote, delimstr
 from inuithy.util.cmd_helper import start_agents, stop_agents
 from inuithy.common.runtime import Runtime as rt
+from inuithy.common.traffic import Phase
 import multiprocessing as mp
 import socket
 import threading
@@ -44,6 +45,8 @@ TSH_CMD_FORCE_STOP = "fstop"
 TSH_CMD_LIST = "list"
 TSH_CMD_LIST_LESS = "ll"
 TSH_CMD_HOST = "host"
+TSH_CMD_USEPHASE = "usephase"
+TSH_CMD_LSPHASE = "lsphase"
 TSH_CMD_DEPLOY = "deploy"
 TSH_CMD_RUN = "run"
 TSH_CMD_REGTRAF = "regtraf"
@@ -113,7 +116,11 @@ class Console(object):#threading.Thread):
         "usage_traffic": Usage(self._title, [\
     Command(delimstr(' ', TSH_CMD_TRAFFIC, TSH_CMD_HOST),\
     "<host>:<node addr> <serial command>",\
-    "Send serial command to agent on <host>"),\
+    "Send serial command to agent on <host>"),
+    Command(delimstr(' ', TSH_CMD_TRAFFIC, TSH_CMD_LSPHASE),\
+        desc="Print configured phases"),
+    Command(delimstr(' ', TSH_CMD_TRAFFIC, TSH_CMD_USEPHASE),\
+        "<phase index>", desc="Use specific phase"),
     Command(delimstr(' ', TSH_CMD_TRAFFIC, TSH_CMD_DEPLOY),\
         desc="Deploy predefined network layout"),
     Command(delimstr(' ', TSH_CMD_TRAFFIC, TSH_CMD_REGTRAF),\
@@ -160,11 +167,13 @@ class Console(object):#threading.Thread):
             TSH_CMD_LIST_LESS: self.on_cmd_agent_list_less,
         }
         self._cmd_traffic_routes = {
-            TSH_CMD_HOST:       self.on_cmd_traffic_host,
-            TSH_CMD_DEPLOY:     self.on_cmd_traffic_deploy,
-            TSH_CMD_RUN:        self.on_cmd_traffic_run,
-            TSH_CMD_REGTRAF:    self.on_cmd_traffic_register,
-            TSH_CMD_GENREPORT:  self.on_cmd_traffic_genreport,
+            TSH_CMD_HOST: self.on_cmd_traffic_host,
+            TSH_CMD_LSPHASE: self.on_cmd_traffic_list_phase,
+            TSH_CMD_USEPHASE: self.on_cmd_traffic_load_phase,
+            TSH_CMD_DEPLOY: self.on_cmd_traffic_deploy,
+            TSH_CMD_RUN: self.on_cmd_traffic_run,
+            TSH_CMD_REGTRAF: self.on_cmd_traffic_register,
+            TSH_CMD_GENREPORT: self.on_cmd_traffic_genreport,
         }
 
     def __init__(self, ctrl=None, lgr=None):
@@ -189,8 +198,8 @@ class Console(object):#threading.Thread):
             agents = copy.deepcopy(self.ctrl.expected_agents)
         else:
             agents = list(hosts)
-        to_console("Initialize traffic configure")
-        self.ctrl.traffic_state.create()
+#        to_console("Initialize traffic configure")
+#        self.ctrl.traffic_state.create()
         start_agents(agents)
         to_console("Waiting for agents to get ready")
         self.ctrl.traffic_state.wait_agent()
@@ -256,7 +265,7 @@ class Console(object):#threading.Thread):
         ('127.0.0.1', 'lighton', '1112')
         """
         self.lgr.info("On command traffic host")
-        if len(args) < 3:
+        if len(args) < 2:
             to_console(str(self.usages['usage_traffic']))
             return
         if len(self.ctrl.node2aid) == 0:
@@ -270,7 +279,25 @@ class Console(object):#threading.Thread):
             T_CLIENTID:     self.ctrl.node2aid.get(node),
             T_MSG:          ' '.join(list(args[1:])),
         }
+        to_console("Sending {}", ' '.join(list(args[1:])))
         pub_traffic(self.ctrl.mqclient, rt.tcfg.mqtt_qos, data)
+
+    def on_cmd_traffic_list_phase(self, *args, **kwargs):
+        """Traffic load phase command handler"""
+        self.lgr.info("On command load phase")
+        for ph in rt.trcfg.target_phases:
+            to_console("[{}] {}", rt.trcfg.target_phases.index(ph), ph)
+
+    def on_cmd_traffic_load_phase(self, *args, **kwargs):
+        """Traffic load phase command handler"""
+        self.lgr.info("On command load phase")
+        if len(args) < 1:
+            to_console(str(self.usages['usage_traffic']))
+            return
+        to_console("loading phase {}", args[0])
+        self.ctrl.traffic_state.current_phase = Phase(
+            rt.trcfg, rt.nwcfg, rt.trcfg.target_phases[int(args[0])])
+        to_console("current phase\n{}", self.ctrl.traffic_state.current_phase)
 
     def on_cmd_traffic_deploy(self, *args, **kwargs):
         """Traffic deploy command handler
