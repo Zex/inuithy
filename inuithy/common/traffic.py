@@ -148,7 +148,7 @@ class TrafficGenerator(object):
         return self
 
 class Phase(object):
-
+    """Info block for one phase"""
     def __init__(self, trcfg, nwcfg, cur_phase):
         self.nwlayoutid = getnwlayoutid(trcfg.config[T_NWCONFIG_PATH], cur_phase[T_NWLAYOUT])
         self.noi = {}
