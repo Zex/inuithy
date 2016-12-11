@@ -1,8 +1,11 @@
 ## Makefile for Inuithy
 # Author: Zex Li <top_zlynch@yahoo.com>
 #
-PROJECT		           := Inuithy
-VERSION		           := 0.0.1
+PROJECT         := Inuithy
+MAJOR_VERSION   := 0
+MINOR_VERSION   := 1
+REVISION        := $(shell git rev-parse --short HEAD)
+VERSION         := $(MAJOR_VERSION).$(MINOR_VERSION).$(REVISION)
 
 include makefiles/predef.mk
 include makefiles/pack.mk
@@ -11,7 +14,7 @@ include makefiles/pack.mk
 
 .PHONY: $(VERSION_PATH) $(OUTPUT_TAR_PATH) $(BUILD) clean version sample_config traffic_config_chk run_controller run_tsh $(LOGBASE) install run_agent run_mosquitto
 
-all: tar install
+all: tar #install
 
 version: $(VERSION_PATH)
 
@@ -52,7 +55,7 @@ logmon:
 	$(TAILMON) $(LOGPATH)
 
 run_all_agents:
-	ssh root@127.0.0.1 "pushd $(PROJECT_PATH);nohup $(PYTHON) inuithy/agent.py &> /tmp/inuithy.nohup" &
+	ssh root@127.0.0.1 "pushd $(PROJECT_PATH);$(PYTHON) inuithy/agent.py &> /tmp/inuithy.nohup" &
 
 viewlog:
 	$(VIM) $(LOGPATH)
@@ -92,3 +95,6 @@ pylint:
 
 
 tar: $(OUTPUT_TAR_PATH)
+	$(CP) tools/deploy_on_board.sh build
+
+

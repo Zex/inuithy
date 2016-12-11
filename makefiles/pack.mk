@@ -24,12 +24,15 @@ PYLINT_OUTPUT		   := $(BUILD)/pylint
 
 $(OUTPUT_TAR_PATH): $(BUILD) $(VERSION_PATH)
 	$(ECHO) "\033[01;36m[Creating $@]\033[00m"
-	$(TAR) cfj $(OUTPUT_TAR_PATH) $(OUTPUT_TAR_SOURCE) $(OUTPUT_TAR_EXCLUDES:%=--exclude=%) --total -l
+	$(TAR) cfj $(OUTPUT_TAR_PATH) $(OUTPUT_TAR_SOURCE) $(OUTPUT_TAR_EXCLUDES:%=--exclude=%) --owner=root --group=root --total -l
 
 $(VERSION_PATH):
 	$(ECHO) "\033[01;36m[Creating $@]\033[00m"
 	$(ECHO) "\"\"\" Inuithy version info - AUTO GENERATED ON `date`\"\"\"" > $@
 	$(ECHO) "" >> $@
+	$(ECHO) "MAJOR_VERSION = \""$(MAJOR_VERSION)"\"" >> $@
+	$(ECHO) "MINOR_VERSION = \""$(MINOR_VERSION)"\"" >> $@
+	$(ECHO) "REVISION = \""$(REVISION)"\"" >> $@
 	$(ECHO) "__version__ = \""$(VERSION)"\"" >> $@
 	$(ECHO) "__package__ = \""$(PROJECT_ALIAS)"\"" >> $@
 	$(ECHO) "PROJECT_PATH = \""$(PROJECT_PATH)"\"" >> $@
