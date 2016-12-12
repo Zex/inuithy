@@ -216,18 +216,15 @@ class RawNode(Node):
     def read(self, rdbyte=0):
         """Read data ultility"""
         rdbuf = ""
-        rdbuf = self.dev.recv(RAWNODE_RBUF_MAX).decode()
+        rdbuf, sender = self.dev.recvfrom(RAWNODE_RBUF_MAX)
+        print("NODE|R:", self.path, rdbuf, sender)
+        rdbuf = rdbuf.decode()
         self.report_read(rdbuf)
-        print("NODE|R:", self.path, self.proto, rdbuf)
         return rdbuf
 
     def write(self, data="", request=None):
         """Write data ultility"""
-        written = 0
-        if isinstance(self.dev, socket.socket): #DEBUG
-            data = to_string('{}:{}', self.dev.getsockname(), data)
-            self.dev.sendto(data.encode(), socket.MSG_DONTWAIT, RAWNODE_SVR)
-        #TODO -->
+        self.dev.sendto(data.encode(), socket.MSG_DONTWAIT, RAWNODE_SVR)
         self.report_write(data, request)
         print("NODE|W:", self.path, data)
         if self.run_listener:
@@ -247,16 +244,12 @@ class RawNodeSvr(RawNode):
         RawNode.__init__(self, ntype=ntype, proto=proto, path=path, addr=addr,\
             reporter=reporter, lgr=lgr, adapter=adapter)
 
-    def read(self, worker=None):
+    def read(self, rdbyte=0):
         """Read data ultility"""
-        rdbuf = ""
-        rdbuf = self.dev.recv(RAWNODE_RBUF_MAX).decode()
-        print("SVR:", rdbuf)
-        if worker is not None:
-            sender, data = rdbuf.split(":")
-            worker.add_job(self.dev.sendto, data.encode(), 0, sender)#socket.MSG_DONTWAIT, sender)
-
-        return rdbuf
+        rdbuf, sender = self.dev.recvfrom(RAWNODE_RBUF_MAX)
+        print("SVR|R:", self.path, rdbuf, sender)
+        self.dev.sendto(rdbuf, socket.MSG_DONTWAIT, sender)
+        return rdbuf.decode()
 
     def write(self, data="", request=None):
         """Write data ultility"""

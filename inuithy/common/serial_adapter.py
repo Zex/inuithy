@@ -50,7 +50,7 @@ class SerialAdapter:
         self.poll_timeout = 2 # seconds
         self.poller = select.epoll()
         self.poller_thread = None
-        self.worker = Worker(2, SerialAdapter.lgr)
+        self.node_reader = Worker(1, SerialAdapter.lgr)
         self.node_svr = None
         self.create_node_svr()
         with SerialAdapter._mutex:
@@ -64,8 +64,6 @@ class SerialAdapter:
             """[ntype.name] => (ntype, proto, node, report_hdr)
             """
             try:
-                if node.proto is not None:
-                    break
                 req = proto[1].getfwver()
                 node.write(req)
             except Exception as ex:
@@ -100,7 +98,7 @@ class SerialAdapter:
             if node is not None:
 #            node.start_listener()
                 self.nodes[node.dev.fileno()] = node
-                self.poller.register(node.dev.fileno(), select.EPOLLIN|select.EPOLLOUT|select.EPOLLET)
+                self.poller.register(node.dev.fileno(), select.EPOLLIN|select.EPOLLOUT|select.EPOLLET|select.EPOLLERR|select.EPOLLHUP)
                 SerialAdapter.get_type(node)
             else:
                 SerialAdapter.lgr.error(to_string("Invalid node"))
@@ -132,9 +130,9 @@ class SerialAdapter:
         SerialAdapter.lgr.info(to_string("Scan for connected nodes {}", targets))
         clear_list(self.nodes)
         paths = enumerate(name for name in glob.glob(targets))
-        self.worker.start()
+        self.node_reader.start()
         self.start_poll()
-        [self.worker.add_job(self.create_node, path) for path in paths]
+        [self.create_node(path) for path in paths]
         SerialAdapter.scan_done.wait()
         SerialAdapter.scan_done.clear()
         SerialAdapter.lgr.info("Scanning finished")
@@ -143,7 +141,7 @@ class SerialAdapter:
     def create_node_svr(self):
         """Similator"""
         self.node_svr = RawNodeSvr(adapter=self)
-        self.poller.register(self.node_svr.dev.fileno(), select.EPOLLIN|select.EPOLLOUT|select.EPOLLET)
+        self.poller.register(self.node_svr.dev.fileno(), select.EPOLLIN|select.EPOLLOUT|select.EPOLLET|select.EPOLLERR|select.EPOLLHUP)
 
     def close_node_svr(self):
         """Similator"""
@@ -164,18 +162,20 @@ class SerialAdapter:
                 events = self.poller.poll(self.poll_timeout)
                 for fileno, event in events:
                     if self.nodes.get(fileno) is not None:
-                        node = self.nodes.get(fileno)
                         if event & select.EPOLLIN:
-                            self.worker.add_job(node.read)
+                            node = self.nodes.get(fileno)
+                            self.node_reader.add_job(node.read)
                     elif self.node_svr is not None and fileno == self.node_svr.dev.fileno():
                         if event & select.EPOLLIN:
-                            self.worker.add_job(self.node_svr.read, self.worker)
+                            self.node_svr.read()
 #                    elif event & select.EPOLLIN:
-#                       pass
+#                        print("IN", fileno, event)
 #                    elif event & select.EPOLLOUT:
-#                       pass
+#                        print("OUT", fileno, event)
 #                    elif event & select.EPOLLHUP:
-#                       pass
+#                        print("HUP", fileno, event)
+#                    elif event & select.EPOLLERR:
+#                        print("ERR", fileno, event)
 #                if len(events) == 0:
 #                    print("GOT NOTHING on TIMEOUT")
         except KeyboardInterrupt:
@@ -187,7 +187,7 @@ class SerialAdapter:
     def start_poll(self):
         """Start poller for node IO events"""
         SerialAdapter.lgr.info("Start poller")
-        if self.poller is None or self.worker is None:
+        if self.poller is None or self.node_reader is None:
             SerialAdapter.lgr.error("Invalid poller or worker")
             return
         self.run_listener = True
@@ -215,7 +215,7 @@ class SerialAdapter:
         self.stop_poll()
         [node.close() for node in self.nodes.values()]
         self.close_node_svr()
-        self.worker.stop()
+        self.node_reader.stop()
 
 if __name__ == '__main__':
 
@@ -223,7 +223,7 @@ if __name__ == '__main__':
     try:
 #       print(SerialAdapter.protocols)
 
-        sad.scan_nodes(targets='/dev/tty2*')
+        sad.scan_nodes(targets='/dev/tty*')
         print([str(fd)+str(n) for fd, n in sad.nodes.items()])
 #       sad.stop_nodes()
         print(len(sad.nodes))
