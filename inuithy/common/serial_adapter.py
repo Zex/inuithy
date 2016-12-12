@@ -51,6 +51,7 @@ class SerialAdapter:
         self.poller = select.epoll()
         self.poller_thread = None
         self.node_reader = Worker(1, SerialAdapter.lgr)
+        self.node_writer = Worker(1, SerialAdapter.lgr)
         self.node_svr = None
         self.create_node_svr()
         with SerialAdapter._mutex:
@@ -131,8 +132,11 @@ class SerialAdapter:
         clear_list(self.nodes)
         paths = enumerate(name for name in glob.glob(targets))
         self.node_reader.start()
+        self.node_writer.start()
         self.start_poll()
-        [self.create_node(path) for path in paths]
+#        paths = ['/dev/tty'+str(n) for n in range(1, 100000)]
+#        [self.create_node(path) for path in paths]
+        [self.node_writer.add_job(self.create_node, path) for path in paths]
         SerialAdapter.scan_done.wait()
         SerialAdapter.scan_done.clear()
         SerialAdapter.lgr.info("Scanning finished")
@@ -216,6 +220,7 @@ class SerialAdapter:
         [node.close() for node in self.nodes.values()]
         self.close_node_svr()
         self.node_reader.stop()
+        self.node_writer.stop()
 
 if __name__ == '__main__':
 
