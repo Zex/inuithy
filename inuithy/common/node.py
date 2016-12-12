@@ -202,6 +202,7 @@ class SerialNode(Node):
 
 class RawNode(Node):
     """Raw socket node for simulation"""
+
     def __init__(self, ntype=None, proto=None, path="", addr="", reporter=None,\
         lgr=None, adapter=None):
         Node.__init__(self, ntype=ntype, proto=proto, path=path, addr=addr,\
@@ -211,22 +212,24 @@ class RawNode(Node):
         if exists(path):
             unlink(path)
         self.dev = socket.socket(socket.AF_UNIX, socket.SOCK_RAW)
+        self.dev.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.dev.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
         self.dev.bind(path)
 
     def read(self, rdbyte=0):
         """Read data ultility"""
         rdbuf = ""
         rdbuf, sender = self.dev.recvfrom(RAWNODE_RBUF_MAX)
-        print("NODE|R:", self.path, rdbuf, sender)
+#        print("NODE|R:", self.path, rdbuf, sender)
         rdbuf = rdbuf.decode()
         self.report_read(rdbuf)
         return rdbuf
 
     def write(self, data="", request=None):
         """Write data ultility"""
-        self.dev.sendto(data.encode(), socket.MSG_DONTWAIT, RAWNODE_SVR)
+        self.dev.sendto(data.encode(), 0, RAWNODE_SVR)
         self.report_write(data, request)
-        print("NODE|W:", self.path, data)
+#        print("NODE|W:", self.path, data)
         if self.run_listener:
             self.read_event.set()
 
@@ -247,8 +250,8 @@ class RawNodeSvr(RawNode):
     def read(self, rdbyte=0):
         """Read data ultility"""
         rdbuf, sender = self.dev.recvfrom(RAWNODE_RBUF_MAX)
-        print("SVR|R:", self.path, rdbuf, sender)
-        self.dev.sendto(rdbuf, socket.MSG_DONTWAIT, sender)
+#        print("SVR|R:", self.path, rdbuf, sender)
+        self.dev.sendto(rdbuf, 0, sender)
         return rdbuf.decode()
 
     def write(self, data="", request=None):
