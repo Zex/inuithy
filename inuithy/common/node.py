@@ -2,7 +2,7 @@
  @author: Zex Li <top_zlynch@yahoo.com>
 """
 from inuithy.common.predef import TrafficType, T_MSG, T_GENID,\
-INUITHY_LOGCONFIG, to_string, T_TYPE, T_ADDR, T_PORT, NodeType
+INUITHY_LOGCONFIG, to_string, T_TYPE, T_ADDR, T_PATH, NodeType
 from inuithy.util.cmd_helper import pub_reportwrite, pub_notification
 from inuithy.protocol.ble_proto import BleProtocol as BleProto
 from inuithy.protocol.zigbee_proto import ZigbeeProtocol as ZbeeProto
@@ -14,7 +14,6 @@ import logging
 import serial
 import socket
 import json
-import os
 from os.path import dirname, isdir, exists
 from os import makedirs, unlink
 from random import randint
@@ -53,7 +52,7 @@ class Node(object):
         return json.dumps({
             T_TYPE:self.ntype.name,
             T_ADDR:self.addr,
-            T_PORT:self.path})
+            T_PATH:self.path})
 
     def read(self, rdbyte=0):
         """Read data ultility"""
@@ -155,8 +154,6 @@ class Node(object):
 
         if self.dev is not None:
             self.dev.close()
-            if isinstance(self.dev, socket.socket) and len(self.dev.getsockname()) > 0:
-               os.remove(self.dev.getsockname()) 
 
     @staticmethod
     def create(ntype=None, proto=None, path='', addr='', repather=None, lgr=None, adapter=None):
@@ -237,9 +234,11 @@ class RawNode(Node):
             self.read_event.set()
 
     def close(self):
-        self.dev.close()
-        if len(self.dev.getsockname()) > 0:
-            os.remove(self.dev.getsockname()) 
+
+        if self.dev is not None:
+            self.dev.close()
+        if len(self.path) > 0 and exists(self.path):
+            unlink(self.path)
 
 class RawNodeSvr(RawNode):
     """Raw node server"""
@@ -248,13 +247,15 @@ class RawNodeSvr(RawNode):
         RawNode.__init__(self, ntype=ntype, proto=proto, path=path, addr=addr,\
             reporter=reporter, lgr=lgr, adapter=adapter)
 
-    def read(self, rdbyte=0):
+    def read(self, worker=None):
         """Read data ultility"""
         rdbuf = ""
         rdbuf = self.dev.recv(RAWNODE_RBUF_MAX).decode()
         print("SVR:", rdbuf)
-        sender, data = rdbuf.split(":")
-        print(self.dev.sendto(data.encode(), socket.MSG_DONTWAIT, sender))
+        if worker is not None:
+            sender, data = rdbuf.split(":")
+            worker.add_job(self.dev.sendto, data.encode(), 0, sender)#socket.MSG_DONTWAIT, sender)
+
         return rdbuf
 
     def write(self, data="", request=None):
