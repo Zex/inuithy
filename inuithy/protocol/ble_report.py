@@ -18,7 +18,7 @@ import logging.config as lconf
 #from bson.objectid import ObjectId
 import json
 import sys
-from os import path, mkdir
+from os import path, makedirs
 from copy import deepcopy
 
 mplib.style.use('ggplot')
@@ -151,7 +151,7 @@ class BleReport(object):
 
         ginfo.header = [T_TIME, T_NODE, T_SRC, T_DEST, T_MSG_TYPE]
         if not path.isdir(ginfo.fig_base):
-            mkdir(ginfo.fig_base)
+            makedirs(ginfo.fig_base)
         return ginfo
 
     @staticmethod

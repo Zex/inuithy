@@ -25,7 +25,7 @@ import logging.config as lconf
 #from bson.objectid import ObjectId
 import json
 import sys
-from os import path, mkdir
+from os import path, makedirs
 from copy import deepcopy
 
 mplib.style.use('ggplot')
@@ -168,7 +168,7 @@ class BzReport(object):
             T_RTDISCINIT, T_RELAYEDUCAST, T_PKGBUFALLOCFAIL, T_APSTXBCAST, T_APSTXUCASTSUCCESS,\
             T_APSTXUCASTFAIL, T_APSTXUCASTRETRY, T_APSRXBCAST, T_APSRXUCAST]
         if not path.isdir(ginfo.fig_base):
-            mkdir(ginfo.fig_base)
+            makedirs(ginfo.fig_base)
         return ginfo
 
     @staticmethod
