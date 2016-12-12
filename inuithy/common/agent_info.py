@@ -64,7 +64,7 @@ class AgentInfo(SupportedProto):
             self.agentid, self.host, self.status, [str(n) for n in self.nodes], len(self.nodes))
     
 if __name__ == '__main__':
-    ai = AgentInfo('123', 'lkfjrj', nodes=[json.dumps({T_TYPE: 'Zigbee', T_ADDR: '1234', 'port': '/dev/ttyHello'})])
+    ai = AgentInfo('123', 'lkfjrj', nodes=[json.dumps({T_TYPE: 'Zigbee', T_ADDR: '1234', 'path': '/dev/ttyHello'})])
     print(ai)
 
     print(SupportedProto.protocols)
