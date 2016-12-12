@@ -22,6 +22,7 @@ import threading
 import socket
 import logging
 import sys
+from random import randint
 try:
     from queue import Queue, Empty
 except ImportError:
@@ -264,7 +265,6 @@ class Agent(object):
         if cid_surf is not None:
             rd = cid_surf
         elif rt.tcfg.enable_localdebug:
-            from random import randint
             rd = to_string('-{}', hex(randint(1048576, 10000000))[2:])
         return to_string(INUITHYAGENT_CLIENT_ID, self.host+rd)
 
