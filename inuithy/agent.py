@@ -1,7 +1,7 @@
 """Agent application main thread
  @author: Zex Li <top_zlynch@yahoo.com>
 """
-from inuithy.common.predef import to_string, INUITHY_TITLE, INUITHY_TOPIC_NWLAYOUT,\
+from inuithy.common.predef import to_string, INUITHY_TITLE, INUITHY_TOPIC_NWLAYOUT, INUITHY_TOPIC_TSH,\
 __version__, INUITHY_CONFIG_PATH, CtrlCmd, INUITHY_TOPIC_TRAFFIC,\
 INUITHY_TOPIC_CONFIG, INUITHYAGENT_CLIENT_ID, T_ADDR, T_HOST, T_NODE,\
 T_CLIENTID, T_TID, T_INTERVAL, T_DURATION, T_NODES, T_DEST,\
@@ -161,6 +161,13 @@ class Agent(object):
             "MQ.Subscribe: client:{} userdata:[{}], mid:{}, grated_qos:{}",
             client, userdata, mid, granted_qos))
 
+    def stop_traffic_trigger(self):
+
+        self.lgr.info("Stopping traffic executors")
+        while not self.__traffic_executors.empty():
+            te = self.__traffic_executors.get()
+            te.stop_trigger()
+
     def teardown(self, msg='Teardown'):
         """Cleanup"""
         if not Agent.initialized:
@@ -173,20 +180,12 @@ class Agent(object):
                 if self._heartbeat is not None:
                     self._heartbeat.stop()
                 if self._sad is not None:
-                    self._sad.stop_nodes()
+                    self._sad.teardown()
                 if self.worker:
                     self.worker.stop()
-                self.lgr.info("Stopping traffic executors")
-                while not self.__traffic_executors.empty():
-                    te = self.__traffic_executors.get()
-                    te.stop_trigger()
-#                    [te.stop_trigger() for te in self.__traffic_executors if te.isAlive()]
-#                    if len([te for te in self.__traffic_executors if te.isAlive()]) == 0:
-#                        break
-#                [te.stop_trigger() for te in self.__traffic_executors if te is not None]
+                self.stop_traffic_trigger()
                 pub_status(self.mqclient, rt.tcfg.mqtt_qos, {T_MSG: msg})
                 self.unregister()
-                time.sleep(2)
                 self.mqclient.disconnect()
         except Exception as ex:
             self.lgr.error(to_string("Exception on teardown: {}", ex))
@@ -244,12 +243,14 @@ class Agent(object):
             (INUITHY_TOPIC_COMMAND, rt.tcfg.mqtt_qos),
             (INUITHY_TOPIC_TRAFFIC, rt.tcfg.mqtt_qos),
             (INUITHY_TOPIC_NWLAYOUT, rt.tcfg.mqtt_qos),
+            (INUITHY_TOPIC_TSH, rt.tcfg.mqtt_qos),
             (INUITHY_TOPIC_CONFIG, rt.tcfg.mqtt_qos),
         ])
         self.mqclient.message_callback_add(INUITHY_TOPIC_COMMAND, Agent.on_topic_command)
         self.mqclient.message_callback_add(INUITHY_TOPIC_CONFIG, Agent.on_topic_config)
         self.mqclient.message_callback_add(INUITHY_TOPIC_TRAFFIC, Agent.on_topic_traffic)
         self.mqclient.message_callback_add(INUITHY_TOPIC_NWLAYOUT, Agent.on_topic_nwlayout)
+        self.mqclient.message_callback_add(INUITHY_TOPIC_TSH, Agent.on_topic_tsh)
         self.ctrlcmd_routes = {
             CtrlCmd.NEW_CONTROLLER.name:               self.on_new_controller,
             CtrlCmd.AGENT_STOP.name:                   self.on_agent_stop,
@@ -514,7 +515,8 @@ class Agent(object):
         else:
             self.lgr.error(to_string("{}: Node [{}] not found", self.clientid, naddr))
 
-    def on_traffic_tsh(self, data):
+    @staticmethod
+    def on_topic_tsh(client, userdata, message):
         """
         data = {
             T_TRAFFIC_TYPE: TrafficType.TSH.name,
@@ -524,14 +526,21 @@ class Agent(object):
             T_MSG:          ' '.join(args[1:])
         }
         """
-        self.lgr.info(to_string("TSH request"))
-        naddr = data.get(T_NODE)
-        node = self.addr2node.get(naddr)
-        if node is not None:
-            self.lgr.debug(to_string("Found node: {}", node))
-            node.write(data.get(T_MSG))
-        else: # DEBUG
-            self.lgr.error(to_string("{}: Node [{}] not found", self.clientid, naddr))
+        self = userdata
+        try:
+            self.lgr.info(to_string("TSH request"))
+            data = extract_payload(message.payload)
+            if not self.is_msg_for_me([data.get(T_CLIENTID)]):
+                return
+            naddr = data.get(T_NODE)
+            node = self.addr2node.get(naddr)
+            if node is not None:
+                self.lgr.debug(to_string("Found node: {}", node))
+                node.write(data.get(T_MSG))
+            else: # DEBUG
+                self.lgr.error(to_string("{}: Node [{}] not found", self.clientid, naddr))
+        except Exception as ex:
+            self.lgr.error(to_string("Failure on handling tsh request: {}", ex))
 
     def on_traffic_start(self, data):
         """Traffic start command handler"""
@@ -565,8 +574,8 @@ class Agent(object):
             self.on_traffic_scmd(data)
         elif data.get(T_TRAFFIC_TYPE) == TrafficType.START.name:
             self.on_traffic_start(data)
-        elif data.get(T_TRAFFIC_TYPE) == TrafficType.TSH.name:
-            self.on_traffic_tsh(data)
+#        elif data.get(T_TRAFFIC_TYPE) == TrafficType.TSH.name:
+#            self.on_traffic_tsh(data)
         else:
             self.lgr.error(to_string("{}: Unhandled traffic message [{}]", self.clientid, data))
 
