@@ -39,21 +39,25 @@ class Worker(object):
     worker.start()
     stopper.start()
 """
+
     def __init__(self, get_timeout=None, lgr=None):
         self.lgr = lgr is None and logging or lgr
         self.jobs = Queue()
         self.get_timeout = get_timeout
         self._keep_working = True
+        self._handler_mutex = threading.Lock()
+        self._addjob_mutex = threading.Lock()
 
     def add_job(self, func, *args):
         if self._keep_working:
-            self.jobs.put((func, args))
+            with self._addjob_mutex:
+                self.jobs.put((func, args))
 
     def _do_start(self):
         while self._keep_working:# and not self.jobs.empty():
             try:
-                job = self.jobs.get(timeout=self.get_timeout)
-#                self.lgr.debug(to_string("job:{}", job))
+                with self._handler_mutex:
+                    job = self.jobs.get(timeout=self.get_timeout)
                 if len(job) > 1 and job[0] is not None:
                     job[0](*job[1])
             except Empty:
