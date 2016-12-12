@@ -12,7 +12,7 @@ import threading
 
 #            newctrl
 # Agent <------------------------ Controller
-def pub_ctrlcmd(publisher, qos, data):
+def pub_ctrlcmd(publisher, qos=0, data=None):
     """Publish control command
     """
     payload = json.dumps(data)
@@ -54,6 +54,14 @@ def pub_nwlayout(publisher, qos=0, data=None):
     """
     payload = json.dumps(data)
     publisher.publish(INUITHY_TOPIC_NWLAYOUT, payload, qos, False)
+
+#             tsh command
+# Agent <------------------------ Controller
+def pub_tsh(publisher, qos=0, data=None):
+    """Publish tsh message
+    """
+    payload = json.dumps(data)
+    publisher.publish(INUITHY_TOPIC_TSH, payload, qos, False)
 
 #            traffic
 # Agent <------------------------ Controller
