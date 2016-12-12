@@ -25,7 +25,7 @@ lconf.fileConfig(INUITHY_LOGCONFIG)
     (NodeType.BleZbee, BzProto, SerialNode),
 ]]
 
-class SerialAdapter(SupportedProto):
+class SerialAdapter:
     """Serial port adapter
     """
     @property
@@ -60,10 +60,12 @@ class SerialAdapter(SupportedProto):
     @staticmethod
     def get_type(node):
         """Get firmware type via port"""
-        for proto in SerialAdapter.protocols.values():
+        for proto in SupportedProto.protocols.values():
             """[ntype.name] => (ntype, proto, node, report_hdr)
             """
             try:
+                if node.proto is not None:
+                    break
                 req = proto[1].getfwver()
                 node.write(req)
             except Exception as ex:
@@ -78,18 +80,17 @@ class SerialAdapter(SupportedProto):
         """
         SerialAdapter.lgr.debug(to_string("Register node {}, {}", node.path, data))
         try:
-            for proto in SerialAdapter.protocols.values():
+            for proto in SupportedProto.protocols.values():
                 if proto[1].isme({T_MSG: data}):
                     node.fwver = data
                     node.ntype = proto[0]
                     node.proto = proto[1]
                     node.reporter = self.reporter
 #            with SerialAdapter.register_mutex:
-            if True:
-                reg = [n for n in self.nodes.values() if n.proto is not None]
+            reg = [n for n in self.nodes.values() if n.proto is not None]
 #            node.stop_listener()
-                if len(reg) == len(self.nodes):
-                    SerialAdapter.scan_done.set()
+            if len(reg) == len(self.nodes):
+                SerialAdapter.scan_done.set()
         except Exception as ex:
             SerialAdapter.lgr.error(to_string("Exception on register node: {}", ex))
 
@@ -98,8 +99,8 @@ class SerialAdapter(SupportedProto):
         try:
             if node is not None:
 #            node.start_listener()
-                self.poller.register(node.dev.fileno(), select.EPOLLIN|select.EPOLLOUT|select.EPOLLET)
                 self.nodes[node.dev.fileno()] = node
+                self.poller.register(node.dev.fileno(), select.EPOLLIN|select.EPOLLOUT|select.EPOLLET)
                 SerialAdapter.get_type(node)
             else:
                 SerialAdapter.lgr.error(to_string("Invalid node"))
@@ -131,16 +132,10 @@ class SerialAdapter(SupportedProto):
         SerialAdapter.lgr.info(to_string("Scan for connected nodes {}", targets))
         clear_list(self.nodes)
         paths = enumerate(name for name in glob.glob(targets))
-        print("start_worker")
         self.worker.start()
-        print("start_poll")
         self.start_poll()
-        print("start_add job")
         [self.worker.add_job(self.create_node, path) for path in paths]
-        print('start ... ')
-#        SerialAdapter.scan_done.wait()
-        input("waiting...")
-        print('quit ...')
+        SerialAdapter.scan_done.wait()
         SerialAdapter.scan_done.clear()
         SerialAdapter.lgr.info("Scanning finished")
 #        self.start_nodes()
@@ -166,7 +161,7 @@ class SerialAdapter(SupportedProto):
         """Node listener routine"""
         try:
             while self.run_listener:
-                events = self.poller.poll(0.1)#self.poll_timeout)
+                events = self.poller.poll(self.poll_timeout)
                 for fileno, event in events:
                     if self.nodes.get(fileno) is not None:
                         node = self.nodes.get(fileno)
@@ -231,6 +226,7 @@ if __name__ == '__main__':
         sad.scan_nodes(targets='/dev/tty2*')
         print([str(fd)+str(n) for fd, n in sad.nodes.items()])
 #       sad.stop_nodes()
+        print(len(sad.nodes))
     except KeyboardInterrupt:
         SerialAdapter.lgr.error(to_string("Received keyboard interrupt"))
     except Exception as ex:

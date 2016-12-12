@@ -217,8 +217,8 @@ class RawNode(Node):
         """Read data ultility"""
         rdbuf = ""
         rdbuf = self.dev.recv(RAWNODE_RBUF_MAX).decode()
-        print("NODE|R:", rdbuf)
         self.report_read(rdbuf)
+        print("NODE|R:", self.path, self.proto, rdbuf)
         return rdbuf
 
     def write(self, data="", request=None):
@@ -226,10 +226,10 @@ class RawNode(Node):
         written = 0
         if isinstance(self.dev, socket.socket): #DEBUG
             data = to_string('{}:{}', self.dev.getsockname(), data)
-            print("NODE|W:", data)
             self.dev.sendto(data.encode(), socket.MSG_DONTWAIT, RAWNODE_SVR)
         #TODO -->
         self.report_write(data, request)
+        print("NODE|W:", self.path, data)
         if self.run_listener:
             self.read_event.set()
 
