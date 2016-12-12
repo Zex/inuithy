@@ -40,9 +40,7 @@ class Worker(object):
     stopper.start()
 """
     def __init__(self, get_timeout=None, lgr=None):
-        self.lgr = lgr
-        if self.lgr is None:
-            self.lgr = logging
+        self.lgr = lgr is None and logging or lgr
         self.jobs = Queue()
         self.get_timeout = get_timeout
         self._keep_working = True
