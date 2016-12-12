@@ -14,6 +14,8 @@ INUITHY_TOPIC_CONFIG = "inuithy/topic/config"
 INUITHY_TOPIC_TRAFFIC = "inuithy/topic/traffic"
 # Configure network layout as given configure
 INUITHY_TOPIC_NWLAYOUT = "inuithy/topic/nwlayout"
+# Message sent via inuithy shell
+INUITHY_TOPIC_TSH = "inuithy/topic/tsh"
 # Agents => Controller
 # Unregister agent
 INUITHY_TOPIC_UNREGISTER = "inuithy/topic/unregister"
