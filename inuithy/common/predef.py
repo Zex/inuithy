@@ -52,6 +52,7 @@ INUITHY_MQLOG_FMT = "MQ.Log: {}"
 # Inuithy ver <version> <component>
 INUITHY_TITLE = "Inuithy version {} {}"
 
+DEV_TTYACM = '/dev/ttyACM{}'
 DEV_TTYUSB = '/dev/ttyUSB{}'
 DEV_TTYS = '/dev/ttyS{}'
 DEV_TTY = '/dev/tty{}'

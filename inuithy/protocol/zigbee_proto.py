@@ -48,6 +48,7 @@ class ZigbeeProtocol(Protocol):
     JOIN = "join"
     WRITEATTRIBUTE2 = "writeAttribute2"
     GETNETWORKADDRESS = 'getNetworkAddress'
+    GETSHORTADDRESS = "getShortAddress"
     GETUID = 'getUID'
     RESET_CONF = 'minimalDevice'
     DGN = 'Dgn'
@@ -76,7 +77,7 @@ class ZigbeeProtocol(Protocol):
         ch, ext_panid, panid, addr = \
             params.get(T_CHANNEL), params.get(T_PANID),\
             params.get(T_SPANID), params.get(T_NODE)
-        msg = " ".join([PROTO.JOIN, str(ch), str(ext_panid), str(panid), str(addr), Protocol.EOL])
+        msg = " ".join([PROTO.JOIN, str(ch), '0x'+str(ext_panid), '0x'+str(panid), '0x'+str(addr)]) + Protocol.EOL
         return msg
 
     @staticmethod
@@ -89,13 +90,23 @@ class ZigbeeProtocol(Protocol):
         dest, psize, rsp = params.get(T_DEST),\
             params.get(T_PKGSIZE), params.get(T_RSP)
         msg = " ".join([PROTO.WRITEATTRIBUTE2, "s", "0x"+dest,\
-            "20 0 4 42", "1", str(psize), str(rsp), Protocol.EOL])
+            "20 0 4 42", "1", str(psize), str(rsp)]) + Protocol.EOL
         return msg
 
     @staticmethod
     def getfwver(params=None):
         """Get firmware version command builder"""
-        return " ".join([PROTO.GETFWVER, Protocol.EOL])
+        return " ".join([PROTO.GETFWVER]) + Protocol.EOL
+
+    @staticmethod
+    def getaddr(params=None):
+        """Get network address"""
+        return " ".join([PROTO.GETSHORTADDRESS]) + Protocol.EOL
+
+    @staticmethod
+    def getuid(params=None):
+        """Get node uid"""
+        return " ".join([PROTO.GETUID]) + Protocol.EOL
 
     @staticmethod
     def isme(params=None):
@@ -111,33 +122,36 @@ class ZigbeeProtocol(Protocol):
         @node Node object
         @return Dict report for sending to controller
         """
+        if data is None or node is None:
+            return
+
         report = {}
         data = data.strip('\t \r\n')
         params = data.split(' ')
        
         # DEBUG data
-        rand = random.randint(MessageType.RECV.value, MessageType.UNKNOWN.value)
-        if node.joined is False:
-            params = []
-            params.append(MessageType.JOINING.name)
-        else:
-            if rand == MessageType.RECV.value:
-                params = []
-                params.append(MessageType.RECV.name)
-                params.append(str(random.randint(0, 10)))
-                params.append(str(random.randint(0, 10)))
-                params.append(str(random.randint(1100, 1144)))
-            elif rand == MessageType.SEND.value:
-                params = []
-                params.append(MessageType.SEND.name)
-                params.append(str(random.randint(0, 10)))
-                params.append(str(random.randint(0, 10)))
-                params.append(str(random.randint(0, 10)))
-                params.append(str(random.randint(1100, 1144)))
-                params.append(str(random.randint(10, 100)))
-            else:
-                params = [PROTO.DGN]
-                params.extend([str(random.randint(0, 2000)) for _ in range(21)])
+#        rand = random.randint(MessageType.RECV.value, MessageType.UNKNOWN.value)
+#        if node.joined is False:
+#            params = []
+#            params.append(MessageType.JOINING.name)
+#        else:
+#            if rand == MessageType.RECV.value:
+#                params = []
+#                params.append(MessageType.RECV.name)
+#                params.append(str(random.randint(0, 10)))
+#                params.append(str(random.randint(0, 10)))
+#                params.append(str(random.randint(1100, 1144)))
+#            elif rand == MessageType.SEND.value:
+#                params = []
+#                params.append(MessageType.SEND.name)
+#                params.append(str(random.randint(0, 10)))
+#                params.append(str(random.randint(0, 10)))
+#                params.append(str(random.randint(0, 10)))
+#                params.append(str(random.randint(1100, 1144)))
+#                params.append(str(random.randint(10, 100)))
+#            else:
+#                params = [PROTO.DGN]
+#                params.extend([str(random.randint(0, 2000)) for _ in range(21)])
         #------------end debug data--------------
 
         msg_type = params[0].upper()
@@ -234,7 +248,7 @@ class ZigbeeProtocol(Protocol):
         @request Dict request information
         @return Dict report for sending to controller
         """
-        if request.get(T_SRC) is None or request.get(T_DEST) is None:
+        if request is None or request.get(T_SRC) is None or request.get(T_DEST) is None:
             return None
 
         report = {

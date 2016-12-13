@@ -1,6 +1,8 @@
 """Agent application main thread
  @author: Zex Li <top_zlynch@yahoo.com>
 """
+import sys
+sys.path.append('/opt/inuithy')
 from inuithy.common.predef import to_string, INUITHY_TITLE, INUITHY_TOPIC_NWLAYOUT, INUITHY_TOPIC_TSH,\
 __version__, INUITHY_CONFIG_PATH, CtrlCmd, INUITHY_TOPIC_TRAFFIC,\
 INUITHY_TOPIC_CONFIG, INUITHYAGENT_CLIENT_ID, T_ADDR, T_HOST, T_NODE,\
@@ -21,14 +23,12 @@ import logging.config as lconf
 import threading
 import socket
 import logging
-import sys
 from random import randint
 try:
     from queue import Queue, Empty
 except ImportError:
     from Queue import Queue, Empty
 import time
-import argparse as ap
 
 lconf.fileConfig(INUITHY_LOGCONFIG)
 
@@ -180,8 +180,8 @@ class Agent(object):
                 msg = to_string("{}:{}", self.clientid, msg)
                 if self._heartbeat is not None:
                     self._heartbeat.stop()
-                if self._sad is not None:
-                    self._sad.teardown()
+                if self.adapter is not None:
+                    self.adapter.teardown()
                 if self.worker:
                     self.worker.stop()
                 self.stop_traffic_trigger()
@@ -206,15 +206,15 @@ class Agent(object):
             if scan_nodes:
                 self.lgr.info(to_string("Got scan nodes request"))
                 with Agent.__mutex:
-                    # TODO DEV_TTYS => DEV_TTYUSB
-                    self._sad.scan_nodes(to_string(DEV_TTY, T_EVERYONE))
+                    # TODO DEV_TTYS => DEV_TTYUSB, DEV_TTYACM
+                    self.adapter.scan_nodes([to_string(DEV_TTY, T_EVERYONE)])
                     self.addr_to_node()
 
-            self.lgr.info(to_string("Connected nodes: [{}]", len(self._sad.nodes)))
+            self.lgr.info(to_string("Connected nodes: [{}]", len(self.adapter.nodes)))
             data = {
                 T_CLIENTID: self.clientid,
                 T_HOST: self.host,
-                T_NODES: [str(node) for node in self._sad.nodes],
+                T_NODES: [str(node) for node in self.adapter.nodes],
                 T_VERSION: __version__,
             }
             pub_heartbeat(self.mqclient, rt.tcfg.mqtt_qos, data)
@@ -289,7 +289,7 @@ class Agent(object):
         self.lgr.info(to_string("Do initialization"))
         try:
             self.create_mqtt_client(*rt.tcfg.mqtt)
-            self._sad = SerialAdapter(self.mqclient, lgr=self.lgr)
+            self.adapter = SerialAdapter(self.mqclient, lgr=self.lgr)
             Agent.initialized = True
         except Exception as ex:
             self.lgr.error(to_string("Failed to initialize: {}", ex))
@@ -348,11 +348,9 @@ class Agent(object):
 #        self.__addr2node.clear()
         clear_list(self.__addr2node)
         if not rt.tcfg.enable_localdebug:
-            [self.__addr2node.__setitem__(n.addr, n) for n in self._sad.nodes]
+            [self.__addr2node.__setitem__(n.addr, n) for n in self.adapter.nodes]
             return
-#       import random, string
-#       [self.__addr2node.__setitem__(''.join([random.choice(string.hexdigits)\
-#           for i in range(4)]), n) for n in self._sad.nodes]
+
         samples = [
                     '1101', '1102', '1103', '1104',
                     '1111', '1112', '1113', '1114',
@@ -371,9 +369,9 @@ class Agent(object):
                     '11e1', '11e2', '11e3', '11e4',
                     '11f1', '11f2', '11f3', '11f4',
                 ]
-        [n.__setattr__(T_ADDR, addr) for addr, n in zip(samples, self._sad.nodes)]
-        [self.__addr2node.__setitem__(addr, n) for addr, n in zip(samples, self._sad.nodes)]
-#        [str(n) for n in self._sad.nodes]
+        [n.__setattr__(T_ADDR, addr) for addr, n in zip(samples, self.adapter.nodes)]
+        [self.__addr2node.__setitem__(addr, n) for addr, n in zip(samples, self.adapter.nodes)]
+#        [str(n) for n in self.adapter.nodes]
 
     def start(self):
         """Start Agent routine"""
@@ -442,11 +440,11 @@ class Agent(object):
             if node is None:
                 self.lgr.error(to_string("JOIN: Node {} not connected", naddr))
                 return
-    
+            #TODO remove addr->node map    
             if node.addr:
                 self.lgr.debug(to_string("JOIN: Found node: {}", node))
                 node.joined = False
-                node.join(data)
+                self.adapter.node_writer.add_job(node.join, data)
             else: # DEBUG
                 self.lgr.error(to_string("{}: Node [{}] not found", self.clientid, naddr))
         except Exception as ex:
@@ -536,7 +534,7 @@ class Agent(object):
             node = self.addr2node.get(naddr)
             if node is not None:
                 self.lgr.debug(to_string("Found node: {}", node))
-                node.write(data.get(T_MSG))
+                self.adapter.node_writer.add_job(node.write, data.get(T_MSG))
             else: # DEBUG
                 self.lgr.error(to_string("{}: Node [{}] not found", self.clientid, naddr))
         except Exception as ex:

@@ -17,6 +17,10 @@ import json
 from os.path import dirname, isdir, exists
 from os import makedirs, unlink
 from random import randint
+try:
+    from queue import Queue, Empty
+except ImportError:
+    from Queue import Queue, Empty
 
 RAWNODE_BASE = '/tmp'
 RAWNODE_SVR = RAWNODE_BASE+'/dev/svr'
@@ -29,7 +33,7 @@ class Node(object):
     """
     def __init__(self, ntype=None, proto=None, path="", addr="", reporter=None,\
         lgr=None, adapter=None):
-        self.lgr = logging#lgr is None and logging or lgr
+        self.lgr = lgr is None and logging or lgr
         self.path = path
         self.addr = addr
         self.ntype = ntype
@@ -38,6 +42,8 @@ class Node(object):
         self.run_listener = False
         self.genid = None
         self.read_event = threading.Event()
+        self.write_event = threading.Event()
+        self.write_event.set()
         self.joined = False #DEBUG
         self.fwver = ''
         self.adapter = adapter
@@ -50,18 +56,16 @@ class Node(object):
         else:
             ntype = self.ntype.name
         return json.dumps({
-            T_TYPE:self.ntype.name,
+            T_TYPE:ntype,
             T_ADDR:self.addr,
             T_PATH:self.path})
 
     def read(self, rdbyte=0):
         """Read data ultility"""
-#        self.lgr.debug(to_string("SerialNode#R: rdbyte:{}", rdbyte))
         pass
 
     def write(self, data="", request=None):
         """Write data ultility"""
-#        self.lgr.debug(to_string("SerialNode#W: data:[{}], len:{}", data, len(data)))
         pass
 
     def start_listener(self):
@@ -76,10 +80,7 @@ class Node(object):
         """Listen for incoming packages"""
         while self.run_listener:
             try:
-                if self.dev is None: #DEBUG
-                    self.read_event.wait()  # triggered by writer
-                    self.read_event.clear()
-                    self.read_event.wait(randint(1, 3)) #TODO remove
+                self.read_event.wait()
                 self.read()
                 self.read_event.clear()
             except Exception as ex:
@@ -103,17 +104,16 @@ class Node(object):
         self.write(msg, data)
 
     def report_read(self, data=None):
-        """Report received data"""
-#        self.lgr.debug(to_string("Report read"))
+        """Report received data
+        Ex:
+               data = ZbeeProto.NAME
+               data = BleProto.NAME
+               date = BzProto.NAME
+        """
         try:
-#TODO: uncomment
-#       if data is None or len(data) == 0:
-#           return
-            if self.proto is None:
-#TODO: use actual data
-                data = ZbeeProto.NAME
-#               data = BleProto.NAME
-#               date = BzProto.NAME
+            if data is None or len(data) == 0:
+                    return
+            if self.proto is None:# or len(self.addr) == 0:
                 data = data.strip('\t \r\n')
                 if self.adapter is not None:
                     self.adapter.register(self, data)
@@ -121,31 +121,21 @@ class Node(object):
                     self.lgr.error(to_string("Failed to register node to adapter: no adapter given"))
                 return
 
-            if self.run_listener is False:
-                return
-            if self.reporter is None or self.genid is None:
-                self.lgr.error(to_string("R: Invalid reporter or genid: {}, {}", self.reporter, self.genid))
-                return
             report = self.proto.parse_rbuf(data, self)
-            if report is not None and len(report) > 2:
+
+            if self.reporter is not None and report is not None and len(report) > 2:
                 pub_notification(self.reporter, data=report)
         except Exception as ex:
             self.lgr.error(to_string("Exception on report read: {}", ex))
 
     def report_write(self, data=None, request=None):
         """Report writen data"""
-#        self.lgr.debug(to_string("Report write"))
         try:
-            if self.proto is None:
+            if self.proto is None or data is None or len(data) == 0:
                 return
-            if self.reporter is None or self.genid is None or request is None:
-                self.lgr.error(to_string("W: Invalid reporter or genid: {}, {}", self.reporter, self.genid))
-                return
-#TODO: uncomment
-#       if data is None or len(data) == 0:
-#           return
+
             report = self.proto.parse_wbuf(data, self, request)
-            if report is not None and len(report) > 2:
+            if self.reporter is not None and report is not None and len(report) > 2:
                 pub_reportwrite(self.reporter, data=report)
         except Exception as ex:
             self.lgr.error(to_string("Exception on report write: {}", ex))
@@ -155,50 +145,44 @@ class Node(object):
         if self.dev is not None:
             self.dev.close()
 
-    @staticmethod
-    def create(ntype=None, proto=None, path='', addr='', repather=None, lgr=None, adapter=None):
-        """ntype=None, proto=None, path="", addr="", repather=None, lgr=None, timeout=2, adapter=None
-        """
-        try:
-            return Node(ntype=ntype, proto=proto, port=port,\
-                addr=addr, reporter=reporter, lgr=lgr, adapter=adapter)
-        except Exception as ex:
-            lgr.error(to_string("Exception on node creation: {}", ex))
-
 class SerialNode(Node):
 
     def __init__(self, ntype=None, proto=None, path="", addr="", reporter=None,\
         lgr=None, timeout=2, baudrate=115200, adapter=None):
         Node.__init__(self, ntype=ntype, proto=proto, path=path, addr=addr,\
             reporter=reporter, lgr=lgr, adapter=adapter)
-        self.dev = serial.Serial(port, baudrate=baudrate, timeout=timeout)
+        self.dev = serial.Serial(path, baudrate=baudrate, timeout=timeout)
 
     def read(self, rdbyte=0):
         """Read data ultility"""
-#        self.lgr.debug(to_string("SerialNode#R: rdbyte:{}", rdbyte))
         rdbuf = ""
         if isinstance(self.dev, serial.Serial) and self.dev.isOpen():
-            if 0 < self.dev.inWaiting():
-                rdbuf = self.dev.readall()
+            rdsize = self.dev.inWaiting()
+            if rdsize > 0:
+                self.write_event.clear()
+                rdbuf = self.dev.read(rdsize)
+                self.write_event.set()
                 if isinstance(rdbuf, bytes):
                     rdbuf = rdbuf.decode()
-        #TODO -->
-        self.report_read(rdbuf)
+                self.lgr.info(to_string("NODE|R: {}, {}", self.path, rdbuf))
+                self.report_read(rdbuf)
         return rdbuf
 
     def write(self, data="", request=None):
         """Write data ultility"""
-#        self.lgr.debug(to_string("SerialNode#W: data:[{}], len:{}", data, len(data)))
         written = 0
         if isinstance(self.dev, serial.Serial) and self.dev.isOpen():
             if isinstance(data, str):
+                self.write_event.wait()
                 written = self.dev.write(data.encode())
             else:
+                self.write_event.wait()
                 written = self.dev.write(data)
-        #TODO -->
-        self.report_write(data, request)
-        if self.run_listener:
-            self.read_event.set()
+            self.lgr.info(to_string("NODE|W: {}, {}", self.path, data))
+            if self.proto is not None:
+                self.report_write(data, request)
+
+        self.read_event.set()
 
 class RawNode(Node):
     """Raw socket node for simulation"""
@@ -220,7 +204,7 @@ class RawNode(Node):
         """Read data ultility"""
         rdbuf = ""
         rdbuf, sender = self.dev.recvfrom(RAWNODE_RBUF_MAX)
-#        print("NODE|R:", self.path, rdbuf, sender)
+        self.lgr.info(to_string("NODE|R: {}, {}, {}", self.path, rdbuf, sender))
         rdbuf = rdbuf.decode()
         self.report_read(rdbuf)
         return rdbuf
@@ -229,7 +213,7 @@ class RawNode(Node):
         """Write data ultility"""
         self.dev.sendto(data.encode(), 0, RAWNODE_SVR)
         self.report_write(data, request)
-#        print("NODE|W:", self.path, data)
+        self.lgr.info(to_string("NODE|W: {}, {}", self.path, data))
         if self.run_listener:
             self.read_event.set()
 
@@ -250,20 +234,13 @@ class RawNodeSvr(RawNode):
     def read(self, rdbyte=0):
         """Read data ultility"""
         rdbuf, sender = self.dev.recvfrom(RAWNODE_RBUF_MAX)
-#        print("SVR|R:", self.path, rdbuf, sender)
+        self.lgr.info(to_string("SVR|R: {}, {}, {}", self.path, rdbuf, sender))
         self.dev.sendto(rdbuf, 0, sender)
         return rdbuf.decode()
 
     def write(self, data="", request=None):
         """Write data ultility"""
         pass
-#        written = 0
-#        if isinstance(self.dev, socket.socket): #DEBUG
-#            self.dev.sendto(data, socket.MSG_DONTWAIT, RAWNODE_SVR)
-#        #TODO -->
-#        self.report_write(data, request)
-#        if self.run_listener:
-#            self.read_event.set()
 
 if __name__ == '__main__':
     lgr = logging.getLogger('InuithyNode')

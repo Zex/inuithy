@@ -1,12 +1,13 @@
 """ Console for manual mode
  @author: Zex Li <top_zlynch@yahoo.com>
 """
-from inuithy.common.version import INUITHY_ROOT, __version__
+from inuithy.common.version import INUITHY_ROOT, __version__, DEPLOY_SH
 from inuithy.common.predef import INUITHY_LOGCONFIG, INUITHY_TITLE,\
 to_console, to_string, T_EVERYONE
 from inuithy.common.command import TSH_ERR_GENERAL, TSH_ERR_HANDLING_CMD,\
 Command, Usage, TSH_ERR_INVALID_CMD
 from inuithy.util.helper import valid_cmds, runonremote, delimstr
+from inuithy.util.task_manager import ProcTaskManager
 from inuithy.util.cmd_helper import start_agents, stop_agents
 from inuithy.common.runtime import Runtime as rt
 from inuithy.common.traffic import Phase
@@ -132,7 +133,8 @@ class Console(object):#threading.Thread):
         ]),
         "usage_update": Usage(self._title, [\
     Command(delimstr(' ', TSH_CMD_UPDATE, TSH_CMD_HOST),\
-        desc="Update Inuithy on <host>\n'*' for all targetted hosts"),\
+        "<directory contains inuithy package> <host>...",\
+        desc="Deploy <inuithy package> on <host> \n'*' for all targetted hosts"),\
         ]),
         "usage_quit": Usage(self._title, [\
     Command(TSH_CMD_QUIT, desc="Leave me")]),\
@@ -362,11 +364,40 @@ class Console(object):#threading.Thread):
             to_console("Exception on quit: {}", ex)
 
     def on_cmd_update(self, *args, **kwargs):
-        """Update inuithy handler"""
-        self.lgr.info("On command rsys")
+        """Update inuithy handler
+            update build/* 192.168.1.190 192.168.1.185
+        """
+        self.lgr.info("On command update")
         if args is None or len(args) < 2:
             return
-        runonremote('root', args[0], ' '.join(args[1:]))
+        dest_base = '/media/card'
+        targets = to_string('{}/{}', args[0], T_EVERYONE)
+        packs = []
+#        [packs.extend(glob.glob(target)) for target in targets]
+        packs.extend(glob.glob(targets))
+        hosts = args[1:]
+        user = 'root'
+        if T_EVERYONE in hosts:
+            agents = copy.deepcopy(self.ctrl.expected_agents)
+        else:
+            agents = list(hosts)
+        if len(packs) == 0:
+            to_console("Package not found")
+        cmd = ' '.join(['scp', ' '.join(packs)])
+        failed = False
+        for agent in agents:
+            try:
+                to_console("loading {}@{}", packs, agent)
+                buf = ' '.join([cmd, to_string("{}@{}:{}", user, agent, dest_base)])
+                to_console(buf)
+                os.system(buf)
+                runonremote(user, agent, to_string('{}/{}', dest_base, DEPLOY_SH))
+            except Exception as ex:
+                to_console("Unable to deploy {} on {}: {}", packs, agent, ex)
+                failed = True
+                break
+
+        to_console("Update {}!", failed and 'failed' or 'finished!')
 
     def on_cmd_rsys(self, *args, **kwargs):
         """Remote system command handler"""

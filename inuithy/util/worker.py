@@ -50,14 +50,14 @@ class Worker(object):
 
     def add_job(self, func, *args):
         if self._keep_working:
-            with self._addjob_mutex:
-                self.jobs.put((func, args))
+#            with self._addjob_mutex:
+	     self.jobs.put((func, args))
 
     def _do_start(self):
         while self._keep_working:# and not self.jobs.empty():
             try:
-                with self._handler_mutex:
-                    job = self.jobs.get(timeout=self.get_timeout)
+#                with self._handler_mutex:
+                job = self.jobs.get(timeout=self.get_timeout)
                 if len(job) > 1 and job[0] is not None:
                     job[0](*job[1])
             except Empty:

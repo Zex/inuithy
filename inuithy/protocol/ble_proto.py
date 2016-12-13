@@ -35,36 +35,41 @@ class BleProtocol(Protocol):
     def joingrp(params=None):
         """Join group command builder"""
         grpid = params.get(T_PANID)
-        return " ".join([PROTO.JOINGRP, grpid, Protocol.EOL])
+        return " ".join([PROTO.JOINGRP, grpid]) + Protocol.EOL
 
     @staticmethod
     def leavegrp(params=None):
         """Leave group command builder"""
         grpid = params.get(T_PANID)
-        return " ".join([PROTO.LEAVEGRP, grpid, Protocol.EOL])
+        return " ".join([PROTO.LEAVEGRP, grpid]) + Protocol.EOL
 
     @staticmethod
     def lighton(params=None):
         """Light on command builder"""
         raddr = params.get(T_DEST)
-        return " ".join([PROTO.LIGHTON, raddr, Protocol.EOL])
+        return " ".join([PROTO.LIGHTON, raddr]) + Protocol.EOL
 
     @staticmethod
     def lightoff(params=None):
         """Light off command builder"""
         raddr = params.get(T_DEST)
-        return " ".join([PROTO.LIGHTOFF, raddr, Protocol.EOL])
+        return " ".join([PROTO.LIGHTOFF, raddr]) + Protocol.EOL
 
     @staticmethod
     def setaddr(params=None):
         """Set address command builder"""
         raddr = params.get(T_ADDR)
-        return " ".join([PROTO.SETADDR, raddr, Protocol.EOL])
+        return " ".join([PROTO.SETADDR, raddr]) + Protocol.EOL
 
     @staticmethod
     def getaddr(params=None):
         """Get address command builder"""
-        return " ".join([PROTO.GETADDR, Protocol.EOL])
+        return " ".join([PROTO.GETADDR]) + Protocol.EOL
+
+    @staticmethod
+    def getuid(params=None):
+        """Get node uid"""
+        return Protocol.EOL
 
     @staticmethod
     def parse_rbuf(data, node):
