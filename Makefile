@@ -32,10 +32,8 @@ traffic_config_chk: inuithy/common/traffic.py
 	$(PYTHON) $<
 
 run_controller: inuithy/controller.py
-#run_controller: inuithy/mode/auto_mode.py
 	$(ECHO) "" > $(LOGPATH)
 	$(ULIMIT) -u unlimited
-	$(MAKE) all
 	python3 $<
 
 run_tsh: inuithy/controller.py
@@ -95,6 +93,7 @@ pylint:
 
 
 tar: $(OUTPUT_TAR_PATH)
-	$(CP) tools/deploy_on_board.sh build
+	$(RM) $(OUTPUT_DEPLOY_SH)
+	make $(OUTPUT_DEPLOY_SH)
 
 
