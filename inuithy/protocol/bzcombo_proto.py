@@ -20,6 +20,11 @@ class BzProtocol(Protocol):
     zbee = ZigbeeProtocol
 
     @staticmethod
+    def start(node):
+        #TODO
+        return False
+
+    @staticmethod
     def join(params=None):
         """Join command"""
         return PROTO.zbee.join(param) 

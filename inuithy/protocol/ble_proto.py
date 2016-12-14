@@ -22,6 +22,11 @@ class BleProtocol(Protocol):
     GETFWVER = "getfwver"
 
     @staticmethod
+    def start(node):
+        # TODO
+        return False
+
+    @staticmethod
     def join(params=None):
         """Join command"""
         return PROTO.joingrp(params) 

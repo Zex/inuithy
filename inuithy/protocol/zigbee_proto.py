@@ -53,6 +53,13 @@ class ZigbeeProtocol(Protocol):
     RESET_CONF = 'minimalDevice'
     DGN = 'Dgn'
     GETFWVER = "getFWName"
+    HANDSHAKE_REQ = '\xB2\xA5\x65\x4B'
+    HANDSHAKE_RSP = '\x69\xD3\xD2\x26'
+    ACK = '\x4D\x5A\x9A\xB4'
+    NACK = '\x2D\x59\x5A\xB2'
+    POST_HANDSHAKE = 'S9030000FC'
+    UNKNOWN_CMD = 'unknown command'
+    GETNONE = 'getNone'
 
     MsgType = Enum('MsgType', [\
         'snd',\
@@ -60,6 +67,37 @@ class ZigbeeProtocol(Protocol):
         'dgn',\
         'snd_req',\
     ])
+
+    @staticmethod
+    def start(node):
+        
+        try:
+            node.proto = PROTO
+            while not node.started and node.running:
+                PROTO.lgr.info(to_string("{}: Handshaking", node))
+    
+                node._write('hello' + '\r')
+                rdbuf = node._read_one(len(PROTO.UNKNOWN_CMD)+2)
+                node.proto.parse_rbuf(rdbuf, node)
+    
+                node._write(PROTO.HANDSHAKE_REQ)
+                rdbuf = node._read_one(len(PROTO.HANDSHAKE_RSP))
+                node.proto.parse_rbuf(rdbuf, node)
+    
+                node._write(PROTO.POST_HANDSHAKE)
+    
+                rdbuf = node._read_one(in_wait=True)
+                node.proto.parse_rbuf(rdbuf, node)
+    
+            node.start()
+            while node.running and node.fwver is None or len(node.fwver) == 0:
+                node.write(PROTO.getfwver())
+                PROTO.lgr.info(to_string("{}: FWVER", node))
+                time.sleep(2)
+        except Exception as ex:
+            PROTO.lgr.error(to_string("Start proto failed: {}", ex))
+            return False
+        return True
 
     @staticmethod
     def join(params=None):
@@ -96,7 +134,7 @@ class ZigbeeProtocol(Protocol):
     @staticmethod
     def getfwver(params=None):
         """Get firmware version command builder"""
-        return " ".join([PROTO.GETFWVER]) + Protocol.EOL
+        return PROTO.GETFWVER + Protocol.EOL
 
     @staticmethod
     def getaddr(params=None):
@@ -125,9 +163,9 @@ class ZigbeeProtocol(Protocol):
         if data is None or node is None:
             return
 
+        PROTO.lgr.debug(to_string('{}: {}', node, data))
         report = {}
         data = data.strip('\t \r\n')
-        params = data.split(' ')
        
         # DEBUG data
 #        rand = random.randint(MessageType.RECV.value, MessageType.UNKNOWN.value)
@@ -154,6 +192,35 @@ class ZigbeeProtocol(Protocol):
 #                params.extend([str(random.randint(0, 2000)) for _ in range(21)])
         #------------end debug data--------------
 
+        if data == PROTO.HANDSHAKE_RSP:
+            PROTO.lgr.debug(to_string('{}: got handshake response', node))
+            node._write(PROTO.POST_HANDSHAKE)
+            return
+
+        if data == PROTO.ACK:
+            PROTO.lgr.debug(to_string('{}: got ack', node))
+            rdbuf = node._read_one()
+            PROTO.lgr.debug(to_string('{}: post ack', rdbuf))
+            node.started = True
+            return
+
+        if data == PROTO.UNKNOWN_CMD:
+            PROTO.lgr.debug(to_string('{}: got unknown command', node))
+            node.started = True
+            return
+
+        if data == PROTO.NAME:
+            node.fwver = data
+            node.proto = PROTO
+            if adapter is not None:
+                PROTO.lgr.debug(to_string("Register to adapter"))
+                adapter.register(node, data)
+            else:
+                PROTO.lgr.error(to_string("Failed to register node to adapter: no adapter given"))
+            node.started = True
+            return
+
+        params = data.split(' ')
         msg_type = params[0].upper()
 
         if msg_type == MessageType.SEND.name:
