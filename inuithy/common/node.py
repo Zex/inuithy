@@ -4,6 +4,7 @@
 from inuithy.common.predef import TrafficType, T_MSG, T_GENID,\
 INUITHY_LOGCONFIG, to_string, T_TYPE, T_ADDR, T_PATH, NodeType
 from inuithy.util.cmd_helper import pub_reportwrite, pub_notification
+from inuithy.util.worker import Worker
 from inuithy.protocol.ble_proto import BleProtocol as BleProto
 from inuithy.protocol.zigbee_proto import ZigbeeProtocol as ZbeeProto
 from inuithy.protocol.bzcombo_proto import BzProtocol as BzProto
@@ -39,16 +40,17 @@ class Node(object):
         self.ntype = ntype
         self.reporter = reporter
         self.proto = proto
-        self.run_listener = False
         self.genid = None
-        self.read_event = threading.Event()
-        self.write_event = threading.Event()
-        self.write_event.set()
         self.joined = False #DEBUG
         self.fwver = ''
         self.adapter = adapter
         self.sequence_nr = 0
         self.dev = None
+        self.mutex = threading.Lock()
+        self.reader = None#Worker(lgr=self.lgr)
+        self.running = True
+        self.writer = Worker(1, lgr=self.lgr)
+        self.writable = threading.Event()
 
     def __str__(self):
         if self.ntype is None:
@@ -68,28 +70,19 @@ class Node(object):
         """Write data ultility"""
         pass
 
-    def start_listener(self):
-        """Start listening incoming package"""
-        if self.run_listener is False and self.path is not None and len(self.path) > 0:
-            self.run_listener = True
-            self.__listener = threading.Thread(target=self.__listener_routine, name="Listener")
-            if self.__listener is not None:
-                self.__listener.start()
+    def start(self):
+        """Start node workers"""
+#        self.reader.start()
+        self.reader = threading.Thread(target=self._read)
+        self.reader.start()
+        self.writable.set()
+        self.writer.start()
 
-    def __listener_routine(self):
-        """Listen for incoming packages"""
-        while self.run_listener:
-            try:
-                self.read_event.wait()
-                self.read()
-                self.read_event.clear()
-            except Exception as ex:
-                self.lgr.error(to_string("Exception in listener routine: {}", ex))
-
-    def stop_listener(self):
-        """Stop running listener"""
-        self.run_listener = False
-        self.read_event.set()
+    def stop(self):
+        """Stop node workers"""
+        self.writer.stop()
+        self.running = False
+        self.reader.join()
 
     def join(self, data):
         """General join adapter for joining a node to network"""
@@ -112,16 +105,16 @@ class Node(object):
         """
         try:
             if data is None or len(data) == 0:
-                    return
-            if self.proto is None:# or len(self.addr) == 0:
-                data = data.strip('\t \r\n')
-                if self.adapter is not None:
-                    self.adapter.register(self, data)
-                else:
-                    self.lgr.error(to_string("Failed to register node to adapter: no adapter given"))
                 return
-
-            report = self.proto.parse_rbuf(data, self)
+            if self.proto is None:
+                return
+#                data = data.strip('\t \r\n')
+#                if self.adapter is not None:
+#                    self.adapter.register(self, data)
+#                else:
+#                    self.lgr.error(to_string("Failed to register node to adapter: no adapter given"))
+#                return
+            report = self.proto.parse_rbuf(data, self, self.adapter)
 
             if self.reporter is not None and report is not None and len(report) > 2:
                 pub_notification(self.reporter, data=report)
@@ -148,41 +141,60 @@ class Node(object):
 class SerialNode(Node):
 
     def __init__(self, ntype=None, proto=None, path="", addr="", reporter=None,\
-        lgr=None, timeout=2, baudrate=115200, adapter=None):
+        lgr=None, timeout=3, baudrate=115200, adapter=None):
         Node.__init__(self, ntype=ntype, proto=proto, path=path, addr=addr,\
             reporter=reporter, lgr=lgr, adapter=adapter)
         self.dev = serial.Serial(path, baudrate=baudrate, timeout=timeout)
+        self.started = False
 
-    def read(self, rdbyte=0):
-        """Read data ultility"""
-        rdbuf = ""
-        if isinstance(self.dev, serial.Serial) and self.dev.isOpen():
-            rdsize = self.dev.inWaiting()
-            if rdsize > 0:
-                self.write_event.clear()
-                rdbuf = self.dev.read(rdsize)
-                self.write_event.set()
-                if isinstance(rdbuf, bytes):
-                    rdbuf = rdbuf.decode()
-                self.lgr.info(to_string("NODE|R: {}, {}", self.path, rdbuf))
-                self.report_read(rdbuf)
+    def _read_one(self, rdbyte=0, in_wait=False):
+        rdbuf = ''
+        rlen = 0
+
+        if rdbyte > 0:
+            return self.dev.read(rdbyte)
+        
+        if in_wait:
+            rlen = self.dev.inWaiting()
+            if rlen == 0:
+                return rdbuf
+
+        while self.running:
+            c = self.dev.read()
+            if len(c) == 0 or c == '\r':
+                break
+            rdbuf += c
         return rdbuf
 
-    def write(self, data="", request=None):
-        """Write data ultility"""
-        written = 0
-        if isinstance(self.dev, serial.Serial) and self.dev.isOpen():
-            if isinstance(data, str):
-                self.write_event.wait()
-                written = self.dev.write(data.encode())
-            else:
-                self.write_event.wait()
-                written = self.dev.write(data)
-            self.lgr.info(to_string("NODE|W: {}, {}", self.path, data))
-            if self.proto is not None:
-                self.report_write(data, request)
+    def _read(self, rdbyte=0):
+        """Read data ultility"""
+#        rdsize = rdbyte == 0 and self.dev.inWaiting() or rdbyte
+        try:
+            while self.running:
+                rdbuf = self._read_one()
+                if len(rdbuf) > 0:
+                    self.report_read(rdbuf)
+        except serial.SerialException as ex:
+            self.lgr.error(to_string("Serial exception on reading: {}", ex))
 
-        self.read_event.set()
+    def _write(self, data="", request=None):
+        """Write data ultility"""
+        try:
+            written = self.dev.write(data)
+            self.lgr.info(to_string("NODE|W: {}, {}({})", self.path, data, written))
+        except serial.SerialException as ex:
+            self.lgr.error(to_string("Serial exception on writting: {}", ex))
+        if self.proto is not None:
+            self.report_write(data, request)
+
+    def write(self, data="", request=None):
+        if data is None or len(data) == 0:
+            return
+        self.writer.add_job(self._write, data, request)
+
+    def read(self, request=None):
+#        self.reader.add_job(self._read)
+        self._read_one()
 
 class RawNode(Node):
     """Raw socket node for simulation"""
@@ -214,8 +226,6 @@ class RawNode(Node):
         self.dev.sendto(data.encode(), 0, RAWNODE_SVR)
         self.report_write(data, request)
         self.lgr.info(to_string("NODE|W: {}, {}", self.path, data))
-        if self.run_listener:
-            self.read_event.set()
 
     def close(self):
 
