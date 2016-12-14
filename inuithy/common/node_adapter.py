@@ -4,9 +4,7 @@
 import sys
 sys.path.append('/opt/inuithy')
 from inuithy.common.predef import DEV_TTYUSB, DEV_TTYS, DEV_TTY,\
-to_string, T_EVERYONE, INUITHY_LOGCONFIG, T_MSG, NodeType,\
-T_CHANNEL, T_PANID,\
-T_SPANID, T_NODE                    
+to_string, T_EVERYONE, INUITHY_LOGCONFIG, T_MSG, NodeType, DEV_TTYACM
 from inuithy.util.helper import clear_list
 from inuithy.util.task_manager import ProcTaskManager
 from inuithy.common.supported_proto import SupportedProto
@@ -68,7 +66,7 @@ class NodeAdapter:
                     self.get_type(node)
             except StopIteration:
                 NodeAdapter.lgr.info(to_string(
-                "All proto tryied"))
+                "All proto tried"))
             except Exception as ex:
                 NodeAdapter.lgr.error(to_string(
                 "Exception on examine node[{}]: {}", node, ex))
