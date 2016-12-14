@@ -51,6 +51,7 @@ class Node(object):
         self.running = True
         self.writer = Worker(1, lgr=self.lgr)
         self.writable = threading.Event()
+        self.started = False # Indicate whether firmware is ready
 
     def __str__(self):
         if self.ntype is None:
@@ -75,7 +76,6 @@ class Node(object):
 #        self.reader.start()
         self.reader = threading.Thread(target=self._read)
         self.reader.start()
-        self.writable.set()
         self.writer.start()
 
     def stop(self):
@@ -144,8 +144,8 @@ class SerialNode(Node):
         lgr=None, timeout=3, baudrate=115200, adapter=None):
         Node.__init__(self, ntype=ntype, proto=proto, path=path, addr=addr,\
             reporter=reporter, lgr=lgr, adapter=adapter)
-        self.dev = serial.Serial(path, baudrate=baudrate, timeout=timeout)
-        self.started = False
+        if path is not None and exists(path):
+            self.dev = serial.Serial(path, baudrate=baudrate, timeout=timeout)
 
     def _read_one(self, rdbyte=0, in_wait=False):
         rdbuf = ''
@@ -161,7 +161,11 @@ class SerialNode(Node):
 
         while self.running:
             c = self.dev.read()
-            if len(c) == 0 or c == '\r':
+            if len(c) == 0:
+                break
+            if c == '\r' or c == '\n':
+                if len(rdbuf) == 0:
+                    continue
                 break
             rdbuf += c
         return rdbuf
@@ -190,7 +194,9 @@ class SerialNode(Node):
     def write(self, data="", request=None):
         if data is None or len(data) == 0:
             return
+        self.writable.wait(10)
         self.writer.add_job(self._write, data, request)
+        self.writable.clear()
 
     def read(self, request=None):
 #        self.reader.add_job(self._read)
