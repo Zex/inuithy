@@ -59,7 +59,7 @@ class ZigbeeProtocol(Protocol):
     NACK = '\x2D\x59\x5A\xB2'
     POST_HANDSHAKE = 'S9030000FC'
     UNKNOWN_CMD = 'unknown command'
-    GETNONE = 'getNone'
+    NWUPDATESTATUS = 'Network update status'
 
     MsgType = Enum('MsgType', [\
         'snd',\
@@ -77,7 +77,7 @@ class ZigbeeProtocol(Protocol):
                 PROTO.lgr.info(to_string("{}: Handshaking", node))
     
                 node._write('hello' + '\r')
-                rdbuf = node._read_one(len(PROTO.UNKNOWN_CMD)+2)
+                rdbuf = node._read_one(len(PROTO.UNKNOWN_CMD))
                 node.proto.parse_rbuf(rdbuf, node)
     
                 node._write(PROTO.HANDSHAKE_REQ)
@@ -90,10 +90,30 @@ class ZigbeeProtocol(Protocol):
                 node.proto.parse_rbuf(rdbuf, node)
     
             node.start()
+            node.writable.set()
+            node.uid = None
+
+            while node.running and node.uid is None or len(node.uid) == 0:
+                node.write(PROTO.getuid())
+                PROTO.lgr.info(to_string("{}: NODE UID", node))
+#                node.writable.wait(10)
+#                node.writable.clear()
+
+#            while node.running and not node.joined:
+#                node.write(PROTO.join(
+#                    {
+#                    T_CHANNEL: '17', T_PANID: '4321432143214321',
+#                    T_SPANID: '4321', T_NODE: node.uid[-4:],
+#                    }))
+#                node.writable.wait(10)
+#                node.writable.clear()
+
             while node.running and node.fwver is None or len(node.fwver) == 0:
                 node.write(PROTO.getfwver())
                 PROTO.lgr.info(to_string("{}: FWVER", node))
-                time.sleep(2)
+#                node.writable.wait(10)
+#                node.writable.clear()
+
         except Exception as ex:
             PROTO.lgr.error(to_string("Start proto failed: {}", ex))
             return False
@@ -139,12 +159,12 @@ class ZigbeeProtocol(Protocol):
     @staticmethod
     def getaddr(params=None):
         """Get network address"""
-        return " ".join([PROTO.GETSHORTADDRESS]) + Protocol.EOL
+        return PROTO.GETSHORTADDRESS + Protocol.EOL
 
     @staticmethod
     def getuid(params=None):
         """Get node uid"""
-        return " ".join([PROTO.GETUID]) + Protocol.EOL
+        return PROTO.GETUID + Protocol.EOL
 
     @staticmethod
     def isme(params=None):
@@ -218,6 +238,12 @@ class ZigbeeProtocol(Protocol):
             else:
                 PROTO.lgr.error(to_string("Failed to register node to adapter: no adapter given"))
             node.started = True
+            node.writable.set()
+            return
+
+
+        if PROTO.NWUPDATESTATUS in data:
+            self.joined = True
             return
 
         params = data.split(' ')
@@ -263,6 +289,8 @@ class ZigbeeProtocol(Protocol):
             return None
         elif params[0] == PROTO.GETUID:
             node.uid = params[1]
+            node.addr = node.uid[-4:]
+            node.writable.set()
         elif params[0] == PROTO.GETNETWORKADDRESS:
             node.addr = data[-6:]
         elif params[0] == PROTO.RESET_CONF:
@@ -301,7 +329,7 @@ class ZigbeeProtocol(Protocol):
                 T_UNKNOWN_RESP: T_YES,\
                 T_ZBEE_NWK_ADDR: ' '.join([node.addr, data]),\
             }
-
+  
         report[T_GENID] = node.genid
         report[T_TIME] = time.time()
         report[T_NODE] = node.addr
