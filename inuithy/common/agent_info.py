@@ -23,7 +23,7 @@ lconf.fileConfig(INUITHY_LOGCONFIG)
     (NodeType.BleZbee, BzProto, SerialNode, BzReport),\
 ]]
 
-class AgentInfo(SupportedProto):
+class AgentInfo:#(SupportedProto):
     """Agent information block"""
     def __init__(self, agentid="", host="", status=AgentStatus.OFFLINE, nodes=None, lgr=None):
         self.lgr = lgr is None and logging or lgr
@@ -41,12 +41,13 @@ class AgentInfo(SupportedProto):
         if nodes is None:
             return
         for n in nodes:
+            node = None
             try:
                 n = json.loads(n)
 #                self.lgr.debug(to_string("node: {}", n))
                 proto = SupportedProto.protocols.get(n.get(T_TYPE))
                 if proto is not None:
-                    node = proto[2].create(ntype=proto[0], proto=proto[1], addr=n.get(T_ADDR))
+                    node = proto[2](ntype=proto[0], proto=proto[1], addr=n.get(T_ADDR))
                     if node is not None:
                         self.nodes.append(node)
                 else:
