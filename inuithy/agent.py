@@ -21,7 +21,6 @@ from inuithy.util.worker import Worker
 import paho.mqtt.client as mqtt
 import logging.config as lconf
 import threading
-import socket
 import logging
 from random import randint
 try:
@@ -207,14 +206,14 @@ class Agent(object):
                 self.lgr.info(to_string("Got scan nodes request"))
                 with Agent.__mutex:
                     # TODO DEV_TTYS => DEV_TTYUSB, DEV_TTYACM
-                    self.adapter.scan_nodes([to_string(DEV_TTY, T_EVERYONE)])
+                    self.adapter.scan_nodes()#[to_string(DEV_TTY, T_EVERYONE)])
                     self.addr_to_node()
 
             self.lgr.info(to_string("Connected nodes: [{}]", len(self.adapter.nodes)))
             data = {
                 T_CLIENTID: self.clientid,
                 T_HOST: self.host,
-                T_NODES: [str(node) for node in self.adapter.nodes],
+                T_NODES: [str(node) for node in self.adapter.nodes.values()],
                 T_VERSION: __version__,
             }
             pub_heartbeat(self.mqclient, rt.tcfg.mqtt_qos, data)
@@ -277,7 +276,7 @@ class Agent(object):
 
         try: #FIXME
             if self.__host is None or len(self.__host) == 0:
-                self.__host = '127.0.0.1'#socket.gethostname() #socket.gethostbyname(socket.gethostname())
+                self.__host = '127.0.0.1'
         except Exception as ex:
             self.lgr.error(to_string("Failed to get host by name: {}", ex))
 
@@ -339,16 +338,16 @@ class Agent(object):
                 self.lgr.error(to_string('Invalid command [{}]', command))
         except Exception as ex:
             self.lgr.error(to_string(\
-                'Exception on handling command [{}]:{}',
-                command, str(ex)))
+                'Exception on handling command [{}]:{}', command, ex))
 
     def addr_to_node(self):
         """Map node address to SerialNode"""
         self.lgr.info("Map address to node")
 #        self.__addr2node.clear()
         clear_list(self.__addr2node)
-        if not rt.tcfg.enable_localdebug:
-            [self.__addr2node.__setitem__(n.addr, n) for n in self.adapter.nodes]
+#        if not rt.tcfg.enable_localdebug:
+        if True:
+            [self.__addr2node.__setitem__(n.addr, n) for n in self.adapter.nodes.values()]
             return
 
         samples = [
@@ -369,9 +368,9 @@ class Agent(object):
                     '11e1', '11e2', '11e3', '11e4',
                     '11f1', '11f2', '11f3', '11f4',
                 ]
-        [n.__setattr__(T_ADDR, addr) for addr, n in zip(samples, self.adapter.nodes)]
-        [self.__addr2node.__setitem__(addr, n) for addr, n in zip(samples, self.adapter.nodes)]
-#        [str(n) for n in self.adapter.nodes]
+        [n.__setattr__(T_ADDR, addr) for addr, n in zip(samples, self.adapter.nodes.values())]
+        [self.__addr2node.__setitem__(addr, n) for addr, n in zip(samples, self.adapter.nodes.values())]
+#        [str(n) for n in self.adapter.nodes.values()]
 
     def start(self):
         """Start Agent routine"""
