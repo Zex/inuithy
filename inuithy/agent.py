@@ -12,7 +12,7 @@ INUITHY_LOGCONFIG, INUITHY_TOPIC_COMMAND, TrafficType, DEV_TTY, T_GENID,\
 T_SRC, T_PKGSIZE, T_EVERYONE, mqlog_map, T_VERSION, T_MSG_TYPE
 from inuithy.common.runtime import Runtime as rt
 from inuithy.common.runtime import load_configs
-from inuithy.common.serial_adapter import SerialAdapter
+from inuithy.common.node_adapter import NodeAdapter
 from inuithy.common.traffic import TrafficExecutor, TRAFFIC_BROADCAST_ADDRESS
 from inuithy.util.helper import getpredefaddr, clear_list
 from inuithy.util.cmd_helper import pub_status, pub_heartbeat, pub_unregister, extract_payload
@@ -289,7 +289,7 @@ class Agent(object):
         self.lgr.info(to_string("Do initialization"))
         try:
             self.create_mqtt_client(*rt.tcfg.mqtt)
-            self.adapter = SerialAdapter(self.mqclient, lgr=self.lgr)
+            self.adapter = NodeAdapter(self.mqclient, lgr=self.lgr)
             Agent.initialized = True
         except Exception as ex:
             self.lgr.error(to_string("Failed to initialize: {}", ex))
