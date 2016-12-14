@@ -30,7 +30,7 @@ lconf.fileConfig(INUITHY_LOGCONFIG)
     (NodeType.BleZbee, BzProto, SerialNode),
 ]]
 
-class SerialAdapter:
+class NodeAdapter:
     """Serial port adapter
     """
     @property
@@ -42,7 +42,6 @@ class SerialAdapter:
 
     resp_timeout = threading.Event()
     scan_done = threading.Event()
-    register_mutex = threading.Lock()
     _mutex = threading.Lock()
 
     _initialized = False
@@ -50,41 +49,39 @@ class SerialAdapter:
     def __init__(self, reporter=None, lgr=None):
         self.__nodes = {}
         self.reporter = reporter
-        SerialAdapter.lgr = lgr is None and logging or lgr
+        NodeAdapter.lgr = lgr is None and logging or lgr
         self.run_listener = False
-#        self.poll_timeout = 0.5 # seconds
-#        self.poller = select.epoll()
-#        self.poller_thread = None
-#        self.node_reader = Worker(0.5, SerialAdapter.lgr)
-        self.node_writer = Worker(0.5, SerialAdapter.lgr)
         self.node_svr = None
-#        self.create_node_svr()
-        with SerialAdapter._mutex:
-            SerialAdapter._initialized = True
+        self.worker = Worker(1, NodeAdapter.lgr)
+        with NodeAdapter._mutex:
+            NodeAdapter._initialized = True
 
     def get_type(self, node):
-        """Get firmware type via port"""
-#        for proto in SupportedProto.protocols.values():
-        proto = next(node.try_proto)
-        if proto is not None:
-            """[ntype.name] => (ntype, proto, node, report_hdr)
-            """
+        """Get firmware type via port
+          [ntype.name] => (ntype, proto, node, report_hdr)
+        """
+        if node is not None:
             try:
-                req = proto[1].getfwver()
-                self.node_writer.add_job(node.write, req)
+                proto = next(node.try_proto)
+                NodeAdapter.lgr.info(to_string("Examine {}", proto))
+                if proto[1].start(node) is False:
+                    self.get_type(node)
+            except StopIteration:
+                NodeAdapter.lgr.info(to_string(
+                "All proto tryied"))
             except Exception as ex:
-                SerialAdapter.lgr.error(to_string(
-                "Exception on sending examine msg [{}]: {}", req, ex))
+                NodeAdapter.lgr.error(to_string(
+                "Exception on examine node[{}]: {}", node, ex))
 
     def get_addr(self, node):
         """Get firmware type via port"""
-        SerialAdapter.lgr.info(to_string("Get address via {}", node))
+        NodeAdapter.lgr.info(to_string("Get address via {}", node))
         req = None
         try:
             req = node.proto.getaddr()
-            self.node_writer.add_job(node.write, req)
+            node.write(req)
         except Exception as ex:
-            SerialAdapter.lgr.error(to_string(
+            NodeAdapter.lgr.error(to_string(
                 "Exception on requesting address [{}]: {}", req, ex))
 
     def register(self, node, data):
@@ -92,35 +89,24 @@ class SerialAdapter:
             [ntype.name] => (ntype, proto, node, report_hdr)
            callback for nodes
         """
-        SerialAdapter.lgr.debug(to_string("Register node {}, {}", node.path, data))
+        NodeAdapter.lgr.debug(to_string("Register node {}, {}", node.path, data))
         try:
-            if node.proto is None:
-                for proto in SupportedProto.protocols.values():
-                    if proto[1].isme({T_MSG: data}):
-                        node.fwver = data
-                        node.ntype = proto[0]
-                        node.proto = proto[1]
-			break
-		if node.proto is None:
-                    self.get_type(node)
-                else:
-                    params = {
-                         T_CHANNEL: '17', T_PANID: '1515151515',
-                         T_SPANID: '1515', T_NODE: 'A004' }
-                    req = node.proto.join(params)
-                    self.node_writer.add_job(node.write, req)
-#                else:
-#                    self.get_addr(node)
-                with_proto = [n for n in self.nodes.values() if n.proto is not None]
-                if len(with_proto) == len(self.nodes):
-                    SerialAdapter.scan_done.set()
-#            elif len(node.addr) == 0:
-#                node.addr = data
-#                with_addr = [n for n in self.nodes.values() if len(n.addr) > 0]
-#                if len(with_addr) == len(self.nodes):
-#                    SerialAdapter.scan_done.set()
+#            if node.proto is None:
+             for proto in SupportedProto.protocols.values():
+                if proto[1] == node.proto:
+                    node.ntype = proto[0]
+#                    if proto[1].isme({T_MSG: data}):
+#                        node.fwver = data
+#                        node.ntype = proto[0]
+#                        node.proto = proto[1]
+#                        break
+#                if node.proto is None:
+#                    self.get_type(node)
+             with_proto = [n for n in self.nodes.values() if n.ntype is not None]
+             if len(with_proto) == len(self.nodes):
+                NodeAdapter.scan_done.set()
         except Exception as ex:
-            SerialAdapter.lgr.error(to_string("Exception on register node: {}", ex))
+            NodeAdapter.lgr.error(to_string("Exception on register node: {}", ex))
 
     def yield_proto(self):
         for proto in SupportedProto.protocols.values():
@@ -132,17 +118,19 @@ class SerialAdapter:
             if node is not None:
                 self.nodes[node.dev.fileno()] = node
                 node.try_proto = self.yield_proto()
-                node.start_listener()
 #                self.poller.register(node.dev.fileno(), select.EPOLLIN|select.EPOLLOUT|select.EPOLLET|select.EPOLLERR|select.EPOLLHUP)
-                self.get_type(node)
+#                self.get_type(node)
+#                node.start()
             else:
-                SerialAdapter.lgr.error(to_string("Invalid node"))
+                NodeAdapter.lgr.error(to_string("Invalid node"))
         except Exception as ex:
-            SerialAdapter.lgr.error(to_string("Exception on adding node: {}", ex))
+            NodeAdapter.lgr.error(to_string("Exception on adding node: {}", ex))
 
     def create_node(self, path):
         """Create node"""
-#        SerialAdapter.lgr.debug(to_string("Creating node {}", path))
+#        NodeAdapter.lgr.debug(to_string("Creating node {}", path))
+        if not NodeAdapter._initialized:
+            return
         if isinstance(path, tuple):
             path = path[1]
         if not isinstance(path, str) or path is None or len(path) == 0:
@@ -152,31 +140,30 @@ class SerialAdapter:
         node = None
 
         try:
-            node = SerialNode(path=path, lgr=SerialAdapter.lgr, adapter=self, reporter=self.reporter)
-#            node = RawNode(path=RAWNODE_BASE+path, lgr=SerialAdapter.lgr, adapter=self)
+            node = SerialNode(path=path, lgr=NodeAdapter.lgr, adapter=self, reporter=self.reporter)
+#            node = RawNode(path=RAWNODE_BASE+path, lgr=NodeAdapter.lgr, adapter=self)
             self.add_node(node)
         except KeyboardInterrupt:
-            SerialAdapter.lgr.error(to_string("Received keyboard interrupt"))
+            NodeAdapter.lgr.error(to_string("Received keyboard interrupt"))
         except Exception as ex:
-            SerialAdapter.lgr.error(to_string("Exception on creating node: {}", ex))
+            NodeAdapter.lgr.error(to_string("Exception on creating node: {}", ex))
         return node
 
     def scan_nodes(self, targets=None):#[DEV_TTYUSB.format(T_EVERYONE)]):
-        SerialAdapter.lgr.info(to_string("Scan for connected nodes {}", targets))
+        NodeAdapter.lgr.info(to_string("Scan for connected nodes {}", targets))
         clear_list(self.nodes)
         if targets is None or len(targets) == 0:
-            targets = [to_string(DEV_TTYUSB, T_EVERYONE)]#, to_string(DEV_TTYACM, T_EVERYONE)]
+            targets = [to_string(DEV_TTYUSB, T_EVERYONE), to_string(DEV_TTYACM, T_EVERYONE)]
         paths = []
         [paths.extend(glob.glob(target)) for target in targets]
-#        self.node_reader.start()
-        self.node_writer.start()
-        [self.create_node(path) for path in paths]
-#        self.start_poll()
-        SerialAdapter.scan_done.wait()
-        SerialAdapter.scan_done.clear()
-        SerialAdapter.lgr.info("Scanning finished")
 
-#        self.start_nodes()
+        self.worker.start()
+        [self.create_node(path) for path in paths]
+        [self.worker.add_job(self.get_type, node) for node in self.nodes.values()]
+
+        NodeAdapter.scan_done.wait()
+        NodeAdapter.scan_done.clear()
+        NodeAdapter.lgr.info("Scanning finished")
 
     def create_node_svr(self):
         """Similator"""
@@ -190,12 +177,12 @@ class SerialAdapter:
         self.node_svr.close()
 
     def start_nodes(self):
-        SerialAdapter.lgr.info("Start connected nodes")
-        [n.start_listener() for n in self.nodes.values()]
+        NodeAdapter.lgr.info("Start connected nodes")
+        [n.start() for n in self.nodes.values()]
 
     def stop_nodes(self):
-        SerialAdapter.lgr.info("Stop connected nodes")
-        [n.stop_listener() for n in self.nodes.values()]
+        NodeAdapter.lgr.info("Stop connected nodes")
+        [n.stop() for n in self.nodes.values()]
 
 #    def __listener_routine(self):
 #        """Node listener routine"""
@@ -206,10 +193,10 @@ class SerialAdapter:
 #                    node = self.nodes.get(fileno)
 #                    if self.nodes.get(fileno) is not None:
 #                        if event & select.EPOLLIN:
-#                            SerialAdapter.lgr.debug(to_string("NODE|EPOLLIN: {}", node.path))
+#                            NodeAdapter.lgr.debug(to_string("NODE|EPOLLIN: {}", node.path))
 #                            self.node_reader.add_job(node.read)
 #                        elif event & select.EPOLLOUT:
-#                            SerialAdapter.lgr.debug(to_string("NODE|EPOLLOUT: {}", node.path))
+#                            NodeAdapter.lgr.debug(to_string("NODE|EPOLLOUT: {}", node.path))
 #                            if not node.msgs.empty():
 #                                msg = node.msgs.get()
 #                                if len(msg) == 1:
@@ -217,37 +204,37 @@ class SerialAdapter:
 #                                elif len(msg) == 2:
 #                                    node.write(msg[0], msg[1])
 #                        elif event & select.EPOLLHUP:
-#                            SerialAdapter.lgr.debug(to_string("HUP: {}, {}", fileno, event))
+#                            NodeAdapter.lgr.debug(to_string("HUP: {}, {}", fileno, event))
 #                        elif event & select.EPOLLERR:
-#                            SerialAdapter.lgr.debug(to_string("ERR: {}, {}", fileno, event))
+#                            NodeAdapter.lgr.debug(to_string("ERR: {}, {}", fileno, event))
 #                        else:
-#                            SerialAdapter.lgr.debug(to_string("OTHER: {}, {}", fileno, event))
+#                            NodeAdapter.lgr.debug(to_string("OTHER: {}, {}", fileno, event))
 #                    elif self.node_svr is not None and fileno == self.node_svr.dev.fileno():
 #                        if event & select.EPOLLIN:
 #                            self.node_svr.read()
 #                    else:
-#                        SerialAdapter.lgr.debug(to_string("OTHER: {}, {}", fileno, event))
+#                        NodeAdapter.lgr.debug(to_string("OTHER: {}, {}", fileno, event))
 ##                    elif event & select.EPOLLIN:
-##                        SerialAdapter.lgr.debug(to_string("IN: {}, {}", fileno, event))
+##                        NodeAdapter.lgr.debug(to_string("IN: {}, {}", fileno, event))
 ##                    elif event & select.EPOLLOUT:
-##                        SerialAdapter.lgr.debug(to_string("OUT: {}, {}", fileno, event))
+##                        NodeAdapter.lgr.debug(to_string("OUT: {}, {}", fileno, event))
 ##                    elif event & select.EPOLLHUP:
-##                        SerialAdapter.lgr.debug(to_string("HUP: {}, {}", fileno, event))
+##                        NodeAdapter.lgr.debug(to_string("HUP: {}, {}", fileno, event))
 ##                    elif event & select.EPOLLERR:
-##                        SerialAdapter.lgr.debug(to_string("ERR: {}, {}", fileno, event))
+##                        NodeAdapter.lgr.debug(to_string("ERR: {}, {}", fileno, event))
 ##                if len(events) == 0:
-##                    SerialAdapter.lgr.debug("GOT NOTHING on TIMEOUT")
+##                    NodeAdapter.lgr.debug("GOT NOTHING on TIMEOUT")
 #        except KeyboardInterrupt:
-#            SerialAdapter.lgr.error(to_string("Received keyboard interrupt"))
+#            NodeAdapter.lgr.error(to_string("Received keyboard interrupt"))
 #        except Exception as ex:
-#            SerialAdapter.lgr.error(to_string("Exception on listener routine: {}", ex))
+#            NodeAdapter.lgr.error(to_string("Exception on listener routine: {}", ex))
 #        self.teardown()
 #
 #    def start_poll(self):
 #        """Start poller for node IO events"""
-#        SerialAdapter.lgr.info("Start poller")
+#        NodeAdapter.lgr.info("Start poller")
 #        if self.poller is None or self.node_reader is None:
-#            SerialAdapter.lgr.error("Invalid poller or worker")
+#            NodeAdapter.lgr.error("Invalid poller or worker")
 #            return
 #        self.run_listener = True
 #        self.poller_thread = threading.Thread(target=self.__listener_routine)
@@ -255,7 +242,7 @@ class SerialAdapter:
 #
 #    def stop_poll(self):
 #        """Stop polling node IO events"""
-#        SerialAdapter.lgr.info("Stop poller")
+#        NodeAdapter.lgr.info("Stop poller")
 #        if self.poller is None or self.poller.closed:
 #            return
 #        self.run_listener = False
@@ -263,32 +250,32 @@ class SerialAdapter:
 #        self.poller.close()
 
     def teardown(self):
-        SerialAdapter.lgr.info("Serial adapter teardown")
-        with SerialAdapter._mutex:
-            if not SerialAdapter._initialized:
+        NodeAdapter.lgr.info("Serial adapter teardown")
+        with NodeAdapter._mutex:
+            if not NodeAdapter._initialized:
                 return
-        SerialAdapter._initialized = False
-        if not SerialAdapter.scan_done.isSet():
-            SerialAdapter.scan_done.set()
+        with NodeAdapter._mutex:
+            NodeAdapter._initialized = False
+        if not NodeAdapter.scan_done.isSet():
+            NodeAdapter.scan_done.set()
         self.stop_nodes()
+        self.worker.stop()
 #        self.stop_poll()
         [node.close() for node in self.nodes.values()]
-        self.close_node_svr()
-#        self.node_reader.stop()
-        self.node_writer.stop()
+#        self.close_node_svr()
 
 if __name__ == '__main__':
 
-    sad = SerialAdapter()
+    sad = NodeAdapter()
     try:
-#       SerialAdapter.lgr.debug(SerialAdapter.protocols)
+#       NodeAdapter.lgr.debug(NodeAdapter.protocols)
         sad.scan_nodes(targets=['/dev/ttyUSB*'])
-        SerialAdapter.lgr.debug([str(fd)+str(n) for fd, n in sad.nodes.items()])
-        SerialAdapter.lgr.debug(len(sad.nodes))
+        NodeAdapter.lgr.debug([str(fd)+str(n) for fd, n in sad.nodes.items()])
+        NodeAdapter.lgr.debug(len(sad.nodes))
     except KeyboardInterrupt:
-        SerialAdapter.lgr.error(to_string("Received keyboard interrupt"))
+        NodeAdapter.lgr.error(to_string("Received keyboard interrupt"))
     except Exception as ex:
-        SerialAdapter.lgr.error(to_string("Exception: {}", ex))
+        NodeAdapter.lgr.error(to_string("Exception: {}", ex))
     finally:
         sad.teardown()
 
