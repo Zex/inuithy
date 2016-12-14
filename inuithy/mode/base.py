@@ -18,8 +18,9 @@ from inuithy.storage.storage import Storage
 from inuithy.common.agent_info import AgentInfo
 from inuithy.util.worker import Worker
 import threading
-import logging, socket
+import logging
 import logging.config as lconf
+import os
 
 lconf.fileConfig(INUITHY_LOGCONFIG)
 
@@ -132,7 +133,7 @@ class CtrlBase(object):
         self._mqclient = None
         self._storage = None
         self._current_nwlayout = ('', '')
-        self._host = socket.gethostname()
+        self._host = os.uname()[1]
         self._clientid = to_string(CTRL_CLIENT_ID, self.host)
         self.worker = Worker(2, self.lgr)
         load_configs()
@@ -295,6 +296,7 @@ class CtrlBase(object):
                 data.get(T_NODES), data.get(T_VERSION)
         if version != __version__:
             self.lgr.error(to_string("Agent version not match"))
+            self.teardown()
         try:
             self.lgr.info(to_string("On topic heartbeat: Agent Version {}", version))
             agentid = agentid.strip('\t\n ')
