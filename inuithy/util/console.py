@@ -3,7 +3,8 @@
 """
 from inuithy.common.version import INUITHY_ROOT, __version__, DEPLOY_SH
 from inuithy.common.predef import INUITHY_LOGCONFIG, INUITHY_TITLE,\
-to_console, to_string, T_EVERYONE
+to_console, to_string, T_EVERYONE, T_TRAFFIC_TYPE, T_HOST, T_NODE,\
+T_CLIENTID, T_MSG
 from inuithy.common.command import TSH_ERR_GENERAL, TSH_ERR_HANDLING_CMD,\
 Command, Usage, TSH_ERR_INVALID_CMD
 from inuithy.util.helper import valid_cmds, runonremote, delimstr
@@ -11,11 +12,8 @@ from inuithy.util.task_manager import ProcTaskManager
 from inuithy.util.cmd_helper import start_agents, stop_agents
 from inuithy.common.runtime import Runtime as rt
 from inuithy.common.traffic import Phase
-import multiprocessing as mp
 import socket
 import threading
-import signal
-import sys
 import glob
 import os
 import os.path
@@ -185,7 +183,7 @@ class Console(object):#threading.Thread):
         self._title = INUITHY_TITLE.format(__version__, "Shell")
         self._running = True
         self._banner = ""
-        self._host = socket.gethostname()#socket.gethostbyname(socket.gethostname())
+        self._host = os.uname()[1]
         self._setup_banner()
         self._register_routes()
         self.ctrl = ctrl
@@ -307,7 +305,8 @@ class Console(object):#threading.Thread):
             self.fire, self.phase_finish, self.genreport,
         """
         self.lgr.info("On command traffic deploy")
-        self.ctrl.traffic_state.next()
+#        self.ctrl.traffic_state.next()
+        self.ctrl.traffic_state.chk.clear_all()
         to_console("Start deploying network layout")
         self.ctrl.traffic_state.deploy()
         self.ctrl.traffic_state.wait_nwlayout()

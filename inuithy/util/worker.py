@@ -50,7 +50,7 @@ class Worker(object):
 
     def add_job(self, func, *args):
         if self._keep_working:
-	     self.jobs.put((func, args))
+             self.jobs.put((func, args))
 
     def _do_start(self):
         while self._keep_working:# and not self.jobs.empty():
