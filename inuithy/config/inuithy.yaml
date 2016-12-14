@@ -1,11 +1,11 @@
-controller: {host: 192.168.1.185}
+controller: {host: 127.0.0.1}
 enable_localdebug: true
 enable_mqdebug: false
 genid: {path: /var/log/inuithy/inuithy.genid}
 heartbeat: {interval: 60}
-mqtt: {host: 192.168.1.185, port: 1883, qos: 0}
+mqtt: {host: 127.0.0.1, port: 1883, qos: 0}
 reportdir: {path: /var/log/inuithy/report}
 inuithy_shell: {history: /var/log/inuithy/inuithy.cache}
-traffic_storage: {passwd: '', path: '192.168.1.185:19713', type: 'DB:MongoDB', user: ''}
+traffic_storage: {passwd: '', path: '127.0.0.1:19713', type: 'DB:MongoDB', user: ''}
 #workmode: AUTO
 workmode: MANUAL
