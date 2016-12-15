@@ -37,6 +37,7 @@ $(VERSION_PATH):
 	$(ECHO) "REVISION = \""$(REVISION)"\"" >> $@
 	$(ECHO) "__version__ = \""$(VERSION)"\"" >> $@
 	$(ECHO) "__package__ = \""$(PROJECT_ALIAS)"\"" >> $@
+	$(ECHO) "PROJECT = \""$(PROJECT_ALIAS)"\"" >> $@
 	$(ECHO) "DEPLOY_SH = \""$(DEPLOY_SH)"\"" >> $@
 	$(ECHO) "PROJECT_PATH = \""$(PROJECT_PATH)"\"" >> $@
 	$(ECHO) "INUITHY_ROOT = \""$(PROJECT_PATH)/inuithy"\"" >> $@
@@ -55,7 +56,7 @@ $(OUTPUT_DEPLOY_SH):
 	$(ECHO) "dest_base=/opt" >> $@
 	$(ECHO) "tmp_base=opt/inuithy" >> $@
 	$(ECHO) "" >> $@
-	$(ECHO) "pushd /media/card" >> $@
+	$(ECHO) "pushd /media/card > /dev/null" >> $@
 	$(ECHO) "" >> $@
 	$(ECHO) "if [ ! -f \$$latest_pack ]" >> $@
 	$(ECHO) "then" >> $@
@@ -67,15 +68,15 @@ $(OUTPUT_DEPLOY_SH):
 	$(ECHO) "" >> $@
 	$(ECHO) "mkdir -p \$$tmp_base" >> $@
 	$(ECHO) "tar xf \$$latest_pack --no-same-owner -C \$$tmp_base 1> /dev/null 2> /tmp/inuithy.update" >> $@
-	$(ECHO) "pushd \$$tmp_base" >> $@
+	$(ECHO) "pushd \$$tmp_base > /dev/null" >> $@
 	$(ECHO) "make preset 1> /dev/null 2>> /tmp/inuithy.update" >> $@
-	$(ECHO) "popd" >> $@
+	$(ECHO) "popd > /dev/null" >> $@
 	$(ECHO) "" >> $@
 	$(ECHO) "if [ ! -d \$$dest_base ] ;then" >> $@
 	$(ECHO) "    echo "\$$dest_base not exists, creating ..."" >> $@
 	$(ECHO) "    ln -s \`pwd\`/opt / " >> $@
 	$(ECHO) "fi" >> $@
 	$(ECHO) "" >> $@
-	$(ECHO) "popd" >> $@
+	$(ECHO) "popd > /dev/null" >> $@
 	$(CHMOD) +x $@
 
