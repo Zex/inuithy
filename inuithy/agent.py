@@ -9,7 +9,7 @@ INUITHY_TOPIC_CONFIG, INUITHYAGENT_CLIENT_ID, T_ADDR, T_HOST, T_NODE,\
 T_CLIENTID, T_TID, T_INTERVAL, T_DURATION, T_NODES, T_DEST,\
 T_TRAFFIC_STATUS, T_MSG, T_CTRLCMD, TrafficStatus, T_TRAFFIC_TYPE,\
 INUITHY_LOGCONFIG, INUITHY_TOPIC_COMMAND, TrafficType, DEV_TTY, T_GENID,\
-T_SRC, T_PKGSIZE, T_EVERYONE, mqlog_map, T_VERSION, T_MSG_TYPE
+T_SRC, T_PKGSIZE, T_EVERYONE, mqlog_map, T_VERSION, T_MSG_TYPE, T_MQTT_VERSION
 from inuithy.common.runtime import Runtime as rt
 from inuithy.common.runtime import load_configs
 from inuithy.common.node_adapter import NodeAdapter
@@ -215,6 +215,7 @@ class Agent(object):
                 T_HOST: self.host,
                 T_NODES: [str(node) for node in self.adapter.nodes.values()],
                 T_VERSION: __version__,
+                T_MQTT_VERSION: mqtt.VERSION_NUMBER,
             }
             pub_heartbeat(self.mqclient, rt.tcfg.mqtt_qos, data)
         except Exception as ex:
