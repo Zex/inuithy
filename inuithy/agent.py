@@ -11,7 +11,7 @@ T_TRAFFIC_STATUS, T_MSG, T_CTRLCMD, TrafficStatus, T_TRAFFIC_TYPE,\
 INUITHY_LOGCONFIG, INUITHY_TOPIC_COMMAND, TrafficType, DEV_TTY, T_GENID,\
 T_SRC, T_PKGSIZE, T_EVERYONE, mqlog_map, T_VERSION, T_MSG_TYPE, T_MQTT_VERSION
 from inuithy.common.runtime import Runtime as rt
-from inuithy.common.runtime import load_configs
+from inuithy.common.runtime import load_tcfg
 from inuithy.common.node_adapter import NodeAdapter
 from inuithy.common.traffic import TrafficExecutor, TRAFFIC_BROADCAST_ADDRESS
 from inuithy.util.helper import getpredefaddr, clear_list
@@ -312,7 +312,7 @@ class Agent(object):
         self.ctrlcmd_routes = {}
         self.__traffic_executors = Queue()
 
-        load_configs()
+        load_tcfg(rt.tcfg_path)
         self.set_host()
         self.__addr2node = {}
         self.__clientid = self.get_clientid(cid_surf)
@@ -444,7 +444,8 @@ class Agent(object):
             if node.addr:
                 self.lgr.debug(to_string("JOIN: Found node: {}", node))
                 node.joined = False
-                self.adapter.node_writer.add_job(node.join, data)
+                node.writable.set()
+                node.writer.add_job(node.join, data)
             else: # DEBUG
                 self.lgr.error(to_string("{}: Node [{}] not found", self.clientid, naddr))
         except Exception as ex:
@@ -485,24 +486,24 @@ class Agent(object):
                 T_CLIENTID: self.clientid,
                 T_GENID: data.get(T_GENID),
                 T_TRAFFIC_TYPE: data.get(T_TRAFFIC_TYPE),
-                T_NODE: data.get(T_NODE),
-                T_SRC: data.get(T_SRC),
-                T_DEST: data.get(T_DEST),
+                T_NODE: data.get(T_NODE).encode(),
+                T_SRC: data.get(T_SRC).encode(),
+                T_DEST: data.get(T_DEST).encode(),
                 T_PKGSIZE: data.get(T_PKGSIZE),
             }
             te = None
-            if rt.tcfg.enable_localdebug:
-                dest = None
-                if data.get(T_DEST) == TRAFFIC_BROADCAST_ADDRESS:
-                    dest = set(self.addr2node.values())
-                else:
-                    dest = set([self.addr2node.get(data.get(T_DEST))])
-                te = TrafficExecutor(node, data.get(T_INTERVAL), data.get(T_DURATION),\
-                    request=request, lgr=self.lgr, mqclient=self.mqclient, tid=data.get(T_TID),\
-                    data=dest)
-            else:
-                te = TrafficExecutor(node, data.get(T_INTERVAL), data.get(T_DURATION),\
-                    request=request, lgr=self.lgr, mqclient=self.mqclient, tid=data.get(T_TID))
+#            if rt.tcfg.enable_localdebug:
+#                dest = None
+#                if data.get(T_DEST) == TRAFFIC_BROADCAST_ADDRESS:
+#                    dest = set(self.addr2node.values())
+#                else:
+#                    dest = set([self.addr2node.get(data.get(T_DEST))])
+#                te = TrafficExecutor(node, data.get(T_INTERVAL), data.get(T_DURATION),\
+#                    request=request, lgr=self.lgr, mqclient=self.mqclient, tid=data.get(T_TID),\
+#                    data=dest)
+#            else:
+            te = TrafficExecutor(node, data.get(T_INTERVAL), data.get(T_DURATION),\
+                request=request, lgr=self.lgr, mqclient=self.mqclient, tid=data.get(T_TID))
 
             self.__traffic_executors.put(te)
             pub_status(self.mqclient, rt.tcfg.mqtt_qos, {
