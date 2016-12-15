@@ -96,7 +96,6 @@ class ZbeeReport(object):
             plt.close()
         except Exception as ex:
             lgr.error(to_string("Exception on creating item based figure {}: {}", item, ex))
-            raise
 
     @staticmethod
     def total_pack(ginfo, pdata, pdf_pg, title=None):
@@ -238,7 +237,6 @@ class ZbeeReport(object):
                     ZbeeReport.item_based(ginfo, pdata, item, pdf_pg, interest_nodes, irange)
             except Exception as ex:
                 lgr.error(to_string("Exception on saving report: {}", ex))
-                raise
 
     @staticmethod
     def generate(genid, gw=None, nodes=None, irange=None, csv_path=None):
@@ -274,7 +272,6 @@ class ZbeeReport(object):
             ZbeeReport.gen_report(raw, pdata, ginfo, gw, nodes, irange)
         except Exception as ex:
             lgr.error(to_string("Exception on generate reports: {}", ex))
-            raise
 
     @staticmethod
     def handle_args(in_args = None):

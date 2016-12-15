@@ -50,6 +50,7 @@ class ZigbeeProtocol(Protocol):
     GETNETWORKADDRESS = 'getNetworkAddress'
     GETSHORTADDRESS = "getShortAddress"
     GETUID = 'getUID'
+    GETDIAGDATA = 'getDiagnosticsData'
     RESET_CONF = 'minimalDevice'
     DGN = 'Dgn'
     GETFWVER = "getFWName"
@@ -60,6 +61,7 @@ class ZigbeeProtocol(Protocol):
     POST_HANDSHAKE = 'S9030000FC'
     UNKNOWN_CMD = 'unknown command'
     NWUPDATESTATUS = 'Network update status'
+    HELLO = 'hello'
 
     MsgType = Enum('MsgType', [\
         'snd',\
@@ -76,7 +78,7 @@ class ZigbeeProtocol(Protocol):
             while not node.started and node.running:
                 PROTO.lgr.info(to_string("{}: Handshaking", node))
     
-                node._write('hello' + '\r')
+                node._write((PROTO.HELLO + PROTO.EOL).encode())
                 rdbuf = node._read_one(len(PROTO.UNKNOWN_CMD))
                 node.proto.parse_rbuf(rdbuf, node)
     
@@ -107,6 +109,11 @@ class ZigbeeProtocol(Protocol):
 #                    }))
 #                node.writable.wait(10)
 #                node.writable.clear()
+#            while node.running:                  
+#                node.write(PROTO.writeattribute2({ T_DEST: 'A003', T_PKGSIZE: '50', T_RSP: '1'})
+#                    + PROTO.getdiag())
+#                node.writable.wait(10)
+#                node.writable.clear()
 
             while node.running and node.fwver is None or len(node.fwver) == 0:
                 node.write(PROTO.getfwver())
@@ -125,9 +132,16 @@ class ZigbeeProtocol(Protocol):
         return PROTO.joinnw(params) 
 
     @staticmethod
-    def traffic(params=None):
+    def traffic(params=None, node=None):
         """Traffic command"""
-        return PROTO.writeattribute2(params) 
+        msg = PROTO.writeattribute2(params) 
+        msg += PROTO.getdiag(params)
+
+        if node is None:
+            return msg
+        else:
+            node.write(msg, params)
+            node.write(msg, params)
 
     @staticmethod
     def joinnw(params=None):
@@ -146,10 +160,15 @@ class ZigbeeProtocol(Protocol):
 # data = " ".join([BluetoothDevice.WRITEATTRIBUTE2, "s",
 #   "0x%04X"%dest, "0x14 0x00 0x04 0x42", "1", "0x%02X"%psize, "0x%02X"%rsp, BluetoothDevice.EOL])
         dest, psize, rsp = params.get(T_DEST),\
-            params.get(T_PKGSIZE), params.get(T_RSP)
+            params.get(T_PKGSIZE), params.get(T_RSP) is None and '0' or '1'
         msg = " ".join([PROTO.WRITEATTRIBUTE2, "s", "0x"+dest,\
             "20 0 4 42", "1", str(psize), str(rsp)]) + Protocol.EOL
         return msg
+
+    @staticmethod
+    def getdiag(params=None):
+        """Get diag data"""
+        return PROTO.GETDIAGDATA + Protocol.EOL
 
     @staticmethod
     def getfwver(params=None):
@@ -241,45 +260,53 @@ class ZigbeeProtocol(Protocol):
             node.writable.set()
             return
 
+        report[T_GENID] = node.genid
+        report[T_TIME] = time.time()
+        report[T_NODE] = node.addr
 
         if PROTO.NWUPDATESTATUS in data:
-            self.joined = True
-            return
+            report.update({\
+                T_TRAFFIC_TYPE: TrafficType.JOIN.name,\
+                T_MSG_TYPE: MessageType.RECV.name,\
+                T_MSG: data,\
+            })
+            node.joined = True
+            return report
 
         params = data.split(' ')
         msg_type = params[0].upper()
 
         if msg_type == MessageType.SEND.name:
             if len(params) == 6:
-                report = {\
-                    T_TIME: time.time(),\
-                    T_TRAFFIC_TYPE: TrafficType.SCMD.name,\
+                report.update({
+                    T_TIME: time.time(),
+                    T_TRAFFIC_TYPE: TrafficType.SCMD.name,
                     T_MSG_TYPE: MessageType.RECV.name,
-                    T_TYPE: PROTO.MsgType.snd.name,\
-                    T_ZBEE_NWK_SRC: node.addr,\
-                    T_ZBEE_NWK_DST: params[4],\
-                    T_ZBEE_ZCL_CMD_TSN: params[1],\
-                    T_STATUS: params[5],\
-                    T_SND_SEQ_NR: node.sequence_nr,\
-                }
+                    T_TYPE: PROTO.MsgType.snd.name,
+                    T_ZBEE_NWK_SRC: node.addr,
+                    T_ZBEE_NWK_DST: params[4],
+                    T_ZBEE_ZCL_CMD_TSN: params[1],
+                    T_STATUS: params[5],
+                    T_SND_SEQ_NR: node.sequence_nr,
+                })
                 node.sequence_nr += 1
 #                if status == '0x00':
 #                    node.nr_messages_sent += 1
             else:
                 PROTO.lgr.error(to_string('Incorrect send confirm: {}', data))
         elif msg_type == MessageType.RECV.name:
-            report = {\
-                T_TRAFFIC_TYPE: TrafficType.SCMD.name,\
+            report.update({
+                T_TRAFFIC_TYPE: TrafficType.SCMD.name,
                 T_MSG_TYPE: MessageType.RECV.name,
-                T_TYPE: PROTO.MsgType.rcv.name,\
-                T_ZBEE_NWK_SRC: params[3],\
-                T_ZBEE_NWK_DST: node.addr,\
-                T_ZBEE_ZCL_CMD_TSN: params[1],\
-            }
+                T_TYPE: PROTO.MsgType.rcv.name,
+                T_ZBEE_NWK_SRC: params[3],
+                T_ZBEE_NWK_DST: node.addr,
+                T_ZBEE_ZCL_CMD_TSN: params[1],
+            })
         elif msg_type == MessageType.JOINING.name:
-            report = {\
-                T_TRAFFIC_TYPE: TrafficType.JOIN.name,\
-                T_MSG_TYPE: MessageType.RECV.name,\
+            report = {
+                T_TRAFFIC_TYPE: TrafficType.JOIN.name,
+                T_MSG_TYPE: MessageType.RECV.name,
             }
             #DEBUG data
             node.joined = True
@@ -296,43 +323,41 @@ class ZigbeeProtocol(Protocol):
         elif params[0] == PROTO.RESET_CONF:
             return None
         elif params[0] == PROTO.DGN:
-            report = {
-                T_MSG_TYPE: MessageType.RECV.name,\
-                T_TRAFFIC_TYPE: TrafficType.SCMD.name,\
+            report.update({
+                T_MSG_TYPE: MessageType.RECV.name,
+                T_TRAFFIC_TYPE: TrafficType.SCMD.name,
                 T_TYPE: PROTO.MsgType.dgn.name,
-                T_ZBEE_NWK_ADDR: node.addr,\
-                T_AVGMACRETRY: params[1],\
-                T_LASTMSGLQI: params[2],\
-                T_LASTMSGRSSI: params[3],\
-                T_PKGBUFALLOCFAIL: params[4],\
-                T_RTDISCINIT: params[5],\
-                T_APSRXBCAST: params[6],\
-                T_APSTXBCAST: params[7],\
-                T_APSTXUCASTRETRY: params[8],\
-                T_RELAYEDUCAST: params[9],\
-                T_APSRXUCAST: params[10],\
-                T_NEIGHBORADDED: params[11],\
-                T_NEIGHBORRMED: params[12],\
-                T_NEIGHBORSTALE: params[13],\
-                T_MACRXUCAST: params[14],\
-                T_MACTXUCAST: params[15],\
-                T_MACTXUCASTFAIL: params[16],\
-                T_MACTXUCASTRETRY: params[17],\
-                T_MACRXBCAST: params[18],\
-                T_MACTXBCAST: params[19],\
-                T_APSTXUCASTSUCCESS: params[20],\
-                T_APSTXUCASTFAIL: params[21],\
-            }
+                T_ZBEE_NWK_ADDR: node.addr,
+                T_AVGMACRETRY: params[1],
+                T_LASTMSGLQI: params[2],
+                T_LASTMSGRSSI: params[3],
+                T_PKGBUFALLOCFAIL: params[4],
+                T_RTDISCINIT: params[5],
+                T_APSRXBCAST: params[6],
+                T_APSTXBCAST: params[7],
+                T_APSTXUCASTRETRY: params[8],
+                T_RELAYEDUCAST: params[9],
+                T_APSRXUCAST: params[10],
+                T_NEIGHBORADDED: params[11],
+                T_NEIGHBORRMED: params[12],
+                T_NEIGHBORSTALE: params[13],
+                T_MACRXUCAST: params[14],
+                T_MACTXUCAST: params[15],
+                T_MACTXUCASTFAIL: params[16],
+                T_MACTXUCASTRETRY: params[17],
+                T_MACRXBCAST: params[18],
+                T_MACTXBCAST: params[19],
+                T_APSTXUCASTSUCCESS: params[20],
+                T_APSTXUCASTFAIL: params[21],
+            })
+            node.writable.set()
         else:
-            report = {\
-                T_MSG_TYPE: MessageType.RECV.name,\
-                T_UNKNOWN_RESP: T_YES,\
-                T_ZBEE_NWK_ADDR: ' '.join([node.addr, data]),\
-            }
+            report.update({
+                T_MSG_TYPE: MessageType.RECV.name,
+                T_UNKNOWN_RESP: T_YES,
+                T_ZBEE_NWK_ADDR: ' '.join([node.addr, data]),
+            })
   
-        report[T_GENID] = node.genid
-        report[T_TIME] = time.time()
-        report[T_NODE] = node.addr
         return report
 
     @staticmethod
