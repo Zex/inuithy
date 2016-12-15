@@ -53,7 +53,7 @@ logmon:
 	$(TAILMON) $(LOGPATH)
 
 run_all_agents:
-	ssh root@127.0.0.1 "pushd $(PROJECT_PATH);$(PYTHON) inuithy/agent.py &> /tmp/inuithy.nohup; exit" &
+	ssh root@127.0.0.1 "pushd $(PROJECT_PATH) > /dev/null;$(PYTHON) inuithy/agent.py &> /tmp/inuithy.nohup; exit" &
 
 viewlog:
 	$(VIM) $(LOGPATH)
@@ -92,8 +92,11 @@ pylint:
 #	$(MV) pylint*.txt $(PYLINT_OUTPUT)
 
 
-tar: $(OUTPUT_TAR_PATH)
+tar: latest
 	$(RM) $(OUTPUT_DEPLOY_SH)
 	make $(OUTPUT_DEPLOY_SH)
 
+latest: $(OUTPUT_TAR_PATH)
+	$(RM) $(BUILD)/latest
+	ln -s $(OUTPUT_TAR_PATH) $(BUILD)/latest 
 
