@@ -66,6 +66,7 @@ T_MQTT = 'mqtt'
 T_HOST = 'host'
 T_PORT = 'port'
 T_QOS = 'qos'
+T_MQTT_VERSION = 'mqtt_version'
 T_VERSION = 'version'
 T_CONTROLLER = 'controller'
 T_AGENTS = 'agents'
@@ -115,6 +116,7 @@ T_TID = 'tid'
 T_TRAFFIC_FINISH_DELAY = 'traffin_delay'
 T_EVERYONE = '*'
 T_NOI = 'noi' # Nodes of interest
+T_RLOGBASE = 'rlog_base'
 
 TrafficStatus = Enum("TrafficStatus", [
     "INITFAILED",       # Initialization failure
