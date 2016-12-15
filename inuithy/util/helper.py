@@ -15,6 +15,16 @@ def runonremote(user, host, cmd):
     rcmd += "\"" + cmd + "\""
     sp.call(rcmd, shell=True)
 
+def isprocrunning(name):
+    try:
+        r = sp.check_output(['pidof', name])
+        if r is None or len(r) == 0:
+            return False
+        return True
+    except sp.CalledProcessError:
+        return False
+    return False
+
 def delimstr(delim, *args):
     if delim is None or not isinstance(delim, str):
         delim = ''

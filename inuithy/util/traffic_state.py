@@ -39,7 +39,7 @@ class TrafStatChk(object):
         self.node2host = {}
 #        self.cond = threading.Condition()
         self.done = threading.Event()
-        self._is_agents_all_up = threading.Event()
+        self._is_agents_up = threading.Event()
         self._is_nwlayout_done = threading.Event()
         self._is_traffic_all_registered = threading.Event()
         self._is_traffic_all_fired = threading.Event()
@@ -47,28 +47,26 @@ class TrafStatChk(object):
         self._is_traffic_all_unregistered = threading.Event()
 
     def set_all(self):
-        for e in [
-#           self._is_agents_all_up,
-           self._is_nwlayout_done,
-           self._is_traffic_all_registered,
-           self._is_traffic_all_fired,
-           self._is_phase_finished,
+        [e.set() for e in [
+#           self._is_agents_up,
+            self._is_nwlayout_done,
+            self._is_traffic_all_registered,
+            self._is_traffic_all_fired,
+            self._is_phase_finished,
 #           self._is_traffic_all_unregistered,
-            ]:
-            if not e.isSet():
-                e.set()
+            ] if not e.isSet()
+        ]
 
     def clear_all(self):
-        for e in [
-#           self._is_agents_all_up,
-           self._is_nwlayout_done,
-           self._is_traffic_all_registered,
-           self._is_traffic_all_fired,
-           self._is_phase_finished,
+        [e.clear() for e in [
+#           self._is_agents_up,
+            self._is_nwlayout_done,
+            self._is_traffic_all_registered,
+            self._is_traffic_all_fired,
+            self._is_phase_finished,
 #           self._is_traffic_all_unregistered,
-            ]:
-            if e.isSet():
-                e.clear()
+            ] if e.isSet()
+        ]
 
     def create_nwlayout(self, nwinfo):#nwid, nodes):
         """Create map of network layout configure"""
@@ -141,7 +139,7 @@ class TrafStatChk(object):
             TrafStatChk.lgr.error(to_string("Failed to check whether traffic finished: {}", ex))
             return False
 
-    def is_agents_all_up(self):
+    def is_agents_up(self):
         """Whether expected agents all started"""
 #        TrafStatChk.lgr.info("Check for agents availability")
         try:
@@ -190,12 +188,12 @@ def publish_nwlayout(nwlayoutname, nwcfg, tcfg, chk, genid, pub):
                     pub_nwlayout(pub, data=data)
                     break
 
-def publish_traffic(tr, chk, pub, enable_localdebug=False):
+def publish_traffic(genid, tg, tr, chk, pub, enable_localdebug=False):
     try:
         target_host = chk.node2host.get(tr.src)
         data = {
             T_TID: tr.tid,
-            T_GENID: phase.genid,
+            T_GENID: genid,
             T_TRAFFIC_TYPE: TrafficType.SCMD.name,
             T_NODE: tr.src,
             T_HOST: target_host,
@@ -217,15 +215,16 @@ def publish_traffic(tr, chk, pub, enable_localdebug=False):
         TrafficState.lgr.debug(to_string("TRAFFIC: {}:{}:{}", data.get(T_TID), data.get(T_CLIENTID), tr))
     except Exception as ex:
         TrafficState.lgr.error(to_string(
-            "Exception on registering traffic, network [{}], traffic [{}]: {}",
-            phase.nwlayoutid, tg.traffic_name, str(ex)))
+            "Exception on registering traffic, traffic [{}]: {}",
+            tg.traffic_name, str(ex)))
 
 def publish_phase(phase, chk, pub, enable_localdebug=False):
     """Register one phase to agent"""
     chk.traffic_stat.clear()
+    TrafficState.lgr.info(to_string("network [{}]", phase.nwlayoutid))
     for tg in phase.tgs:
         for tr in tg.traffics:
-            publish_traffic(tr, chk, pub, enable_localdebug)
+            publish_traffic(phase.genid, tg, tr, chk, pub, enable_localdebug)
     TrafficState.lgr.debug(to_string("Total traffic: [{}]", len(chk.traffic_stat)))
 
 @acts_as_state_machine
@@ -300,7 +299,7 @@ class TrafficState:
     finished = State()
     waitfor_agent_all_up = State()
     waitfor_nwlayout_done = State()
-    waitfor_traffic_all_set = State()
+    waitfor_traffic_set = State()
     reportgened = State()
 
     start = Event(from_states=(stopped, phase_finished), to_state=started)
@@ -309,14 +308,14 @@ class TrafficState:
     deploy = Event(from_states=(created, waitfor_agent_all_up, started,
                 phase_finished, reportgened), to_state=waitfor_nwlayout_done)
     wait_nwlayout = Event(from_states=(waitfor_nwlayout_done), to_state=nwconfigured)
-    register = Event(from_states=(nwconfigured), to_state=waitfor_traffic_all_set)
-    wait_traffic = Event(from_states=(waitfor_traffic_all_set), to_state=registered)
+    register = Event(from_states=(nwconfigured), to_state=waitfor_traffic_set)
+    wait_traffic = Event(from_states=(waitfor_traffic_set), to_state=registered)
     fire = Event(from_states=(registered), to_state=running)
     phase_finish = Event(from_states=(running), to_state=phase_finished)
     finish = Event(from_states=(
         stopped, started, created, nwconfigured, registered, running,
         phase_finished, waitfor_agent_all_up,
-        waitfor_nwlayout_done, waitfor_traffic_all_set, reportgened,
+        waitfor_nwlayout_done, waitfor_traffic_set, reportgened,
     ), to_state=(finished))
     genreport = Event(from_states=phase_finished, to_state=reportgened)
 
@@ -365,7 +364,7 @@ class TrafficState:
         if not self.traf_running:
             return
         try:
-            self.chk._is_agents_all_up.wait()
+            self.chk._is_agents_up.wait()
         except KeyboardInterrupt:
             TrafficState.lgr.info("Terminating ...")
         except Exception as rex:
@@ -385,7 +384,7 @@ class TrafficState:
             TrafficState.lgr.error(to_string("Wait for network layout done: {}", ex))
 
     @after('wait_traffic')
-    def do_waitfor_traffic_all_set(self):
+    def do_waitfor_traffic_set(self):
         """Wait for traffic all registered on agents"""
         TrafficState.lgr.info(to_string("Wait for traffic all set: {}", str(self.current_state)))
         if not self.traf_running:

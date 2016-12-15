@@ -1,7 +1,7 @@
 """ Console for manual mode
  @author: Zex Li <top_zlynch@yahoo.com>
 """
-from inuithy.common.version import INUITHY_ROOT, __version__, DEPLOY_SH
+from inuithy.common.version import INUITHY_ROOT, __version__, DEPLOY_SH, PROJECT
 from inuithy.common.predef import INUITHY_LOGCONFIG, INUITHY_TITLE,\
 to_console, to_string, T_EVERYONE, T_TRAFFIC_TYPE, T_HOST, T_NODE,\
 T_CLIENTID, T_MSG, T_RLOGBASE
@@ -16,6 +16,7 @@ import socket
 import threading
 import glob
 from os import path, makedirs
+from os.path import exists
 import os
 import sys
 import os.path
@@ -207,13 +208,12 @@ class Console(object):#threading.Thread):
         self.lgr.info("On command agent start")
         if args is None or len(args) < 1:
             return
-        hosts = args[0]
-        if hosts == T_EVERYONE:
+        hosts = list(args)
+        if T_EVERYONE in hosts:
             agents = copy.deepcopy(self.ctrl.expected_agents)
         else:
-            agents = list(hosts)
-#        to_console("Initialize traffic configure")
-#        self.ctrl.traffic_state.create()
+            agents = hosts
+#TODO check for non-configured hosts
         start_agents(agents)
         to_console("Waiting for agents to get ready")
         self.ctrl.traffic_state.wait_agent()
@@ -372,7 +372,9 @@ class Console(object):#threading.Thread):
         try:
             self.running = False
             if self.ctrl and self.ctrl.traffic_state:
-                self.ctrl.traffic_state.finish()
+#                self.ctrl.traffic_state.finish()
+                self.ctrl.traffic_state.phases.clear()
+                self.ctrl.teardown()
         except Exception as ex:
             to_console("Exception on quit: {}", ex)
 
@@ -382,28 +384,36 @@ class Console(object):#threading.Thread):
         if args is None or len(args) < 1:
             return
 
-        #mkdir build/192.168.1.190;scp -rA root@192.168.1.190:"/tmp/inuithy.* /var/log/inuithy" build/192.168.1.190
-        if not path.isdir(rt.tcfg.rlogbase):
-            makedirs(rt.tcfg.rlogbase)
-
         user = 'root'
         host = args[0]
         srcs = ["/tmp/inuithy.*", "/var/log/inuithy"]
-        cmd = to_string('scp -r {}@{}:{} {}', user, host, ' '.join(srcs), rt.tcfg.rlogbase)
+        dest = to_string('{}/{}', rt.tcfg.rlogbase, host)
+#TODO
+#        if path.isdir(dest):
+        
+        makedirs(dest)
+
+        cmd = to_string('scp -r {}@{}:{} {}', user, host, '"'+' '.join(srcs)+'"', dest)
         to_console(cmd)
         os.system(cmd)
+        to_console("Saved @ {}", dest)
         
-
-
-
     def on_cmd_whohas(self, *args, **kwargs):
         """Query which agent has connected node with given address"""
         self.lgr.info("On command whohas")
         if args is None or len(args) < 1:
             return
-        host = self.ctrl.node2host.get(args[0])
+        node = args[0]
+        host = None
+        for agent in self.ctrl.available_agents.values():
+            if node in agent.nodes:
+                host = agent.host
         reply = host is None and "Node not found" or host
-        to_console('{}', reply)
+        to_console('ACT: {}', reply)
+
+        reply = self.ctrl.node2host.get(node)
+        reply = host is None and "Node not found" or host
+        to_console('EXP: {}', reply)
 
     def on_cmd_update(self, *args, **kwargs):
         """Update inuithy handler
@@ -414,9 +424,15 @@ class Console(object):#threading.Thread):
             return
         dest_base = '/media/card'
         targets = to_string('{}/{}', args[0], T_EVERYONE)
-        packs = []
+        packs = [DEPLOY_SH, to_string('{}-{}.tar.bz2', PROJECT, __version__)]
 #        [packs.extend(glob.glob(target)) for target in targets]
-        packs.extend(glob.glob(targets))
+#        packs.extend(glob.glob(targets))
+        packs = [to_string('{}/{}', args[0], p) for p in packs]
+#        found = [p for p in packs if exists(p)]
+#        if len(found) == len(packs):
+#            to_console(to_string("Found {}", packs))
+#        else:
+#            raise FileNotFoundError(to_string("Expecting {}", packs))
         hosts = args[1:]
         user = 'root'
         if T_EVERYONE in hosts:
@@ -425,7 +441,7 @@ class Console(object):#threading.Thread):
             agents = list(hosts)
         if len(packs) == 0:
             to_console("Package not found")
-        cmd = ' '.join(['scp', ' '.join(packs)])
+        cmd = ' '.join(['scp', '-rp', ' '.join(packs)])
         failed = False
         for agent in agents:
             try:
