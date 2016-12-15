@@ -27,6 +27,7 @@ INUITHY_TOPIC_HEARTBEAT = "inuithy/topic/heartbeat"
 INUITHY_TOPIC_REPORTWRITE = "inuithy/topic/reportwrite"
 # Report data read from serial port
 INUITHY_TOPIC_NOTIFICATION = "inuithy/topic/notification"
+# Message sent via inuithy shell
 # <topic id>::<message>
 INUITHY_MQPAYLOAD_DELEMER = "::>"
 INUITHY_MQPAYLOAD_FMT = "{}"+INUITHY_MQPAYLOAD_DELEMER+"{}"
