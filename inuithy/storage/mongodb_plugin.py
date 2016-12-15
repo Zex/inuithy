@@ -152,62 +152,69 @@ class MongodbStorage(object):
             {'$push': {T_RECORDS: data}})
 
 # -----------------------------------------------------------------------------------------
-
-def update_test():
-
-    sto = MongodbStorage('127.0.0.1', 19713)
-    to_console(sto.trafrec)
-    for r in sto.trafrec.find():
-        oid = r.get('_id')
-        to_console("------------------------{}---------------------".format(oid))
-        to_console(r)
-        rec = {
-            T_GENID:    str(r.get('_id')),
-            T_MSG:      "lignton 1122",
-            T_CLIENTID: "HAHAHAH333111MARS",
-            T_HOST:     "PLUTO",
-            T_SRC:   "1111",
-            T_DEST:"1122",
-            T_PKGSIZE:  "10",
-        }
-        sto.insert_record(rec)
-        to_console(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-#        to_console(sto.trafrec.find_one({"_id": ObjectId(oid)}))
-        to_console("{}", sto.trafrec.find_one({T_GENID: oid}))
-
-def check_records():
-    sto = MongodbStorage('127.0.0.1', 19713)
-    to_console(sto.trafrec)
-    for r in sto.trafrec.find():
-        oid = r.get('_id')
-        to_console("------------------------{}---------------------", oid)
-        to_console(r)
-
-def check_recv(host, port, genid):
-    sto = MongodbStorage(host, port)
-    for r in sto.trafrec.find({
-#            "_id": ObjectId(genid),
-            T_GENID: genid,
-            #"records": { "$elemMatch": {"msgtype": "RECV"} }
-        }):
-        [to_console(v) for v in r[T_RECORDS] if v[T_MSG_TYPE] == MessageType.RECV.name]
-
-def check_sent(host, port, genid):
-    sto = MongodbStorage(host, port)
-    for r in sto.trafrec.find({
-#            "_id": ObjectId(genid),
-            T_GENID: genid,
-        }):
-        [to_console(v) for v in r[T_RECORDS] if v[T_MSG_TYPE] == MessageType.SEND.name]
-
-def cleanup():
-    sto = MongodbStorage('127.0.0.1', 19713)
-    sto.trafrec.delete_many({})
-
 if __name__ == '__main__':
-#    check_records()
-#    check_fields()
-#    cleanup()
-    oid = '581fdfe3362ac719d1c96eb3'
-    check_recv('127.0.0.1', 19713, oid)
-#    check_sent('127.0.0.1', 19713, oid)
+
+    def update_test(host, port):
+
+        sto = MongodbStorage(host, port)
+        to_console(sto.trafrec)
+        for r in sto.trafrec.find():
+            oid = r.get('_id')
+            to_console("------------------------{}---------------------".format(oid))
+            to_console(r)
+            rec = {
+                T_GENID:    str(r.get('_id')),
+                T_MSG:      "lignton 1122",
+                T_CLIENTID: "HAHAHAH333111MARS",
+                T_HOST:     "PLUTO",
+                T_SRC:   "1111",
+                T_DEST:"1122",
+                T_PKGSIZE:  "10",
+            }
+            sto.insert_record(rec)
+            to_console(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+#        to_console(sto.trafrec.find_one({"_id": ObjectId(oid)}))
+            to_console("{}", sto.trafrec.find_one({T_GENID: oid}))
+
+    def check_records(host, port):
+        sto = MongodbStorage(host, port)
+        to_console(sto.trafrec)
+        for r in sto.trafrec.find():
+            oid = r.get('_id')
+            to_console("------------------------{}---------------------", oid)
+            to_console(r)
+
+    def check_recv(host, port, genid):
+        sto = MongodbStorage(host, port)
+        for r in sto.trafrec.find({
+#            "_id": ObjectId(genid),
+                T_GENID: genid,
+                #"records": { "$elemMatch": {"msgtype": "RECV"} }
+            }):
+            [to_console(v) for v in r[T_RECORDS] if v[T_MSG_TYPE] == MessageType.RECV.name]
+
+    def check_sent(host, port, genid):
+        sto = MongodbStorage(host, port)
+        for r in sto.trafrec.find({
+#            "_id": ObjectId(genid),
+                T_GENID: genid,
+            }):
+            [to_console(v) for v in r[T_RECORDS] if v[T_MSG_TYPE] == MessageType.SEND.name]
+
+    def cleanup(host, name):
+        sto = MongodbStorage(host, name)
+        sto.trafrec.delete_many({})
+
+    def export(host, name, genid):
+
+        sto = MongodbStorage(host, name)
+        with open(gid+'.log', 'w') as fd:
+            for r in sto.trafrec.find({T_GENID: genid,}):
+                [fd.writelines(str(l)+'\n') for l in r[T_RECORDS]]
+
+#    oid = '581fdfe3362ac719d1c96eb3'
+#    check_recv('192.168.1.185', 19713, oid)
+    gid = '1481793953'
+    export('192.168.1.185', 19713, gid)
+
+
