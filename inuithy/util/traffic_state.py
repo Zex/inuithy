@@ -305,7 +305,7 @@ class TrafficState:
 
     start = Event(from_states=(stopped, phase_finished), to_state=started)
     create = Event(from_states=(stopped, started, phase_finished), to_state=created)
-    wait_agent = Event(from_states=(started, created), to_state=waitfor_agent_all_up)
+    wait_agent = Event(from_states=(stopped, started, created), to_state=waitfor_agent_all_up)
     deploy = Event(from_states=(created, waitfor_agent_all_up, started,
                 phase_finished, reportgened), to_state=waitfor_nwlayout_done)
     wait_nwlayout = Event(from_states=(waitfor_nwlayout_done), to_state=nwconfigured)
