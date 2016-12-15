@@ -65,7 +65,7 @@ agents:
     nodes: [11f1, 11f2, 11f3, 11f4]
   agent_01:
     host: 192.168.1.190
-    nodes: ['A004', 'A002']
+    nodes: ['A004', 'A002', 'A001', 'A003']
 network_0:
   subnet_0:
     channel: 15
@@ -114,6 +114,6 @@ network_3:
   subnet_0:
     channel: 17
     gateway: 'A002'
-    nodes: ['A004', 'A002']
+    nodes: ['A004', 'A002', 'A001', 'A003']
     panid: '151A372143217856'
     spanid: '4321'

@@ -60,9 +60,9 @@ traffic_6:
   pkgsize: 2
   srcs: [11a2]
 traffic_7:
-  dests: ['A004']
-  duration: 10
+  dests: ['A004', 'A001']
+  duration: 120
   interval: 2
-  pkgsize: 2
-  srcs: ['A002']
+  pkgsize: 50
+  srcs: ['A002', 'A003']
 traffin_delay: 30
