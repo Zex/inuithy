@@ -301,7 +301,7 @@ class CtrlBase(object):
             self.lgr.info(to_string("On topic heartbeat: Agent Version {}", version))
             agentid = agentid.strip('\t\n ')
             self.add_agent(agentid, host, nodes)
-            self.traffic_state.check("is_agents_all_up")
+            self.traffic_state.check("is_agents_up")
             self.lgr.info(to_string("Found Agents({})", len(self.available_agents)))
 #            self.lgr.debug(to_string("{}", [str(a) for a in self.available_agents.values()]))
         except Exception as ex:
@@ -387,7 +387,8 @@ class CtrlBase(object):
                 if data.get(T_NODE) is not None:
                     self.storage.insert_record(data)
             else:
-                self.storage.insert_record(data)
+                pass
+#                self.storage.insert_record(data)
         except Exception as ex:
             self.lgr.error(to_string("Failed to handle notification message: {}", ex))
             self.teardown()
