@@ -66,7 +66,7 @@ class ManualCtrl(CtrlBase):
             if self.worker is not None:
                 self.worker.start()
 #            self.mqworker.start()
-            stop_agents(self.mqclient)
+#            stop_agents(self.mqclient)
             self.alive_notification()
             ret = mqtt.MQTT_ERR_SUCCESS
             for retry_cnt in range(1, 4):
