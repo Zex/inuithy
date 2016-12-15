@@ -5,6 +5,7 @@ from inuithy.common.predef import T_NWLAYOUT_ID_FMT, IFACEPATH
 from inuithy.common.predef import to_string 
 import subprocess as sp
 import os
+import sys
 
 def runonremote(user, host, cmd):
     """Run command on remote host
@@ -61,4 +62,9 @@ def valid_cmds(command):
 def clear_list(l):
 #    l.clear()
     while len(l) > 0: l.pop()
+
+def console_reader(promt=''):
+    sys.stdout.write(promt)
+    sys.stdout.flush()
+    return sys.stdin.readline()
 

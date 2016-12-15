@@ -4,10 +4,10 @@
 from inuithy.common.version import INUITHY_ROOT, __version__, DEPLOY_SH
 from inuithy.common.predef import INUITHY_LOGCONFIG, INUITHY_TITLE,\
 to_console, to_string, T_EVERYONE, T_TRAFFIC_TYPE, T_HOST, T_NODE,\
-T_CLIENTID, T_MSG
+T_CLIENTID, T_MSG, T_RLOGBASE
 from inuithy.common.command import TSH_ERR_GENERAL, TSH_ERR_HANDLING_CMD,\
 Command, Usage, TSH_ERR_INVALID_CMD
-from inuithy.util.helper import valid_cmds, runonremote, delimstr
+from inuithy.util.helper import valid_cmds, runonremote, delimstr, console_reader
 from inuithy.util.task_manager import ProcTaskManager
 from inuithy.util.cmd_helper import start_agents, stop_agents
 from inuithy.common.runtime import Runtime as rt
@@ -15,7 +15,9 @@ from inuithy.common.traffic import Phase
 import socket
 import threading
 import glob
+from os import path, makedirs
 import os
+import sys
 import os.path
 import logging
 import logging.config as lconf
@@ -51,8 +53,9 @@ TSH_CMD_RUN = "run"
 TSH_CMD_REGTRAF = "regtraf"
 TSH_CMD_WHOHAS = "whohas"
 TSH_CMD_GENREPORT = "report"
+TSH_CMD_GETLOG = "getlog"
 
-console_reader = hasattr(__builtins__, 'raw_input') and raw_input or input
+#console_reader = hasattr(__builtins__, 'raw_input') and raw_input or input
 
 lconf.fileConfig(INUITHY_LOGCONFIG)
 
@@ -96,6 +99,8 @@ class Console(object):#threading.Thread):
     Command(TSH_CMD_AGENT, desc="Operations on agents"),\
     Command(TSH_CMD_TRAFFIC, desc="Run traffic"),\
     Command(TSH_CMD_UPDATE, desc="Update Inuithy components on hosts"),\
+    Command(TSH_CMD_WHOHAS, desc="Query who has node with given address connected"),\
+    Command(TSH_CMD_GETLOG, desc="Grab log on agent"),\
     Command(TSH_CMD_EXCLAM, "<system command>", desc="Execute shell command"),\
     Command(TSH_CMD_AT, "<host> <system command>",\
         desc="Execute shell command on remote host"),\
@@ -130,10 +135,17 @@ class Console(object):#threading.Thread):
         desc="Generate report for previous traffic"),
         ]),
         "usage_update": Usage(self._title, [\
-    Command(delimstr(' ', TSH_CMD_UPDATE, TSH_CMD_HOST),\
+    Command(delimstr(' ', TSH_CMD_UPDATE),\
         "<directory contains inuithy package> <host>...",\
         desc="Deploy <inuithy package> on <host> \n'*' for all targetted hosts"),\
         ]),
+        "usage_whohas": Usage(self._title, [\
+    Command(delimstr(' ', TSH_CMD_WHOHAS),\
+        "<short addr>",\
+        desc="Query who has node with given address connected"),\
+        ]),
+        "usage_getlog": Usage(self._title, [\
+    Command(TSH_CMD_GETLOG, '<host>', desc="Grab log on agent")]),
         "usage_quit": Usage(self._title, [\
     Command(TSH_CMD_QUIT, desc="Leave me")]),\
         "usage_help": Usage(self._title, [\
@@ -158,6 +170,8 @@ class Console(object):#threading.Thread):
             TSH_CMD_AT:         self.on_cmd_rsys,
             TSH_CMD_SHARP:      self.on_cmd_py,
             TSH_CMD_UPDATE:     self.on_cmd_update,
+            TSH_CMD_WHOHAS:     self.on_cmd_whohas,
+            TSH_CMD_GETLOG:     self.on_cmd_getlog,
         }
         self._cmd_agent_routes = {
             TSH_CMD_START: self.on_cmd_agent_start,
@@ -362,6 +376,35 @@ class Console(object):#threading.Thread):
         except Exception as ex:
             to_console("Exception on quit: {}", ex)
 
+    def on_cmd_getlog(self, *args, **kwargs):
+        """Grab logs from specified agent"""
+        self.lgr.info("On command getlog")
+        if args is None or len(args) < 1:
+            return
+
+        #mkdir build/192.168.1.190;scp -rA root@192.168.1.190:"/tmp/inuithy.* /var/log/inuithy" build/192.168.1.190
+        if not path.isdir(rt.tcfg.rlogbase):
+            makedirs(rt.tcfg.rlogbase)
+
+        user = 'root'
+        host = args[0]
+        srcs = ["/tmp/inuithy.*", "/var/log/inuithy"]
+        cmd = to_string('scp -r {}@{}:{} {}', user, host, ' '.join(srcs), rt.tcfg.rlogbase)
+        to_console(cmd)
+        os.system(cmd)
+        
+
+
+
+    def on_cmd_whohas(self, *args, **kwargs):
+        """Query which agent has connected node with given address"""
+        self.lgr.info("On command whohas")
+        if args is None or len(args) < 1:
+            return
+        host = self.ctrl.node2host.get(args[0])
+        reply = host is None and "Node not found" or host
+        to_console('{}', reply)
+
     def on_cmd_update(self, *args, **kwargs):
         """Update inuithy handler
             update build/* 192.168.1.190 192.168.1.185
@@ -388,7 +431,6 @@ class Console(object):#threading.Thread):
             try:
                 to_console("loading {}@{}", packs, agent)
                 buf = ' '.join([cmd, to_string("{}@{}:{}", user, agent, dest_base)])
-                to_console(buf)
                 os.system(buf)
                 runonremote(user, agent, to_string('{}/{}', dest_base, DEPLOY_SH))
             except Exception as ex:
