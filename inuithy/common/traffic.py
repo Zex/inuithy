@@ -135,8 +135,8 @@ class TrafficGenerator(object):
     def create_traffic(self, nwcfg, phase):
         """Create traffic for traffic definition named @trname
         """
-        srcs = TrafficGenerator.parse_srcs(self.cur_trcfg, nwcfg, phase[T_NWLAYOUT])
-        dests = TrafficGenerator.parse_dests(self.cur_trcfg, nwcfg, phase[T_NWLAYOUT])
+        srcs = TrafficGenerator.parse_srcs(self.cur_trcfg, nwcfg, phase.get(T_NWLAYOUT))
+        dests = TrafficGenerator.parse_dests(self.cur_trcfg, nwcfg, phase.get(T_NWLAYOUT))
 
         [self.noi.add(n) for n in srcs]
         [self.noi.add(n) for n in dests]
@@ -150,7 +150,7 @@ class TrafficGenerator(object):
 class Phase(object):
     """Info block for one phase"""
     def __init__(self, trcfg, nwcfg, cur_phase):
-        self.nwlayoutid = getnwlayoutid(trcfg.config[T_NWCONFIG_PATH], cur_phase[T_NWLAYOUT])
+        self.nwlayoutid = getnwlayoutid(trcfg.config[T_NWCONFIG_PATH], cur_phase.get(T_NWLAYOUT))
         self.noi = {}
         self.info = cur_phase
         self.tgs = []
@@ -231,15 +231,20 @@ class TrafficExecutor(threading.Thread):
         self.running = True
         self.stop_timer.start()
 
+        self.node.in_traffic = True
         while self.running: # TODO debug check
-            self.node.traffic(self.request)
-            self.nextshot.wait(self.interval)
-            self.nextshot.clear()
-            if self.data is not None and isinstance(self.data, set):
-                [n.read_event.set() for n in self.data if isinstance(n, SerialNode)]
+            try:
+                self.node.traffic(self.request)
+                self.nextshot.wait(self.interval)
+                self.nextshot.clear()
+            except Exception as ex:
+                self.lgr.debug(to_string("Traffic exception: {}", ex))
+#            if self.data is not None and isinstance(self.data, set):
+#                [n.read_event.set() for n in self.data if not isinstance(n, SerialNode)]
 
     def stop_trigger(self):
         to_console("{}: ========Stopping trigger============", self)
+        self.node.in_traffic = False
         self.running = False
         self.stop_timer.cancel()
         if self.mqclient is not None:
