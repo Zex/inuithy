@@ -10,7 +10,7 @@ T_PORT, WorkMode, TrafficStorage, StorageType, T_PASSWD, T_CHANNEL,\
 T_GATEWAY, T_TRAFFICS, T_DURATION, T_PKGSIZE, T_INTERVAL,\
 T_DESTS, T_SRCS, T_NWLAYOUT, NETWORK_CONFIG_PATH, T_NOI,\
 TRAFFIC_CONFIG_PATH, T_HOST, T_REPORTDIR, T_TRAFFIC_FINISH_DELAY,\
-T_TARGET_PHASES, T_EVERYONE
+T_TARGET_PHASES, T_EVERYONE, T_RLOGBASE
 import logging
 import logging.config as lconf
 
@@ -182,6 +182,10 @@ class InuithyConfig(Config):
     def storagetype(self, val):
         pass
 
+    @property
+    def rlogbase(self):
+        return self.config[T_RLOGBASE]
+
     def create_sample(self):
         """Create sample confgigure"""
         self.config[T_MQTT] = {
@@ -227,6 +231,10 @@ class InuithyConfig(Config):
         }
         self.config[T_REPORTDIR] = {
             T_PATH: '/var/log/inuithy/report',
+        }
+        # path to keep logs grabed from agents
+        self.config[T_RLOGBASE] = {
+            T_PATH: '/tmp/inuithy-logs',
         }
 
 class NetworkConfig(Config):
