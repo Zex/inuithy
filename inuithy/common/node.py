@@ -52,6 +52,7 @@ class Node(object):
         self.writer = Worker(1, lgr=self.lgr)
         self.writable = threading.Event()
         self.started = False # Indicate whether firmware is ready
+        self.in_traffic = False # Indicate traffic started or not
 
     def __str__(self):
         if self.ntype is None:
@@ -93,8 +94,9 @@ class Node(object):
     def traffic(self, data):
         """General traffic adapter for sending network traffic"""
         self.genid = data.get(T_GENID)
-        msg = self.proto.traffic(data)
-        self.write(msg, data)
+#        msg = self.proto.traffic(data)
+#        self._write(msg, data)
+        self.proto.traffic(data, node)
 
     def report_read(self, data=None):
         """Report received data
@@ -176,6 +178,8 @@ class SerialNode(Node):
         try:
             while self.running:
                 rdbuf = self._read_one()
+#                if isinstance(data, bytes):
+#                    data = data.decode()
                 if len(rdbuf) > 0:
                     self.report_read(rdbuf)
         except serial.SerialException as ex:
@@ -184,17 +188,18 @@ class SerialNode(Node):
     def _write(self, data="", request=None):
         """Write data ultility"""
         try:
+#            if isinstance(data, str):
+#                data = data.encode()
             written = self.dev.write(data)
             self.lgr.info(to_string("NODE|W: {}, {}({})", self.path, data, written))
         except serial.SerialException as ex:
             self.lgr.error(to_string("Serial exception on writting: {}", ex))
-        if self.proto is not None:
-            self.report_write(data, request)
 
     def write(self, data="", request=None):
         if data is None or len(data) == 0:
             return
-        self.writable.wait(10)
+        if not self.in_traffic:
+            self.writable.wait(10)
         self.writer.add_job(self._write, data, request)
         self.writable.clear()
 
