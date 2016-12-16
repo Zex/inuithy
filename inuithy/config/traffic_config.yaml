@@ -4,7 +4,7 @@ target_agents: [agent_01] #, agent_1, agent_2, agent_3, agent_4, agent_5, agent_
 target_phases:
 - noi: ['*']
   nwlayout: network_3
-  traffics: [traffic_7]
+  traffics: [traffic_7, traffic_8]
 #- noi: ['1122', '1112', '1124']
 #  nwlayout: network_0
 #  traffics: [traffic_2]
@@ -64,5 +64,12 @@ traffic_7:
   duration: 120
   interval: 2
   pkgsize: 50
-  srcs: ['A002', 'A003']
+  srcs: ['*']
+#  srcs: ['A002', 'A003']
+traffic_8:
+  dests: ['*']
+  duration: 120
+  interval: 2
+  pkgsize: 65
+  srcs: ['*']
 traffin_delay: 30

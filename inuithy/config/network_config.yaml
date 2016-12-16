@@ -64,7 +64,8 @@ agents:
 #    host: 192.168.100.145
     nodes: [11f1, 11f2, 11f3, 11f4]
   agent_01:
-    host: 192.168.1.190
+#    host: 192.168.1.190
+    host: 127.0.0.1
     nodes: ['A004', 'A002', 'A001', 'A003']
 network_0:
   subnet_0:
