@@ -75,15 +75,19 @@ class Node(object):
     def start(self):
         """Start node workers"""
 #        self.reader.start()
+        self.running = True
         self.reader = threading.Thread(target=self._read)
         self.reader.start()
-        self.writer.start()
+        if self.writer:
+            self.writer.start()
 
     def stop(self):
         """Stop node workers"""
-        self.writer.stop()
+        if self.writer:
+            self.writer.stop()
         self.running = False
-        self.reader.join()
+        if self.reader:
+            self.reader.join()
 
     def join(self, data):
         """General join adapter for joining a node to network"""
@@ -96,7 +100,7 @@ class Node(object):
         self.genid = data.get(T_GENID)
 #        msg = self.proto.traffic(data)
 #        self._write(msg, data)
-        self.proto.traffic(data, node)
+        self.proto.traffic(data, self)
 
     def report_read(self, data=None):
         """Report received data
@@ -148,6 +152,8 @@ class SerialNode(Node):
             reporter=reporter, lgr=lgr, adapter=adapter)
         if path is not None and exists(path):
             self.dev = serial.Serial(path, baudrate=baudrate, timeout=timeout)
+        self.writer = None
+        self.wait_timeout = 3
 
     def _read_one(self, rdbyte=0, in_wait=False):
         rdbuf = ''
@@ -163,11 +169,7 @@ class SerialNode(Node):
 
         while self.running:
             c = self.dev.read()
-            if len(c) == 0:
-                break
-            if c == '\r' or c == '\n':
-                if len(rdbuf) == 0:
-                    continue
+            if not c or len(c) == 0 or c == '\r' or c == '\n':
                 break
             rdbuf += c
         return rdbuf
@@ -175,11 +177,10 @@ class SerialNode(Node):
     def _read(self, rdbyte=0):
         """Read data ultility"""
 #        rdsize = rdbyte == 0 and self.dev.inWaiting() or rdbyte
+        rdbuf = ''
         try:
             while self.running:
                 rdbuf = self._read_one()
-#                if isinstance(data, bytes):
-#                    data = data.decode()
                 if len(rdbuf) > 0:
                     self.report_read(rdbuf)
         except serial.SerialException as ex:
@@ -188,19 +189,20 @@ class SerialNode(Node):
     def _write(self, data="", request=None):
         """Write data ultility"""
         try:
-#            if isinstance(data, str):
-#                data = data.encode()
             written = self.dev.write(data)
+            self.report_write(data, request)
             self.lgr.info(to_string("NODE|W: {}, {}({})", self.path, data, written))
         except serial.SerialException as ex:
             self.lgr.error(to_string("Serial exception on writting: {}", ex))
+            raise
 
     def write(self, data="", request=None):
         if data is None or len(data) == 0:
             return
         if not self.in_traffic:
-            self.writable.wait(10)
-        self.writer.add_job(self._write, data, request)
+            self.writable.wait(self.wait_timeout)
+        self._write(data, request)
+#        self.writer.add_job(self._write, data, request)
         self.writable.clear()
 
     def read(self, request=None):
