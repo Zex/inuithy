@@ -239,8 +239,13 @@ class TrafficExecutor(threading.Thread):
                 self.nextshot.clear()
             except Exception as ex:
                 self.lgr.debug(to_string("Traffic exception: {}", ex))
-#            if self.data is not None and isinstance(self.data, set):
-#                [n.read_event.set() for n in self.data if not isinstance(n, SerialNode)]
+                self.running = False
+                self.node.in_traffic = False
+                pub_status(self.mqclient, data={
+                    T_TRAFFIC_STATUS: TrafficStatus.AGENTFAILED.name,
+                    T_TID: self.tid,
+                    T_MSG: str(ex),
+                })
 
     def stop_trigger(self):
         to_console("{}: ========Stopping trigger============", self)
