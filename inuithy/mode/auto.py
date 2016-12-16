@@ -33,16 +33,11 @@ class AutoCtrl(CtrlBase):
             (INUITHY_TOPIC_REPORTWRITE, rt.tcfg.mqtt_qos),
             (INUITHY_TOPIC_NOTIFICATION, rt.tcfg.mqtt_qos),
         ])
-        self.mqclient.message_callback_add(\
-            INUITHY_TOPIC_HEARTBEAT, AutoCtrl.on_topic_heartbeat)
-        self.mqclient.message_callback_add(\
-            INUITHY_TOPIC_UNREGISTER, AutoCtrl.on_topic_unregister)
-        self.mqclient.message_callback_add(\
-            INUITHY_TOPIC_STATUS, AutoCtrl.on_topic_status)
-        self.mqclient.message_callback_add(\
-            INUITHY_TOPIC_REPORTWRITE, AutoCtrl.on_topic_reportwrite)
-        self.mqclient.message_callback_add(\
-            INUITHY_TOPIC_NOTIFICATION, AutoCtrl.on_topic_notification)
+        self.mqclient.message_callback_add(INUITHY_TOPIC_HEARTBEAT, AutoCtrl.on_topic_heartbeat)
+        self.mqclient.message_callback_add(INUITHY_TOPIC_UNREGISTER, AutoCtrl.on_topic_unregister)
+        self.mqclient.message_callback_add(INUITHY_TOPIC_STATUS, AutoCtrl.on_topic_status)
+        self.mqclient.message_callback_add(INUITHY_TOPIC_REPORTWRITE, AutoCtrl.on_topic_reportwrite)
+        self.mqclient.message_callback_add(INUITHY_TOPIC_NOTIFICATION, AutoCtrl.on_topic_notification)
 
     def __init__(self, lgr=None, delay=4):
         CtrlBase.__init__(self, lgr, delay)
@@ -68,6 +63,7 @@ class AutoCtrl(CtrlBase):
             if self.traffic_state is not None:
                 self.traffic_state.traf_running = False
                 self.traffic_state.chk.set_all()
+            self.teardown()
         except NameError as ex:
             self.lgr.error(to_string("NameError: {}", ex))
             if self.traffic_state is not None:
