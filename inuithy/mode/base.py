@@ -333,7 +333,7 @@ class CtrlBase(object):
         if data.get(T_TRAFFIC_STATUS) == TrafficStatus.REGISTERED.name:
             self.lgr.info(to_string("Traffic {} registered on {}",\
                 data.get(T_TID), data.get(T_CLIENTID)))
-            self.traffic_state.update_stat(data.get(T_TID), TrafficStatus.REGISTERED, "is_traffic_all_registered")
+            self.traffic_state.update_stat(data.get(T_TID), TrafficStatus.REGISTERED, "is_traffic_registered")
         elif data.get(T_TRAFFIC_STATUS) == TrafficStatus.RUNNING.name:
             self.lgr.info(to_string("Traffic {} is running on {}",\
                 data.get(T_TID), data.get(T_CLIENTID)))
@@ -344,6 +344,10 @@ class CtrlBase(object):
         elif data.get(T_TRAFFIC_STATUS) == TrafficStatus.INITFAILED.name:
             self.lgr.error(to_string("Agent {} failed to initialize: {}",\
                 data.get(T_CLIENTID), data.get(T_MSG)))
+            self.teardown()
+        elif data.get(T_TRAFFIC_STATUS) == TrafficStatus.AGENTFAILED.name:
+            self.lgr.error(to_string("Failure on Agent: {}", data))
+            to_console("Agent failure: {}", data)
             self.teardown()
         elif data.get(T_MSG) is not None:
             self.lgr.info(data.get(T_MSG))
