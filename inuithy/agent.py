@@ -12,7 +12,7 @@ INUITHY_LOGCONFIG, INUITHY_TOPIC_COMMAND, TrafficType, DEV_TTY, T_GENID,\
 T_SRC, T_PKGSIZE, T_EVERYONE, mqlog_map, T_VERSION, T_MSG_TYPE, T_MQTT_VERSION
 from inuithy.common.runtime import Runtime as rt
 from inuithy.common.runtime import load_tcfg
-from inuithy.common.node_adapter import NodeAdapter
+from inuithy.common.node_adapter import NodeAdapter, scan_nodes
 from inuithy.common.traffic import TrafficExecutor, TRAFFIC_BROADCAST_ADDRESS
 from inuithy.util.helper import getpredefaddr, clear_list
 from inuithy.util.cmd_helper import pub_status, pub_heartbeat, pub_unregister, extract_payload
@@ -177,13 +177,13 @@ class Agent(object):
             if Agent.initialized:
                 Agent.initialized = False
                 msg = to_string("{}:{}", self.clientid, msg)
+                self.stop_traffic_trigger()
                 if self._heartbeat is not None:
                     self._heartbeat.stop()
                 if self.adapter is not None:
                     self.adapter.teardown()
                 if self.worker:
                     self.worker.stop()
-                self.stop_traffic_trigger()
                 pub_status(self.mqclient, rt.tcfg.mqtt_qos, {T_MSG: msg})
                 self.unregister()
                 self.mqclient.disconnect()
@@ -196,17 +196,16 @@ class Agent(object):
     def __str__(self):
         return to_string("clientid:[{}] host:[{}]", self.clientid, self.host)
 
-    def alive_notification(self, scan_nodes=True):
+    def alive_notification(self, scan_required=True):
         """Post alive notification
         @scan_nodes Whether need to scan connected nodes before post
         """
         self.lgr.info(to_string("Alive notification"))
         try:
-            if scan_nodes:
+            if scan_required:
                 self.lgr.info(to_string("Got scan nodes request"))
                 with Agent.__mutex:
-                    # TODO DEV_TTYS => DEV_TTYUSB, DEV_TTYACM
-                    self.adapter.scan_nodes()#[to_string(DEV_TTY, T_EVERYONE)])
+                    scan_nodes(self.adapter)#[to_string(DEV_TTY, T_EVERYONE)])
                     self.addr_to_node()
 
             self.lgr.info(to_string("Connected nodes: [{}]", len(self.adapter.nodes)))
@@ -220,6 +219,11 @@ class Agent(object):
             pub_heartbeat(self.mqclient, rt.tcfg.mqtt_qos, data)
         except Exception as ex:
             self.lgr.error(to_string("Alive notification exception:{}", ex))
+            pub_status(self.mqclient, rt.tcfg.mqtt_qos, {
+                T_TRAFFIC_STATUS: TrafficStatus.AGENTFAILED.name,
+                T_CLIENTID: self.clientid,
+                T_MSG: 'Check me out',
+            })
 
     def unregister(self):
         """Unregister an agent from controller
@@ -394,8 +398,11 @@ class Agent(object):
         except Exception as ex:
             status_msg = to_string("Exception on Agent: {}", ex)
             self.lgr.error(status_msg)
-            raise
-#        finally:
+            pub_status(self.mqclient, rt.tcfg.mqtt_qos, {
+                T_TRAFFIC_STATUS: TrafficStatus.AGENTFAILED.name,
+                T_CLIENTID: self.clientid,
+                T_MSG: status_msg,
+            })
         self.teardown(status_msg)
         self.lgr.info(to_string("Agent terminated"))
 
@@ -445,7 +452,7 @@ class Agent(object):
                 self.lgr.debug(to_string("JOIN: Found node: {}", node))
                 node.joined = False
                 node.writable.set()
-                node.writer.add_job(node.join, data)
+                node.join(data)
             else: # DEBUG
                 self.lgr.error(to_string("{}: Node [{}] not found", self.clientid, naddr))
         except Exception as ex:
@@ -535,7 +542,7 @@ class Agent(object):
             node = self.addr2node.get(naddr)
             if node is not None:
                 self.lgr.debug(to_string("Found node: {}", node))
-                self.adapter.node_writer.add_job(node.write, data.get(T_MSG))
+                node.write(data.get(T_MSG))
             else: # DEBUG
                 self.lgr.error(to_string("{}: Node [{}] not found", self.clientid, naddr))
         except Exception as ex:
