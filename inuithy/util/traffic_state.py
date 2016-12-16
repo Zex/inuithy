@@ -41,7 +41,7 @@ class TrafStatChk(object):
         self.done = threading.Event()
         self._is_agents_up = threading.Event()
         self._is_nwlayout_done = threading.Event()
-        self._is_traffic_all_registered = threading.Event()
+        self._is_traffic_registered = threading.Event()
         self._is_traffic_all_fired = threading.Event()
         self._is_phase_finished = threading.Event()
         self._is_traffic_all_unregistered = threading.Event()
@@ -50,7 +50,7 @@ class TrafStatChk(object):
         [e.set() for e in [
 #           self._is_agents_up,
             self._is_nwlayout_done,
-            self._is_traffic_all_registered,
+            self._is_traffic_registered,
             self._is_traffic_all_fired,
             self._is_phase_finished,
 #           self._is_traffic_all_unregistered,
@@ -61,7 +61,7 @@ class TrafStatChk(object):
         [e.clear() for e in [
 #           self._is_agents_up,
             self._is_nwlayout_done,
-            self._is_traffic_all_registered,
+            self._is_traffic_registered,
             self._is_traffic_all_fired,
             self._is_phase_finished,
 #           self._is_traffic_all_unregistered,
@@ -107,7 +107,7 @@ class TrafStatChk(object):
             TrafStatChk.lgr.error(to_string("Failed to check whether traffic fired: {}", ex))
             return False
 
-    def is_traffic_all_registered(self):
+    def is_traffic_registered(self):
         """Whether traffics are registed"""
 #        TrafStatChk.lgr.info("Is traffic all set")
         try:
@@ -157,12 +157,13 @@ class TrafStatChk(object):
             TrafStatChk.lgr.error(to_string("Failed to check agent availability", ex))
             return False
 
-def transition(sm, event, event_name):
+def transition(sm, event):
     """Transite between states"""
     try:
         event()
     except InvalidStateTransition as ex:
-        to_console("{}: {} => {} Failed: {}", sm, event, event_name, ex)
+        TrafficState.lgr.error(to_string("Failed to transite status {}: {}", event, ex))
+        sm.traf_running = True
 
 def publish_nwlayout(nwlayoutname, nwcfg, tcfg, chk, genid, pub):
     """Configure network by given network layout"""
@@ -390,7 +391,7 @@ class TrafficState:
         if not self.traf_running:
             return
         try:
-            self.chk._is_traffic_all_registered.wait()
+            self.chk._is_traffic_registered.wait()
         except KeyboardInterrupt:
             TrafficState.lgr.info("Terminating ...")
         except Exception as rex:
@@ -463,13 +464,13 @@ class TrafficState:
                 return
             TrafficState.lgr.info(to_string("Start one traffic"))
             self.chk.clear_all()
-            stat_transition = [
+            phase_stat = [
                 self.deploy, self.wait_nwlayout,\
                 self.register, self.wait_traffic,\
                 self.fire, self.phase_finish,\
                 self.genreport,
             ]
-            [stat() for stat in stat_transition if self.traf_running]
+            [transition(self, stat) for stat in phase_stat if self.traf_running]
         except Exception as ex:
             TrafficState.lgr.error(to_string("Traffic state transition failed: {}", str(ex)))
 
@@ -546,15 +547,15 @@ class TrafficState:
         if rt.tcfg.storagetype in [\
             (TrafficStorage.DB.name, StorageType.MongoDB.name),]:
             if self.current_genid is not None:
-                tmg = ProcTaskManager()
+                tmg = ProcTaskManager(with_child=True)
                 nodes = []
                 for agent in self.chk.available_agents.values():
                     nodes = [n for n in agent.nodes]
                 ReportAdapter.guess_proto(nodes)
                 tmg.create_task(ReportAdapter.generate,\
-                    (self.current_genid,\
+                    self.current_genid,\
                     list(self.current_phase.noi.get(T_GATEWAY)),\
-                    list(self.current_phase.noi.get(T_NODES))))
+                    list(self.current_phase.noi.get(T_NODES)))
                 tmg.waitall()
         else:
             TrafficState.lgr.info(to_string("Unsupported storage type: {}", str(rt.tcfg.storagetype)))
