@@ -129,6 +129,7 @@ TrafficStatus = Enum("TrafficStatus", [
     "REGISTERED",       # Traffics already been registered to agents
     "RUNNING",          # Traffics are fired
     "FINISHED",         # Traffics finished
+    "AGENTFAILED",      # Agent down unexpectly
 ])
 
 TrafficType = Enum("TrafficType", [
@@ -151,9 +152,11 @@ class GenInfo(object):
     def __init__(self):
         self.header = None
         self.csv_path = None
+        self.raw_csv_path = None
         self.pdf_path = None
         self.fig_base = None
         self.genid = None
+        self.colormap = 'jet_r' #'brg_r'
 
     def __str__(self):
         return to_string("header: {}\ncsv: {}\npdf: {}\nfigures: {}\ngenid: {}\n",\
