@@ -62,6 +62,13 @@ class ZigbeeProtocol(Protocol):
     UNKNOWN_CMD = 'unknown command'
     NWUPDATESTATUS = 'Network update status'
     HELLO = 'hello'
+    DIAG_ITEM = [
+        T_AVGMACRETRY, T_LASTMSGLQI, T_LASTMSGRSSI, T_PKGBUFALLOCFAIL, T_RTDISCINIT,
+        T_APSRXBCAST,  T_APSTXBCAST, T_APSTXUCASTRETRY, T_RELAYEDUCAST, T_APSRXUCAST,
+        T_NEIGHBORADDED, T_NEIGHBORRMED, T_NEIGHBORSTALE, T_MACRXUCAST, T_MACTXUCAST,
+        T_MACTXUCASTFAIL, T_MACTXUCASTRETRY, T_MACRXBCAST, T_MACTXBCAST, T_APSTXUCASTSUCCESS,
+        T_APSTXUCASTFAIL
+    ]
 
     MsgType = Enum('MsgType', [\
         'snd',\
@@ -98,8 +105,6 @@ class ZigbeeProtocol(Protocol):
             while node.running and node.uid is None or len(node.uid) == 0:
                 node.write(PROTO.getuid())
                 PROTO.lgr.info(to_string("{}: NODE UID", node))
-#                node.writable.wait(10)
-#                node.writable.clear()
 
 #            while node.running and not node.joined:
 #                node.write(PROTO.join(
@@ -107,19 +112,18 @@ class ZigbeeProtocol(Protocol):
 #                    T_CHANNEL: '17', T_PANID: '4321432143214321',
 #                    T_SPANID: '4321', T_NODE: node.uid[-4:],
 #                    }))
-#                node.writable.wait(10)
-#                node.writable.clear()
-#            while node.running:                  
-#                node.write(PROTO.writeattribute2({ T_DEST: 'A003', T_PKGSIZE: '50', T_RSP: '1'})
+#
+#            for _ in range(4): 
+#                if not node.running:
+#                    break
+#                if node.addr == 'A002':
+#                    break
+#                node.write(PROTO.writeattribute2({ T_DEST: 'A002', T_PKGSIZE: '50', T_RSP: '1'})
 #                    + PROTO.getdiag())
-#                node.writable.wait(10)
-#                node.writable.clear()
 
             while node.running and node.fwver is None or len(node.fwver) == 0:
                 node.write(PROTO.getfwver())
                 PROTO.lgr.info(to_string("{}: FWVER", node))
-#                node.writable.wait(10)
-#                node.writable.clear()
 
         except Exception as ex:
             PROTO.lgr.error(to_string("Start proto failed: {}", ex))
@@ -134,14 +138,19 @@ class ZigbeeProtocol(Protocol):
     @staticmethod
     def traffic(params=None, node=None):
         """Traffic command"""
-        msg = PROTO.writeattribute2(params) 
-        msg += PROTO.getdiag(params)
-
         if node is None:
+            msg = PROTO.writeattribute2(params) 
+            msg += PROTO.getdiag(params)
+
             return msg
         else:
+            msg = PROTO.writeattribute2(params) 
             node.write(msg, params)
+
+            node.in_traffic = False
+            msg = PROTO.getdiag(params)
             node.write(msg, params)
+            node.in_traffic = True
 
     @staticmethod
     def joinnw(params=None):
@@ -202,7 +211,7 @@ class ZigbeeProtocol(Protocol):
         if data is None or node is None:
             return
 
-        PROTO.lgr.debug(to_string('{}: {}', node, data))
+#        PROTO.lgr.debug(to_string('{}: {}', node, data))
         report = {}
         data = data.strip('\t \r\n')
        
@@ -294,6 +303,7 @@ class ZigbeeProtocol(Protocol):
 #                    node.nr_messages_sent += 1
             else:
                 PROTO.lgr.error(to_string('Incorrect send confirm: {}', data))
+            node.writable.set()
         elif msg_type == MessageType.RECV.name:
             report.update({
                 T_TRAFFIC_TYPE: TrafficType.SCMD.name,
@@ -303,6 +313,7 @@ class ZigbeeProtocol(Protocol):
                 T_ZBEE_NWK_DST: node.addr,
                 T_ZBEE_ZCL_CMD_TSN: params[1],
             })
+            node.writable.set()
         elif msg_type == MessageType.JOINING.name:
             report = {
                 T_TRAFFIC_TYPE: TrafficType.JOIN.name,
@@ -310,6 +321,7 @@ class ZigbeeProtocol(Protocol):
             }
             #DEBUG data
             node.joined = True
+            node.writable.set()
         elif params[0] == 'Trying':
             return None
         elif params[0] == 'Network':
@@ -328,28 +340,8 @@ class ZigbeeProtocol(Protocol):
                 T_TRAFFIC_TYPE: TrafficType.SCMD.name,
                 T_TYPE: PROTO.MsgType.dgn.name,
                 T_ZBEE_NWK_ADDR: node.addr,
-                T_AVGMACRETRY: params[1],
-                T_LASTMSGLQI: params[2],
-                T_LASTMSGRSSI: params[3],
-                T_PKGBUFALLOCFAIL: params[4],
-                T_RTDISCINIT: params[5],
-                T_APSRXBCAST: params[6],
-                T_APSTXBCAST: params[7],
-                T_APSTXUCASTRETRY: params[8],
-                T_RELAYEDUCAST: params[9],
-                T_APSRXUCAST: params[10],
-                T_NEIGHBORADDED: params[11],
-                T_NEIGHBORRMED: params[12],
-                T_NEIGHBORSTALE: params[13],
-                T_MACRXUCAST: params[14],
-                T_MACTXUCAST: params[15],
-                T_MACTXUCASTFAIL: params[16],
-                T_MACTXUCASTRETRY: params[17],
-                T_MACRXBCAST: params[18],
-                T_MACTXBCAST: params[19],
-                T_APSTXUCASTSUCCESS: params[20],
-                T_APSTXUCASTFAIL: params[21],
             })
+            report.update(dict(zip(PROTO.DIAG_ITEM, params[1:])))
             node.writable.set()
         else:
             report.update({
@@ -380,7 +372,7 @@ class ZigbeeProtocol(Protocol):
             T_TYPE: PROTO.MsgType.snd_req.name,
             T_ZBEE_NWK_SRC: request.get(T_SRC),#node.addr,
             T_ZBEE_NWK_DST: request.get(T_DEST),
-            T_ACK: request.get(T_RSP) == 1 and 'y' or 'n',
+            T_ACK: request.get(T_RSP) and 'y' or 'n',
         }
         return report
 
