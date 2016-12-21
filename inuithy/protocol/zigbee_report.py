@@ -62,33 +62,70 @@ class ZbeeReport(object):
     def diag_item_based(ginfo, pdata, item, pdf_pg, nodes=None, iloc_range=None, title=None):
         lgr.info(to_string("Creating figure for item {}", item))
         df = None
+        index_l = 0
+        data = {}
         try:
             addr_grp = pdata.groupby([T_ZBEE_NWK_ADDR], as_index=False)
-
             if nodes is None or len(nodes) == 0:
                 nodes = addr_grp.groups.keys()
 
             for addr in nodes:
                 try:
                     grp = addr_grp.get_group(addr)
-                    index = np.arange(len(grp[item].values))
-                    data = pd.DataFrame({addr: grp[item].values}, index=index)
-                    if df is None:
-                        df = data
-                    else:
-                        df = df.join(data, how='outer')
+                    """
+                    a = pd.DataFrame({item:grp[item], T_TIME:grp[T_TIME]})#.diff()
+                    dtime = a[T_TIME]
+                    dtime = dtime.diff()
+                    dtime = dtime.fillna(value=0.0)
+                    print(dtime)
+                    print('----------------------------------------')
+                    index = dtime + np.arange(len(dtime))
+                    print(dtime)
+                    print('========================================')
+                    """
+#                    data = pd.DataFrame({addr: grp[item].values}, index=grp[T_TIME])
+#                    data = data.diff()
+#                    dtime = grp[T_TIME]
+#                    dtime = dtime.diff()
+#                    dtime = dtime.fillna(value=0.0)
+#                    data.index = dtime + np.arange(len(dtime)) 
+#                    print(data)
+#                    print('========================================')
+
+                    index_l = max(index_l, len(grp[item].values))
+                    buf = np.array(grp[item].values)
+                    buf = np.diff(buf)
+                    buf = buf[1:]
+                    data[addr] = buf
+#                    buf = np.concatenate((buf, np.array([buf[-1]*(index_l-len(grp[item].values)))))
+#                    data = pd.DataFrame({addr: buf}, index=index)
+
+#                    if df is None:
+#                        df = data
+#                    else:
+#                        df.index = np.arange(index_l)
+#                        df = df.join(data, how='outer')
                 except KeyError as ex:
                     lgr.warning(to_string("No record for node [{}]: {}", addr, ex))
         except Exception as ex:
-            lgr.error(to_string("Exception on processing diag data data {}: {}", item, ex))
+            lgr.error(to_string("Exception on processing diag data {}: {}", item, ex))
             return
+
+#        data = data.diff()
+#       df = df.fillna(value=0)
+        for k in data:
+            buf = data[k]
+            data[k] = np.concatenate((buf, np.array([buf[-1]]*(index_l-len(buf)))))
+        index = np.arange(1, index_l)
+        print(data)
+        df = pd.DataFrame(data, index=index)
 
         try:
             if df is not None and not df.empty:
-                df = df.fillna(value=0)
-                df = df.diff()
                 if iloc_range is not None:
                     df = df.iloc[iloc_range[0]:iloc_range[1]]
+                else:
+                    df = df.iloc[1:]
                 if title is None or len(title) == 0:
                     title = to_string("{} by {}", item, T_ZBEE_NWK_ADDR)
                 df.plot(xticks=[], lw=1.5, colormap=ginfo.colormap, figsize=ginfo.figsize)

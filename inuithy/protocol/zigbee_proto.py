@@ -3,7 +3,8 @@
 """
 from inuithy.common.predef import to_string, T_TIME, T_TYPE, T_MSG,\
 MessageType, TrafficType, T_NODE, T_MSG_TYPE, T_TRAFFIC_TYPE,\
-T_GENID, T_CHANNEL, T_PANID, T_SPANID, T_DEST, T_PKGSIZE, T_SRC, NodeType
+T_GENID, T_CHANNEL, T_PANID, T_SPANID, T_DEST, T_PKGSIZE, T_SRC, NodeType,\
+T_DIAG
 from inuithy.protocol.protocol import Protocol
 from enum import Enum
 import time
@@ -103,7 +104,7 @@ class ZigbeeProtocol(Protocol):
             node.uid = None
 
             while node.running and node.uid is None or len(node.uid) == 0:
-                node.write(PROTO.getuid())
+                node._write(PROTO.getuid())
                 PROTO.lgr.info(to_string("{}: NODE UID", node))
 
 #            while node.running and not node.joined:
@@ -122,7 +123,7 @@ class ZigbeeProtocol(Protocol):
 #                    + PROTO.getdiag())
 
             while node.running and node.fwver is None or len(node.fwver) == 0:
-                node.write(PROTO.getfwver())
+                node._write(PROTO.getfwver())
                 PROTO.lgr.info(to_string("{}: FWVER", node))
 
         except Exception as ex:
@@ -139,18 +140,15 @@ class ZigbeeProtocol(Protocol):
     def traffic(params=None, node=None):
         """Traffic command"""
         if node is None:
-            msg = PROTO.writeattribute2(params) 
-            msg += PROTO.getdiag(params)
-
-            return msg
-        else:
-            msg = PROTO.writeattribute2(params) 
-            node.write(msg, params)
-
-            node.in_traffic = False
+            return 
+        if params.get(T_DESTS) == T_DIAG:
             msg = PROTO.getdiag(params)
-            node.write(msg, params)
-            node.in_traffic = True
+            node.write(msg)
+        else:
+            for dest in params.get(T_DESTS):
+                params[T_DEST] = dest
+                msg = PROTO.writeattribute2(params) 
+                node.write(msg, params)
 
     @staticmethod
     def joinnw(params=None):
@@ -200,6 +198,12 @@ class ZigbeeProtocol(Protocol):
         #TODO
         msg = params.get(T_MSG)
         return msg == PROTO.NAME
+    
+    @staticmethod
+    def unify_addr(addr):
+        if addr is None:
+            return ''
+        return addr.upper().strip('0X')
 
     @staticmethod
     def parse_rbuf(data, node, adapter=None):
@@ -211,7 +215,7 @@ class ZigbeeProtocol(Protocol):
         if data is None or node is None:
             return
 
-#        PROTO.lgr.debug(to_string('{}: {}', node, data))
+        PROTO.lgr.debug(to_string('{}: {}', node, data))
         report = {}
         data = data.strip('\t \r\n')
        
@@ -269,15 +273,14 @@ class ZigbeeProtocol(Protocol):
             node.writable.set()
             return
 
-        report[T_GENID] = node.genid
-        report[T_TIME] = time.time()
-        report[T_NODE] = node.addr
-
         if PROTO.NWUPDATESTATUS in data:
             report.update({\
                 T_TRAFFIC_TYPE: TrafficType.JOIN.name,\
                 T_MSG_TYPE: MessageType.RECV.name,\
                 T_MSG: data,\
+                T_GENID: node.genid,\
+                T_TIME: time.time(),\
+                T_NODE: PROTO.unify_addr(node.addr),\
             })
             node.joined = True
             return report
@@ -286,34 +289,33 @@ class ZigbeeProtocol(Protocol):
         msg_type = params[0].upper()
 
         if msg_type == MessageType.SEND.name:
-            if len(params) == 6:
-                report.update({
-                    T_TIME: time.time(),
-                    T_TRAFFIC_TYPE: TrafficType.SCMD.name,
-                    T_MSG_TYPE: MessageType.RECV.name,
-                    T_TYPE: PROTO.MsgType.snd.name,
-                    T_ZBEE_NWK_SRC: node.addr,
-                    T_ZBEE_NWK_DST: params[4],
-                    T_ZBEE_ZCL_CMD_TSN: params[1],
-                    T_STATUS: params[5],
-                    T_SND_SEQ_NR: node.sequence_nr,
-                })
-                node.sequence_nr += 1
-#                if status == '0x00':
-#                    node.nr_messages_sent += 1
-            else:
-                PROTO.lgr.error(to_string('Incorrect send confirm: {}', data))
+            """Send 0xc1 0x05 0xa001 0xa004 0x00"""
+            report.update({
+                T_TIME: time.time(),
+                T_TRAFFIC_TYPE: TrafficType.SCMD.name,
+                T_MSG_TYPE: MessageType.RECV.name,
+                T_TYPE: PROTO.MsgType.snd.name,
+                T_ZBEE_ZCL_CMD_TSN: params[1],
+                T_ZBEE_NWK_SRC: PROTO.unify_addr(params[3]),
+                T_ZBEE_NWK_DST: PROTO.unify_addr(params[4]),
+                T_STATUS: params[5],
+                T_SND_SEQ_NR: node.sequence_nr,
+            })
+            node.sequence_nr += 1
+#           if status == '0x00':
+#               node.nr_messages_sent += 1
             node.writable.set()
         elif msg_type == MessageType.RECV.name:
+            """Recv 0xc1 0x05 0xa001 0xa004"""
             report.update({
                 T_TRAFFIC_TYPE: TrafficType.SCMD.name,
                 T_MSG_TYPE: MessageType.RECV.name,
                 T_TYPE: PROTO.MsgType.rcv.name,
-                T_ZBEE_NWK_SRC: params[3],
-                T_ZBEE_NWK_DST: node.addr,
+                T_ZBEE_NWK_SRC: PROTO.unify_addr(params[3]),
+                T_ZBEE_NWK_DST: PROTO.unify_addr(params[4]),
                 T_ZBEE_ZCL_CMD_TSN: params[1],
             })
-            node.writable.set()
+#            node.writable.set()
         elif msg_type == MessageType.JOINING.name:
             report = {
                 T_TRAFFIC_TYPE: TrafficType.JOIN.name,
@@ -322,9 +324,7 @@ class ZigbeeProtocol(Protocol):
             #DEBUG data
             node.joined = True
             node.writable.set()
-        elif params[0] == 'Trying':
-            return None
-        elif params[0] == 'Network':
+        elif params[0] == 'Trying' or params[0] == 'Network':
             return None
         elif params[0] == PROTO.GETUID:
             node.uid = params[1]
@@ -339,7 +339,7 @@ class ZigbeeProtocol(Protocol):
                 T_MSG_TYPE: MessageType.RECV.name,
                 T_TRAFFIC_TYPE: TrafficType.SCMD.name,
                 T_TYPE: PROTO.MsgType.dgn.name,
-                T_ZBEE_NWK_ADDR: node.addr,
+                T_ZBEE_NWK_ADDR: PROTO.unify_addr(node.addr),
             })
             report.update(dict(zip(PROTO.DIAG_ITEM, params[1:])))
             node.writable.set()
@@ -347,9 +347,16 @@ class ZigbeeProtocol(Protocol):
             report.update({
                 T_MSG_TYPE: MessageType.RECV.name,
                 T_UNKNOWN_RESP: T_YES,
-                T_ZBEE_NWK_ADDR: ' '.join([node.addr, data]),
+                T_ZBEE_NWK_ADDR: ' '.join([PROTO.unify_addr(node.addr), data]),
             })
-  
+
+        if report.get(T_TRAFFIC_TYPE):
+            report.update({
+                T_GENID: node.genid,
+                T_TIME: time.time(),
+                T_NODE: PROTO.unify_addr(node.addr),
+            })
+
         return report
 
     @staticmethod
