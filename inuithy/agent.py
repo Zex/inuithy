@@ -9,7 +9,7 @@ INUITHY_TOPIC_CONFIG, INUITHYAGENT_CLIENT_ID, T_ADDR, T_HOST, T_NODE,\
 T_CLIENTID, T_TID, T_INTERVAL, T_DURATION, T_NODES, T_DEST,\
 T_TRAFFIC_STATUS, T_MSG, T_CTRLCMD, TrafficStatus, T_TRAFFIC_TYPE,\
 INUITHY_LOGCONFIG, INUITHY_TOPIC_COMMAND, TrafficType, DEV_TTY, T_GENID,\
-T_SRC, T_PKGSIZE, T_EVERYONE, mqlog_map, T_VERSION, T_MSG_TYPE, T_MQTT_VERSION
+T_SRC, T_PKGSIZE, T_EVERYONE, mqlog_map, T_VERSION, T_MSG_TYPE, T_MQTT_VERSION, T_JITTER
 from inuithy.common.runtime import Runtime as rt
 from inuithy.common.runtime import load_tcfg
 from inuithy.common.node_adapter import NodeAdapter, scan_nodes
@@ -509,7 +509,7 @@ class Agent(object):
 #                    request=request, lgr=self.lgr, mqclient=self.mqclient, tid=data.get(T_TID),\
 #                    data=dest)
 #            else:
-            te = TrafficExecutor(node, data.get(T_INTERVAL), data.get(T_DURATION),\
+            te = TrafficExecutor(node, data.get(T_INTERVAL), data.get(T_DURATION), data.get(T_JITTER), \
                 request=request, lgr=self.lgr, mqclient=self.mqclient, tid=data.get(T_TID))
 
             self.__traffic_executors.put(te)
@@ -518,6 +518,13 @@ class Agent(object):
                 T_CLIENTID: self.clientid,
                 T_TID: data.get(T_TID),
             })
+            # start on registered
+#            te.start()
+#            pub_status(self.mqclient, rt.tcfg.mqtt_qos, {
+#                T_TRAFFIC_STATUS: TrafficStatus.RUNNING.name,
+#                T_CLIENTID: self.clientid,
+#                T_TID: te.tid,
+#            })
         else:
             self.lgr.error(to_string("{}: Node [{}] not found", self.clientid, naddr))
 
