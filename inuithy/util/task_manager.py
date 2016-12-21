@@ -20,10 +20,11 @@ logger = logging.getLogger('TaskManager')
 class ProcTaskManager(object):
     """Process task manager
     """
-    def __init__(self, lgr=None, with_child=False):
+    def __init__(self, lgr=None, with_child=False, daemon=False):
         self.__tasks = [] #self.shared_mng.Queue()
         self.lgr = lgr is None and logging or lgr
         self.with_child = with_child
+        self.daemon = daemon
 
     def waitall(self):
         self.lgr.info(to_string('[{}] tasks running', len(self.__tasks)))
@@ -39,6 +40,7 @@ class ProcTaskManager(object):
         """
         try:
             t = mp.Process(target=proc, args=args)
+            t.daemon = self.daemon
             self.__tasks.append(t)
             if self.with_child:
                 t.start()
