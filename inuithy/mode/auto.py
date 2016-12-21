@@ -4,8 +4,7 @@
 from inuithy.common.version import __version__
 from inuithy.common.predef import INUITHY_TOPIC_HEARTBEAT, INUITHY_TOPIC_STATUS,\
 INUITHY_TOPIC_REPORTWRITE, INUITHY_TOPIC_NOTIFICATION, INUITHY_TOPIC_UNREGISTER,\
-INUITHY_TITLE, INUITHY_LOGCONFIG,\
-to_string
+INUITHY_TITLE, INUITHY_LOGCONFIG, to_string, to_console
 from inuithy.mode.base import CtrlBase
 from inuithy.util.cmd_helper import stop_agents
 from inuithy.common.runtime import Runtime as rt
@@ -74,6 +73,7 @@ class AutoCtrl(CtrlBase):
             self.lgr.error(to_string("Exception on AutoCtrl: {}", ex))
 #        self.teardown()
         self.lgr.info(to_string("AutoCtrl terminated"))
+        to_console(to_string("AutoCtrl terminated"))
 
 def start_controller(args=None, lgr=None):
     """Shortcut to start controller"""
