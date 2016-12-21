@@ -4,8 +4,8 @@
 from inuithy.common.predef import T_DURATION, T_INTERVAL,\
 T_NWCONFIG_PATH, T_NWLAYOUT, T_SRCS, T_DESTS, T_GATEWAY,\
 T_TARGET_PHASES, TRAFFIC_CONFIG_PATH, NETWORK_CONFIG_PATH,\
-T_PKGSIZE, T_NODES, to_console, to_string, T_EVERYONE,\
-T_TRAFFIC_STATUS, TrafficStatus, T_TID, T_NOI, T_TRAFFICS
+T_PKGSIZE, T_NODES, to_console, to_string, T_EVERYONE, T_DIAG,\
+T_TRAFFIC_STATUS, TrafficStatus, T_TID, T_NOI, T_TRAFFICS, T_JITTER
 from inuithy.util.helper import getnwlayoutid, is_number
 from inuithy.util.cmd_helper import pub_status
 from inuithy.common.node import SerialNode
@@ -23,15 +23,15 @@ TRAFFIC_BROADCAST_ADDRESS = 'FFFF'
 class Traffic(object):
     """Traffic information block"""
 
-    def __init__(self, psize=1, src=None, dest=None):
+    def __init__(self, psize=1, src=None, dests=None):
         self.tid = ''.join([random.choice(string.hexdigits) for _ in range(7)])
         self.pkgsize = psize
         self.src = src
-        self.dest = dest
+        self.dests = dests
 
     def __str__(self):
-        return to_string("[{}] <{}>---P({})---><{}>",
-            self.tid, self.src, self.pkgsize, self.dest)
+        return to_string("[{}] {}-P({})->{}",
+            self.tid, self.src, self.pkgsize, self.dests)
 
 class TrafficGenerator(object):
     """Parse srcs/dests, define network traffics
@@ -78,6 +78,7 @@ class TrafficGenerator(object):
         self.__nwconfig_name = ''
         self.__interval = self.cur_trcfg.get(T_INTERVAL) # seconds
         self.__duration = self.cur_trcfg.get(T_DURATION)
+        self.jitter = self.cur_trcfg.get(T_JITTER)
         self.traffics = []
         self.noi = set()
         self.create_traffic(nwcfg, phase.info)
@@ -118,11 +119,12 @@ class TrafficGenerator(object):
         @param[in] nwcfg Network layout definition
         @return Expected dests
         """
-#        nw = tr[T_NWLAYOUT]
         nodes = []
         for s in tr[T_DESTS]:
             if s == T_EVERYONE:
                 nodes.append(TRAFFIC_BROADCAST_ADDRESS)
+            elif s == T_DIAG:
+                nodes.append(T_DIAG)
             elif is_number(s):
                 nodes.append(s)
             else:
@@ -142,9 +144,9 @@ class TrafficGenerator(object):
         [self.noi.add(n) for n in dests]
 
         for s in srcs:
-            for r in dests:
-                tr = Traffic(self.cur_trcfg[T_PKGSIZE], s, r)
-                self.traffics.append(tr)
+            #for r in dests:
+            tr = Traffic(self.cur_trcfg[T_PKGSIZE], s, dests)
+            self.traffics.append(tr)
         return self
 
 class Phase(object):
@@ -199,7 +201,7 @@ class Duration(object):
     def __exit__(self, cls, message, traceback):
         to_console("<< {}", time.ctime(time.clock_gettime(time.CLOCK_REALTIME)))
 
-class TrafficExecutor(threading.Thread):
+class TrafficExecutor(object): #(threading.Thread):
     """ Traffic trigger
     @node       Source node
     @interval   Traffic trigger interval, in second
@@ -212,46 +214,61 @@ class TrafficExecutor(threading.Thread):
     def finished(self, val):
         pass
 
-    def __init__(self, node, interval, duration, request=None, lgr=None, mqclient=None, tid=None, data=None):
-        threading.Thread.__init__(self, name=to_string("TE-{}", tid), target=None)
+    def __init__(self, node, interval, duration, jitter, request=None, lgr=None, mqclient=None, tid=None, data=None):
+#        threading.Thread.__init__(self, name=to_string("TE-{}", tid), target=None)
         self.daemon=False
         self.lgr = lgr is None and logging or lgr
+        self.jitter = jitter
         self.interval = interval
         self.duration = duration
+        self.current = time.time()
+        self.end = self.current + self.duration
         self.node = node
         self.request = request
-        self.stop_timer = threading.Timer(duration, self.stop_trigger)
+#        self.stop_timer = threading.Timer(duration, self.stop_trigger)
+        self.trigger = threading.Timer(duration, self.fire)
         self.mqclient = mqclient
         self.tid = tid
-        self.nextshot = threading.Event()
+#        self.nextshot = threading.Event()
         self.data = data
 
     def run(self):
         self.lgr.debug(to_string("Start traffic [{}]", self))
         self.running = True
-        self.stop_timer.start()
+#        self.stop_timer.start()
 
         self.node.in_traffic = True
-        while self.running: # TODO debug check
-            try:
-                self.node.traffic(self.request)
-                self.nextshot.wait(self.interval)
-                self.nextshot.clear()
-            except Exception as ex:
-                self.lgr.debug(to_string("Traffic exception: {}", ex))
-                self.running = False
-                self.node.in_traffic = False
-                pub_status(self.mqclient, data={
-                    T_TRAFFIC_STATUS: TrafficStatus.AGENTFAILED.name,
-                    T_TID: self.tid,
-                    T_MSG: str(ex),
-                })
+        while self.running and self.current < self.end:
+            self.fire()
+        self.stop_trigger()
+
+
+    def fire(self):
+
+        if self.running and self.current < self.end:
+
+        try:
+            self.node.traffic(self.request)
+#                self.nextshot.wait(self.interval)
+#                self.nextshot.clear()
+        except Exception as ex:
+            self.lgr.debug(to_string("Traffic exception: {}", ex))
+            self.running = False
+            self.node.in_traffic = False
+            pub_status(self.mqclient, data={
+                T_TRAFFIC_STATUS: TrafficStatus.AGENTFAILED.name,
+                T_TID: self.tid,
+                T_MSG: str(ex),
+            })
+        self.current += self.interval + random.uniform(-self.jitter, self.jitter)
 
     def stop_trigger(self):
-        to_console("{}: ========Stopping trigger============", self)
+        if not self.running:
+            return
+        to_console("{}: Stopping trigger", self)
         self.node.in_traffic = False
         self.running = False
-        self.stop_timer.cancel()
+#        self.stop_timer.cancel()
         if self.mqclient is not None:
             pub_status(self.mqclient, data={
                 T_TRAFFIC_STATUS: TrafficStatus.FINISHED.name,

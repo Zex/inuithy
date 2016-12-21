@@ -41,7 +41,6 @@ class NodeAdapter(object):
     def nodes(self, val):
         pass
 
-    resp_timeout = threading.Event()
     _mutex = threading.Lock()
 
     _initialized = False
@@ -172,8 +171,10 @@ def scan_nodes(adapter, targets=None):
 #   [adapter.create_node(path) for path in paths]
 #   [adapter.worker.add_job(adapter.get_type, node) for node in adapter.nodes.values()]
     adapter.expected_paths = paths
-    pool = ProcTaskManager(NodeAdapter.lgr)
+    pool = ProcTaskManager(NodeAdapter.lgr, daemon=True)
+    NodeAdapter.lgr.info("Scanning preparing")
     [pool.create_task(create_node, adapter, path) for path in paths]
+    NodeAdapter.lgr.info("Scanning started")
     pool.waitall()
 
     adapter.scan_done.wait()

@@ -3,7 +3,7 @@
 """
 from inuithy.common.predef import TrafficType, T_MSG, T_GENID,\
 INUITHY_LOGCONFIG, to_string, T_TYPE, T_ADDR, T_PATH, NodeType
-from inuithy.util.cmd_helper import pub_reportwrite, pub_notification
+from inuithy.util.cmd_helper import pub_reportwrite, pub_notification, pub_status
 from inuithy.util.worker import Worker
 from inuithy.protocol.ble_proto import BleProtocol as BleProto
 from inuithy.protocol.zigbee_proto import ZigbeeProtocol as ZbeeProto
@@ -114,12 +114,6 @@ class Node(object):
                 return
             if self.proto is None:
                 return
-#                data = data.strip('\t \r\n')
-#                if self.adapter is not None:
-#                    self.adapter.register(self, data)
-#                else:
-#                    self.lgr.error(to_string("Failed to register node to adapter: no adapter given"))
-#                return
             report = self.proto.parse_rbuf(data, self, self.adapter)
 
             if self.reporter is not None and report is not None and len(report) > 2:
@@ -152,8 +146,8 @@ class SerialNode(Node):
             reporter=reporter, lgr=lgr, adapter=adapter)
         if path is not None and exists(path):
             self.dev = serial.Serial(path, baudrate=baudrate, timeout=timeout)
-        self.writer = None
-        self.wait_timeout = 3
+#        self.writer = None
+        self.wait_timeout = 2.0
 
     def _read_one(self, rdbyte=0, in_wait=False):
         rdbuf = ''
@@ -185,11 +179,21 @@ class SerialNode(Node):
                     self.report_read(rdbuf)
         except serial.SerialException as ex:
             self.lgr.error(to_string("Serial exception on reading: {}", ex))
+            pub_status(self.reporter, data={
+                T_TRAFFIC_STATUS: TrafficStatus.AGENTFAILED.name,
+                T_NODE: self,
+                T_MSG: str(ex),
+            })
 
     def _write(self, data="", request=None):
         """Write data ultility"""
         try:
+            if not self.in_traffic:
+                self.writable.wait(self.wait_timeout)
+            else:
+                self.writable.wait()
             written = self.dev.write(data)
+            self.writable.clear()
             self.report_write(data, request)
             self.lgr.info(to_string("NODE|W: {}, {}({})", self.path, data, written))
         except serial.SerialException as ex:
@@ -199,11 +203,9 @@ class SerialNode(Node):
     def write(self, data="", request=None):
         if data is None or len(data) == 0:
             return
-        if not self.in_traffic:
-            self.writable.wait(self.wait_timeout)
-        self._write(data, request)
-#        self.writer.add_job(self._write, data, request)
-        self.writable.clear()
+#        if not self.in_traffic:
+#        self._write(data, request)
+        self.writer.add_job(self._write, data, request)
 
     def read(self, request=None):
 #        self.reader.add_job(self._read)
