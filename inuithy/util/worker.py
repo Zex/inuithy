@@ -69,6 +69,8 @@ class Worker(object):
     def stop(self):
         self.lgr.info("Stop worker")
         self._keep_working = False
+        while self.jobs.qsize():
+            self.jobs.get_nowait()
 
 if __name__ == '__main__':
     import time
