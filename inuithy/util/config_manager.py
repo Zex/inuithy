@@ -7,7 +7,7 @@ T_MQTT, T_WORKMODE, T_HEARTBEAT, T_ENABLE_MQDEBUG, T_TSH, T_HISTORY, T_QOS,\
 T_TARGET_AGENTS, T_NODES, T_PANID, T_SPANID, T_NWCONFIG_PATH, T_TYPE,\
 T_AGENTS, T_CONTROLLER, T_USER, T_TRAFFIC_STORAGE, T_GENID, T_PATH,\
 T_PORT, WorkMode, TrafficStorage, StorageType, T_PASSWD, T_CHANNEL,\
-T_GATEWAY, T_TRAFFICS, T_DURATION, T_PKGSIZE, T_INTERVAL,\
+T_GATEWAY, T_TRAFFICS, T_DURATION, T_JITTER, T_PKGSIZE, T_INTERVAL,\
 T_DESTS, T_SRCS, T_NWLAYOUT, NETWORK_CONFIG_PATH, T_NOI,\
 TRAFFIC_CONFIG_PATH, T_HOST, T_REPORTDIR, T_TRAFFIC_FINISH_DELAY,\
 T_TARGET_PHASES, T_EVERYONE, T_RLOGBASE
@@ -127,7 +127,10 @@ class InuithyConfig(Config):
         return self.config[T_WORKMODE]
     @workmode.setter
     def workmode(self, val):
-        pass
+        if not isinstance(val, str):
+            return
+        if val in WorkMode.__members__.keys():
+            self.config[T_WORKMODE] = val
 
     @property
     def heartbeat(self):
@@ -519,6 +522,7 @@ class TrafficConfig(Config):
             T_PKGSIZE: 1,
             # seconds
             T_DURATION: 180,
+            T_JITTER: 0.1,
         }
         self.config["traffic_1"] = {
             T_SRCS: [
@@ -531,6 +535,7 @@ class TrafficConfig(Config):
             T_PKGSIZE: 2,
             # seconds
             T_DURATION: 180,
+            T_JITTER: 0.1,
         }
         self.config["traffic_2"] = {
             T_SRCS: [
@@ -543,6 +548,7 @@ class TrafficConfig(Config):
             T_PKGSIZE: 2,
             # seconds
             T_DURATION: 360,
+            T_JITTER: 0.1,
         }
         self.config["traffic_3"] = {
             T_SRCS: [
@@ -555,6 +561,7 @@ class TrafficConfig(Config):
             T_PKGSIZE: 2,
             # seconds
             T_DURATION: 360,
+            T_JITTER: 0.1,
         }
         self.config["traffic_4"] = {
             T_SRCS: [
@@ -567,6 +574,7 @@ class TrafficConfig(Config):
             T_PKGSIZE: 2,
             # seconds
             T_DURATION: 360,
+            T_JITTER: 0.1,
         }
         self.config["traffic_5"] = {
             T_SRCS: [
@@ -579,6 +587,7 @@ class TrafficConfig(Config):
             T_PKGSIZE: 2,
             # seconds
             T_DURATION: 10,
+            T_JITTER: 0.1,
         }
         self.config["traffic_6"] = {
             T_SRCS: [
@@ -591,6 +600,7 @@ class TrafficConfig(Config):
             T_PKGSIZE: 2,
             # seconds
             T_DURATION: 10,
+            T_JITTER: 0.1,
         }
         # Network layout configure path
         self.config[T_NWCONFIG_PATH] = NETWORK_CONFIG_PATH
