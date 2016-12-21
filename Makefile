@@ -44,7 +44,7 @@ run_agent: inuithy/agent.py
 	$(PYTHON) $<
 
 run_mosquitto:
-	mosquitto -c $(MOSQUITTO_CONFIG)
+	mosquitto -c $(MOSQUITTO_CONFIG) &
 
 run_mongod:
 	mongod -f $(MONGODB_CONFIG)
