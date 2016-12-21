@@ -47,17 +47,21 @@ class TrafStatChk(object):
         self._is_traffic_all_unregistered = threading.Event()
 
     def set_all(self):
-        [e.set() for e in [
+        TrafStatChk.lgr.info("Notify all waiting processes")
+        try:
+            [e.set() for e in [
 #           self._is_agents_up,
             self._is_nwlayout_done,
             self._is_traffic_registered,
             self._is_traffic_all_fired,
             self._is_phase_finished,
 #           self._is_traffic_all_unregistered,
-            ] if not e.isSet()
-        ]
+            ]]
+        except Exception as ex:
+            TrafStatChk.lgr.error("Failed to set all waiting")
 
     def clear_all(self):
+        TrafStatChk.lgr.info("Clear all waiting processes")
         [e.clear() for e in [
 #           self._is_agents_up,
             self._is_nwlayout_done,
@@ -65,7 +69,7 @@ class TrafStatChk(object):
             self._is_traffic_all_fired,
             self._is_phase_finished,
 #           self._is_traffic_all_unregistered,
-            ] if e.isSet()
+            ]
         ]
 
     def create_nwlayout(self, nwinfo):#nwid, nodes):
@@ -81,9 +85,10 @@ class TrafStatChk(object):
 #        TrafStatChk.lgr.info("Is network layout done")
         try:
             if self.available_agents is None or len(self.available_agents) == 0:
-                raise ValueError("No agent available")
+                raise RuntimeError("No agent available")
             nw = self.nwlayout
             chks = [chk for chk in nw.values() if chk is True]
+            to_console("Node join state: [{}/{}]", len(chks), len(nw))
             if len(chks) != len(nw):
                 return False
             return True
@@ -109,7 +114,7 @@ class TrafStatChk(object):
 
     def is_traffic_registered(self):
         """Whether traffics are registed"""
-#        TrafStatChk.lgr.info("Is traffic all set")
+#        TrafStatChk.lgr.info("Is traffic registered")
         try:
             if len(self.available_agents) == 0:
                 raise ValueError("No agent available")
@@ -199,11 +204,13 @@ def publish_traffic(genid, tg, tr, chk, pub, enable_localdebug=False):
             T_NODE: tr.src,
             T_HOST: target_host,
             T_DURATION: tg.duration,
+            T_JITTER: tg.jitter,
             T_INTERVAL: tg.interval,
             T_SRC: tr.src,
-            T_DEST: tr.dest,
+            T_DESTS: tr.dests,
             T_PKGSIZE: tr.pkgsize,
         }
+        chk.traffic_stat[tr.tid] = TrafficStatus.REGISTERING
         if not enable_localdebug:
             data[T_CLIENTID] = chk.node2aid.get(tr.src)
             pub_traffic(pub, data=data)
@@ -212,7 +219,6 @@ def publish_traffic(genid, tg, tr, chk, pub, enable_localdebug=False):
                 data[T_CLIENTID] = aid
                 pub_traffic(pub, data=data)
                 break
-        chk.traffic_stat[tr.tid] = TrafficStatus.REGISTERING
         TrafficState.lgr.debug(to_string("TRAFFIC: {}:{}:{}", data.get(T_TID), data.get(T_CLIENTID), tr))
     except Exception as ex:
         TrafficState.lgr.error(to_string(
@@ -361,9 +367,10 @@ class TrafficState:
     @after('wait_agent')
     def do_waitfor_agent_all_up(self):
         """Wait for expected agents startup"""
-        TrafficState.lgr.info(to_string("Wait for agents all up", str(self.current_state)))
         if not self.traf_running:
             return
+        TrafficState.lgr.info(to_string("Wait for agents get ready", str(self.current_state)))
+        to_console("Wait for agents get ready")
         try:
             self.chk._is_agents_up.wait()
         except KeyboardInterrupt:
@@ -374,9 +381,10 @@ class TrafficState:
     @after('wait_nwlayout')
     def do_waitfor_nwlayout_done(self):
         """Wait for network configure to be done"""
-        TrafficState.lgr.info(to_string("Wait for network layout done: {}", str(self.current_state)))
         if not self.traf_running:
             return
+        TrafficState.lgr.info(to_string("Wait for network layout done: {}", str(self.current_state)))
+        to_console("Wait for network layout done")
         try:
             self.chk._is_nwlayout_done.wait()
         except KeyboardInterrupt:
@@ -387,21 +395,23 @@ class TrafficState:
     @after('wait_traffic')
     def do_waitfor_traffic_set(self):
         """Wait for traffic all registered on agents"""
-        TrafficState.lgr.info(to_string("Wait for traffic all set: {}", str(self.current_state)))
         if not self.traf_running:
             return
+        TrafficState.lgr.info(to_string("Wait for traffic registered: {}", str(self.current_state)))
+        to_console("Wait for traffic registered")
         try:
             self.chk._is_traffic_registered.wait()
         except KeyboardInterrupt:
             TrafficState.lgr.info("Terminating ...")
         except Exception as rex:
-            TrafficState.lgr.error(to_string("Wait for traffic all set: {}", ex))
+            TrafficState.lgr.error(to_string("Wait for get traffic registered: {}", ex))
 
     @before('create')
     def do_create(self):
-        TrafficState.lgr.info(to_string("Create traffic from configure: {}", str(self.current_state)))
         if not self.traf_running:
             return
+        TrafficState.lgr.info(to_string("Create traffic from configure: {}", str(self.current_state)))
+        to_console("Loading traffics")
         self.phases = create_phases(rt.trcfg, rt.nwcfg)
         TrafficState.lgr.info(to_string("Total phase: [{}]", len(self.phases)))
         self.next_phase = self.yield_traffic()
@@ -409,9 +419,9 @@ class TrafficState:
     @after('start')
     def do_start(self):
         """Start traffic deployment"""
-        TrafficState.lgr.info(to_string("Start traffic sm: {}", str(self.current_state)))
         if not self.traf_running:
             return
+        TrafficState.lgr.info(to_string("Start traffic sm: {}", str(self.current_state)))
         try:
             self.create()
             TrafficState.lgr.info("Starting agents ...")
@@ -440,14 +450,10 @@ class TrafficState:
             return
         yield from self.phases
 
-#    def next(self):
-#        """Next traffic generator"""
-#        if not self.traf_running or self.next_phase is None:
-#            return
-#        self.current_phase = next(self.next_phase)
-
     def record_phase(self):
         """Record running phase"""
+        if not self.traf_running:
+            return
         nwlayoutname = getnwlayoutname(self.current_phase.nwlayoutid)
         cfg = {
             T_NWLAYOUT: deepcopy(rt.nwcfg.config.get(nwlayoutname))
@@ -466,31 +472,28 @@ class TrafficState:
             self.chk.clear_all()
             phase_stat = [
                 self.deploy, self.wait_nwlayout,\
-                self.register, self.wait_traffic,\
-                self.fire, self.phase_finish,\
+                self.register, self.wait_traffic, self.fire,\
+                self.phase_finish,\
                 self.genreport,
             ]
             [transition(self, stat) for stat in phase_stat if self.traf_running]
         except Exception as ex:
             TrafficState.lgr.error(to_string("Traffic state transition failed: {}", str(ex)))
 
-    def config_network(self, nwlayoutname):
-        """Configure network by given network layout"""
-        TrafficState.lgr.info(to_string("Config network: [{}]", nwlayoutname))
-        if not self.traf_running:
-            return
-        publish_nwlayout(nwlayoutname,
-            rt.nwcfg, rt.tcfg,
-            self.chk, self.current_phase.genid,
-            self.ctrl.mqclient)
-
     @after('deploy')
     def do_deploy(self):
         """Deploy network layout based on configure"""
+        if not self.traf_running:
+            return
         TrafficState.lgr.info(to_string("Deploy network layout: {}", str(self.current_state)))
+        to_console("Deploying network layout")
         phase = self.current_phase
         if self.ctrl.current_nwlayout != phase.nwlayoutid:
-            self.config_network(getnwlayoutname(phase.nwlayoutid))
+            nwlayoutname = getnwlayoutname(phase.nwlayoutid)
+            publish_nwlayout(nwlayoutname,
+                rt.nwcfg, rt.tcfg,
+                self.chk, self.current_phase.genid,
+                self.ctrl.mqclient)
             self.ctrl.current_nwlayout = tuple(phase.nwlayoutid.split(':'))
         else:
             self.chk._is_nwlayout_done.set()
@@ -503,7 +506,10 @@ class TrafficState:
             phase0 [tg0, tg1, tg2]
             phase1 [tg5, tg3]
         """
+        if not self.traf_running:
+            return
         TrafficState.lgr.info(to_string("Register traffic task: {}", str(self.current_state)))
+        to_console("Registering traffic")
         phase = self.current_phase
         TrafficState.lgr.info(to_string("Register traffic: [{}]", str(phase)))
         publish_phase(phase, self.chk, self.ctrl.mqclient, rt.tcfg.enable_localdebug)
@@ -512,6 +518,7 @@ class TrafficState:
     def do_fire(self):
         """Tell agents to fire registerd traffic"""
         TrafficState.lgr.info(to_string("Fire traffic: {}", str(self.current_state)))
+        return
         if not self.traf_running:
             return
         to_console("Firing traffics ...")
