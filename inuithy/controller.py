@@ -5,7 +5,7 @@ import sys
 sys.path.append('/opt/inuithy')
 from inuithy.common.version import INUITHY_ROOT
 from inuithy.common.predef import INUITHY_LOGCONFIG, INUITHY_TITLE, __version__, to_string,\
-WorkMode
+WorkMode, to_console
 from inuithy.common.runtime import Runtime as rt
 from inuithy.common.runtime import load_tcfg
 import inuithy.mode.auto as auto
@@ -45,11 +45,27 @@ mode_route = {
     WorkMode.MONITOR.name:  monitor_mode_handler,
 }
 
+def handle_args(in_args = None):
+    """Arguments handler"""    
+    args = None
+    try:
+        rt.parser.description = 'Inuithy Controller'
+        rt.parser.add_argument('-m', '--work-mode', help='Mode for framework to run in', choices=WorkMode.__members__.keys())
+        args = rt.handle_args()
+        load_tcfg(rt.tcfg_path)
+        if args.work_mode is not None:
+            rt.tcfg.workmode = args.work_mode
+        to_console("Starting {} Controller", rt.tcfg.workmode)
+    except Exception as ex:
+        to_console("Exception on handlin report arguments: {}", ex)
+        return None
+    return args
+
 def start_controller():
     global controller
     lgr.info(to_string("Start controller"))
-    rt.handle_args()
-    load_tcfg(rt.tcfg_path)
+    
+    handle_args()
 
     if mode_route.get(rt.tcfg.workmode) is None:
         lgr.error("Unknown work mode")
