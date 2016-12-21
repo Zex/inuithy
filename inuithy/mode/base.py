@@ -4,14 +4,14 @@
 from inuithy.common.version import __version__
 from inuithy.common.predef import T_CTRLCMD, CtrlCmd, T_CLIENTID,\
 T_HOST, T_NODES, AgentStatus, INUITHY_LOGCONFIG, mqlog_map, T_TID,\
-to_string, CTRL_CLIENT_ID, T_TRAFFIC_STATUS, T_MSG,\
+to_string, CTRL_CLIENT_ID, T_TRAFFIC_STATUS, T_MSG, to_console,\
 T_TRAFFIC_TYPE, TrafficType, T_NODE, TrafficStatus, T_VERSION,\
-MessageType
+MessageType, T_GENID
 from inuithy.common.predef import INUITHY_TOPIC_HEARTBEAT, INUITHY_TOPIC_STATUS,\
 INUITHY_TOPIC_REPORTWRITE, INUITHY_TOPIC_NOTIFICATION, INUITHY_TOPIC_UNREGISTER
 from inuithy.common.runtime import Runtime as rt
 from inuithy.common.runtime import load_configs
-from inuithy.util.helper import getnwlayoutid
+from inuithy.util.helper import getnwlayoutid, isprocrunning
 from inuithy.util.cmd_helper import pub_ctrlcmd, extract_payload
 from inuithy.util.traffic_state import TrafficState
 from inuithy.storage.storage import Storage
@@ -255,12 +255,12 @@ class CtrlBase(object):
         for agent in rt.nwcfg.agents:
             [self.traffic_state.chk.node2host.__setitem__(node, agent[T_HOST]) for node in agent[T_NODES]]
 
-
     def load_storage(self):
         self.lgr.info(to_string("Load DB plugin:{}", rt.tcfg.storagetype))
         try:
             self._storage = Storage(rt.tcfg, self.lgr)
         except Exception as ex:
+            to_console("Failed to load plugin: {}", ex)
             self.lgr.error(to_string("Failed to load plugin: {}", ex))
 
     def teardown(self):
@@ -272,8 +272,6 @@ class CtrlBase(object):
 #                stop_agents(self._mqclient, rt.tcfg.mqtt_qos)
                 if self._traffic_timer:
                     self._traffic_timer.cancel()
-                if self.storage:
-                    self.storage.close()
                 if self.worker:
                     self.worker.stop()
                 if self.traffic_state:
@@ -282,6 +280,8 @@ class CtrlBase(object):
                 if self.mqclient:
                     self.mqclient.disconnect()
 #                self.traffic_state.chk.done.set()
+                if self.storage:
+                    self.storage.close()
         except Exception as ex:
             self.lgr.error(to_string("Exception on teardown: {}", ex))
 
