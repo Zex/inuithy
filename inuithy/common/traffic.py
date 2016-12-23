@@ -1,7 +1,7 @@
 """ Traffic generator based on configuration
  @author: Zex Li <top_zlynch@yahoo.com>
 """
-from inuithy.common.predef import T_DURATION, T_INTERVAL,\
+from inuithy.common.predef import T_DURATION, T_INTERVAL, T_MSG,\
 T_NWCONFIG_PATH, T_NWLAYOUT, T_SRCS, T_DESTS, T_GATEWAY,\
 T_TARGET_PHASES, TRAFFIC_CONFIG_PATH, NETWORK_CONFIG_PATH,\
 T_PKGSIZE, T_NODES, to_console, to_string, T_EVERYONE, T_DIAG,\
@@ -201,7 +201,7 @@ class Duration(object):
     def __exit__(self, cls, message, traceback):
         to_console("<< {}", time.ctime(time.clock_gettime(time.CLOCK_REALTIME)))
 
-class TrafficExecutor(object): #(threading.Thread):
+class TrafficExecutor(object):#threading.Thread):
     """ Traffic trigger
     @node       Source node
     @interval   Traffic trigger interval, in second
@@ -221,38 +221,70 @@ class TrafficExecutor(object): #(threading.Thread):
         self.jitter = jitter
         self.interval = interval
         self.duration = duration
-        self.current = time.time()
-        self.end = self.current + self.duration
+        self.current = 0#time.time()
+        self.end = 0#self.current + self.duration
         self.node = node
         self.request = request
 #        self.stop_timer = threading.Timer(duration, self.stop_trigger)
-        self.trigger = threading.Timer(duration, self.fire)
+        self.trigger = None #threading.Timer(self.interval, self.fire)
         self.mqclient = mqclient
         self.tid = tid
 #        self.nextshot = threading.Event()
         self.data = data
+        self.running = False
+        self._mutex = threading.Lock()
 
     def run(self):
         self.lgr.debug(to_string("Start traffic [{}]", self))
         self.running = True
 #        self.stop_timer.start()
-
+        self.current = time.time()
+        self.end = self.current + self.duration
         self.node.in_traffic = True
-        while self.running and self.current < self.end:
-            self.fire()
-        self.stop_trigger()
+        self.trigger = threading.Timer(self.interval, self.fire)
+        self.trigger.start()
+#        try:
+#            while self.running and self.current < self.end:
+#                    self.fire()
+#        except Exception as ex:
+#            self.lgr.debug(to_string("Traffic exception: {}", ex))
+#            self.running = False
+#            self.node.in_traffic = False
+#            pub_status(self.mqclient, data={
+#                T_TRAFFIC_STATUS: TrafficStatus.AGENTFAILED.name,
+#                T_TID: self.tid,
+#                T_MSG: str(ex),
+#            })
+#        self.stop_trigger()
 
+    def nextshot(self):
+
+        with self._mutex:
+            self.trigger = threading.Timer(self.interval + random.uniform(-self.jitter, self.jitter), self.fire)
+            self.trigger.start()
 
     def fire(self):
 
-        if self.running and self.current < self.end:
+        if not self.running or self.current >= self.end:
+            self.lgr.debug(to_string("Traffic stopped: {}/{}", self.current, self.end))
+            self.stop_trigger()
+            return
+        
+        self.lgr.debug(to_string("{} firing: {}/{}", self, self.current, self.end))
 
         try:
-            self.node.traffic(self.request)
-#                self.nextshot.wait(self.interval)
-#                self.nextshot.clear()
+            with self._mutex:
+                self.node.traffic(self.request)
+#               self.nextshot.wait(self.interval)
+#               self.nextshot.clear()
+                self.current = time.time()
+
+            if self.running and self.current < self.end:
+                self.nextshot()
+            else:
+                self.stop_trigger()
         except Exception as ex:
-            self.lgr.debug(to_string("Traffic exception: {}", ex))
+            self.lgr.error(to_string("Traffic exception: {}", ex))
             self.running = False
             self.node.in_traffic = False
             pub_status(self.mqclient, data={
@@ -260,24 +292,27 @@ class TrafficExecutor(object): #(threading.Thread):
                 T_TID: self.tid,
                 T_MSG: str(ex),
             })
-        self.current += self.interval + random.uniform(-self.jitter, self.jitter)
 
     def stop_trigger(self):
-        if not self.running:
-            return
-        to_console("{}: Stopping trigger", self)
-        self.node.in_traffic = False
-        self.running = False
+
+        with self._mutex:
+            if not self.running:
+                return
+            to_console("{}: Stopping trigger", self)
+            self.node.in_traffic = False
+            self.running = False
 #        self.stop_timer.cancel()
-        if self.mqclient is not None:
-            pub_status(self.mqclient, data={
-                T_TRAFFIC_STATUS: TrafficStatus.FINISHED.name,
-                T_TID: self.tid,
-            })
+            if self.trigger:
+                self.trigger.cancel()
+            if self.mqclient is not None:
+                pub_status(self.mqclient, data={
+                    T_TRAFFIC_STATUS: TrafficStatus.FINISHED.name,
+                    T_TID: self.tid,
+                })
 
     def __str__(self):
         return to_string("tid[{}]: intv:{}, dur:{}, node:[{}]",\
-            self.tid, self.interval, self.duration, str(self.node))
+             self.tid, self.interval, self.duration, str(self.node))
 
 def create_phases(trcfg, nwcfg):
     """Create traffic generators for targe traffics
