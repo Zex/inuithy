@@ -4,7 +4,7 @@
 from inuithy.common.predef import to_string, T_TIME, T_TYPE, T_MSG,\
 MessageType, TrafficType, T_NODE, T_MSG_TYPE, T_TRAFFIC_TYPE,\
 T_GENID, T_CHANNEL, T_PANID, T_SPANID, T_DEST, T_PKGSIZE, T_SRC, NodeType,\
-T_DIAG
+T_DIAG, T_DESTS
 from inuithy.protocol.protocol import Protocol
 from enum import Enum
 import time
@@ -79,12 +79,22 @@ class ZigbeeProtocol(Protocol):
     ])
 
     @staticmethod
-    def start(node):
+    def prepare(node):
+
+        if not PROTO.handshake(node):
+            node.proto = None
+            return False
+        return True
+
+    @staticmethod
+    def handshake(node):
         
         try:
             node.proto = PROTO
-            while not node.started and node.running:
-                PROTO.lgr.info(to_string("{}: Handshaking", node))
+            retry = 4
+            while not node.started and node.running and retry > 0:
+                PROTO.lgr.info(to_string("{}: [{}] Handshaking", node, retry))
+                retry -= 1
     
                 node._write((PROTO.HELLO + PROTO.EOL).encode())
                 rdbuf = node._read_one(len(PROTO.UNKNOWN_CMD))
@@ -98,7 +108,17 @@ class ZigbeeProtocol(Protocol):
     
                 rdbuf = node._read_one(in_wait=True)
                 node.proto.parse_rbuf(rdbuf, node)
+            if not retry <= 0 and not node.started:
+                return False
+        except Exception as ex:
+            PROTO.lgr.error(to_string("Handshake failed: {}", ex))
+            return False
+        return True
     
+    @staticmethod
+    def start(node):
+        
+        try:
             node.start()
             node.writable.set()
             node.uid = None
@@ -126,6 +146,7 @@ class ZigbeeProtocol(Protocol):
                 node._write(PROTO.getfwver())
                 PROTO.lgr.info(to_string("{}: FWVER", node))
 
+#            node.stop()
         except Exception as ex:
             PROTO.lgr.error(to_string("Start proto failed: {}", ex))
             return False
@@ -141,14 +162,25 @@ class ZigbeeProtocol(Protocol):
         """Traffic command"""
         if node is None:
             return 
-        if params.get(T_DESTS) == T_DIAG:
-            msg = PROTO.getdiag(params)
-            node.write(msg)
+
+        if params.get(T_DESTS) is None:
+            PROTO.lgr.error("Invalid traffic parameters")
+            return
+
+        if T_DIAG in params.get(T_DESTS):
+            try:
+                msg = PROTO.getdiag(params)
+                node.write(msg)
+            except Exception as ex:
+                PROTO.lgr.error(to_string("Traffic failed in protocol: {}", ex))
         else:
             for dest in params.get(T_DESTS):
-                params[T_DEST] = dest
-                msg = PROTO.writeattribute2(params) 
-                node.write(msg, params)
+                try:
+                    params[T_DEST] = dest
+                    msg = PROTO.writeattribute2(params) 
+                    node.write(msg, params)
+                except Exception as ex:
+                    PROTO.lgr.error(to_string("Traffic failed in protocol: {}", ex))
 
     @staticmethod
     def joinnw(params=None):
@@ -259,6 +291,7 @@ class ZigbeeProtocol(Protocol):
         if data == PROTO.UNKNOWN_CMD:
             PROTO.lgr.debug(to_string('{}: got unknown command', node))
             node.started = True
+            node.writable.set()
             return
 
         if data == PROTO.NAME:
@@ -283,6 +316,7 @@ class ZigbeeProtocol(Protocol):
                 T_NODE: PROTO.unify_addr(node.addr),\
             })
             node.joined = True
+            node.writable.set()
             return report
 
         params = data.split(' ')

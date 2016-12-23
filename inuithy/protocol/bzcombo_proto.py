@@ -20,6 +20,11 @@ class BzProtocol(Protocol):
     zbee = ZigbeeProtocol
 
     @staticmethod
+    def prepare(node):
+        # TODO
+        return True
+
+    @staticmethod
     def start(node):
         #TODO
         return False

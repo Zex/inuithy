@@ -22,6 +22,11 @@ class BleProtocol(Protocol):
     GETFWVER = "getfwver"
 
     @staticmethod
+    def prepare(node):
+        # TODO
+        return True
+
+    @staticmethod
     def start(node):
         # TODO
         return False

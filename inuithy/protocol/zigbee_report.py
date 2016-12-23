@@ -64,6 +64,7 @@ class ZbeeReport(object):
         df = None
         index_l = 0
         data = {}
+        addr_grp = None
         try:
             addr_grp = pdata.groupby([T_ZBEE_NWK_ADDR], as_index=False)
             if nodes is None or len(nodes) == 0:
@@ -83,15 +84,7 @@ class ZbeeReport(object):
                     print(dtime)
                     print('========================================')
                     """
-#                    data = pd.DataFrame({addr: grp[item].values}, index=grp[T_TIME])
-#                    data = data.diff()
-#                    dtime = grp[T_TIME]
-#                    dtime = dtime.diff()
-#                    dtime = dtime.fillna(value=0.0)
-#                    data.index = dtime + np.arange(len(dtime)) 
-#                    print(data)
-#                    print('========================================')
-
+#                    print(addr, item, len(grp[item]))
                     index_l = max(index_l, len(grp[item].values))
                     buf = np.array(grp[item].values)
                     buf = np.diff(buf)
@@ -111,13 +104,12 @@ class ZbeeReport(object):
             lgr.error(to_string("Exception on processing diag data {}: {}", item, ex))
             return
 
-#        data = data.diff()
-#       df = df.fillna(value=0)
+#       data = data.diff()
+#       df = df.fillna(value=0) 
         for k in data:
             buf = data[k]
             data[k] = np.concatenate((buf, np.array([buf[-1]]*(index_l-len(buf)))))
-        index = np.arange(1, index_l)
-        print(data)
+        index = np.arange(0, index_l)
         df = pd.DataFrame(data, index=index)
 
         try:
