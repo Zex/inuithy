@@ -89,11 +89,11 @@ class TrafStatChk(object):
             if self.available_agents is None or len(self.available_agents) == 0:
                 raise RuntimeError("No agent available")
             nw = self.nwlayout
-            chks = [chk for chk in nw.values() if chk is True]
-            to_console("Node join state: [{}/{}]", len(chks), len(nw))
-            if len(chks) != len(nw):
-                return False
-            return True
+            if all(nw.values()):
+                return True
+            chks = [k for k, v in nw.items() if v is False]
+            to_console("Node join state: [{}/{}], waiting for [{}]", len(nw)-len(chks), len(nw), chks)
+            return False
         except Exception as ex:
             TrafStatChk.lgr.error(to_string("Failed to check network layout: {}", ex))
             return False
