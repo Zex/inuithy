@@ -6,7 +6,7 @@ sys.path.append('/opt/inuithy')
 from inuithy.common.predef import to_string, INUITHY_TITLE, INUITHY_TOPIC_NWLAYOUT, INUITHY_TOPIC_TSH,\
 __version__, INUITHY_CONFIG_PATH, CtrlCmd, INUITHY_TOPIC_TRAFFIC,\
 INUITHY_TOPIC_CONFIG, INUITHYAGENT_CLIENT_ID, T_ADDR, T_HOST, T_NODE,\
-T_CLIENTID, T_TID, T_INTERVAL, T_DURATION, T_NODES, T_DEST,\
+T_CLIENTID, T_TID, T_INTERVAL, T_DURATION, T_NODES, T_DEST, T_DESTS,\
 T_TRAFFIC_STATUS, T_MSG, T_CTRLCMD, TrafficStatus, T_TRAFFIC_TYPE,\
 INUITHY_LOGCONFIG, INUITHY_TOPIC_COMMAND, TrafficType, DEV_TTY, T_GENID,\
 T_SRC, T_PKGSIZE, T_EVERYONE, mqlog_map, T_VERSION, T_MSG_TYPE, T_MQTT_VERSION, T_JITTER
@@ -221,9 +221,12 @@ class Agent(object):
             self.lgr.error(to_string("Alive notification exception:{}", ex))
             pub_status(self.mqclient, rt.tcfg.mqtt_qos, {
                 T_TRAFFIC_STATUS: TrafficStatus.AGENTFAILED.name,
+                T_VERSION: __version__,
+                T_MQTT_VERSION: mqtt.VERSION_NUMBER,
                 T_CLIENTID: self.clientid,
-                T_MSG: 'Check me out',
+                T_MSG: 'Hearbeat failed, check me out',
             })
+            self.teardown()
 
     def unregister(self):
         """Unregister an agent from controller
@@ -434,10 +437,9 @@ class Agent(object):
         self = userdata
         try:
             data = extract_payload(message.payload)
-            self.lgr.debug(to_string("JOIN: {}", data))
             if not self.is_msg_for_me([data.get(T_CLIENTID)]):
                 return
-            self.lgr.debug(to_string("Traffic data: {}", data))
+            self.lgr.debug(to_string("JOIN: {}", data))
             naddr = data.get(T_NODE)
             if naddr is None:
                 self.lgr.error(to_string("JOIN: Incorrect command {}", data))
@@ -456,7 +458,12 @@ class Agent(object):
             else: # DEBUG
                 self.lgr.error(to_string("{}: Node [{}] not found", self.clientid, naddr))
         except Exception as ex:
-            self.lgr.error(to_string("Failure on handling traffic request: {}", ex))
+            self.lgr.error(to_string("Failure on handling nwlayout request: {}", ex))
+            pub_status(self.mqclient, rt.tcfg.mqtt_qos, {
+                T_TRAFFIC_STATUS: TrafficStatus.AGENTFAILED.name,
+                T_CLIENTID: self.clientid,
+                T_MSG: 'Failed to configure network',
+            })
 
     @staticmethod
     def on_topic_traffic(client, userdata, message):
@@ -471,6 +478,11 @@ class Agent(object):
             self.traffic_dispatch(data)
         except Exception as ex:
             self.lgr.error(to_string("Failure on handling traffic request: {}", ex))
+            pub_status(self.mqclient, rt.tcfg.mqtt_qos, {
+                T_TRAFFIC_STATUS: TrafficStatus.AGENTFAILED.name,
+                T_CLIENTID: self.clientid,
+                T_MSG: 'Failed to register traffic',
+            })
 
     def on_traffic_scmd(self, data):
         """Serial command handler
@@ -495,7 +507,7 @@ class Agent(object):
                 T_TRAFFIC_TYPE: data.get(T_TRAFFIC_TYPE),
                 T_NODE: data.get(T_NODE).encode(),
                 T_SRC: data.get(T_SRC).encode(),
-                T_DEST: data.get(T_DEST).encode(),
+                T_DESTS: [d.encode() for d in data.get(T_DESTS)],
                 T_PKGSIZE: data.get(T_PKGSIZE),
             }
             te = None
@@ -509,7 +521,7 @@ class Agent(object):
 #                    request=request, lgr=self.lgr, mqclient=self.mqclient, tid=data.get(T_TID),\
 #                    data=dest)
 #            else:
-            te = TrafficExecutor(node, data.get(T_INTERVAL), data.get(T_DURATION), data.get(T_JITTER), \
+            te = TrafficExecutor(node, float(data.get(T_INTERVAL)), float(data.get(T_DURATION)), float(data.get(T_JITTER)),\
                 request=request, lgr=self.lgr, mqclient=self.mqclient, tid=data.get(T_TID))
 
             self.__traffic_executors.put(te)
@@ -569,7 +581,7 @@ class Agent(object):
             while self.__traffic_executors.qsize() > 0 and Agent.initialized:
                 self.lgr.info(to_string("{}: executors: {}, agent init: {}", self.clientid, self.__traffic_executors.qsize(), Agent.initialized))
                 te = self.__traffic_executors.get()
-                te.start()
+                te.run()
                 pub_status(self.mqclient, rt.tcfg.mqtt_qos, {
                     T_TRAFFIC_STATUS: TrafficStatus.RUNNING.name,
                     T_CLIENTID: self.clientid,
@@ -579,6 +591,13 @@ class Agent(object):
 #                self.lgr.debug(to_string("{} finished", te))
         except Exception as ex:
             self.lgr.error(to_string("Exception on running traffic: {}", ex))
+            pub_status(self.mqclient, rt.tcfg.mqtt_qos, {
+                T_TRAFFIC_STATUS: TrafficStatus.AGENTFAILED.name,
+                T_VERSION: __version__,
+                T_MQTT_VERSION: mqtt.VERSION_NUMBER,
+                T_CLIENTID: self.clientid,
+                T_MSG: 'Start traffic failed',
+            })
 
     def traffic_dispatch(self, data):
         """Dispatch traffic topic handlers"""
