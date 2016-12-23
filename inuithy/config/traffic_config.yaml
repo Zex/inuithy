@@ -42,6 +42,7 @@ traffic_3:
   dests: ['*']
   duration: 360
   interval: 3
+  jitter: 0.1
   pkgsize: 2
   srcs: ['1111']
 traffic_4:
@@ -56,12 +57,14 @@ traffic_5:
   duration: 10
   interval: 2
   pkgsize: 2
+  jitter: 0.1
   srcs: ['*']
 traffic_6:
   dests: [11b1]
   duration: 10
   interval: 2
   pkgsize: 2
+  jitter: 0.1
   srcs: [11a2]
 traffic_7:
   dests: ['A004', 'A001']
@@ -73,15 +76,16 @@ traffic_7:
 #  srcs: ['A002', 'A003']
 traffic_8:
   dests: ['A001', 'A002', 'A003', 'A004']
-  duration: 520
-  interval: 2
+  duration: 540
+  interval: 3
+  jitter: 0.1
   pkgsize: 60
   srcs: ['*']
 traffic_9:
   dests: ['+']
   duration: 540
-  interval: 2
-  jitter: 0.1
+  interval: 1
+  jitter: 0.01
   pkgsize: 50
   srcs: ['*']
 traffin_delay: 3
