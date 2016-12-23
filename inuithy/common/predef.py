@@ -7,26 +7,28 @@ from enum import Enum
 
 # Controller => Agents
 # Command for agents
-INUITHY_TOPIC_COMMAND = "inuithy/topic/command"
+TT_COMMAND = "inuithy/topic/command"
 # Configuration for agents
-INUITHY_TOPIC_CONFIG = "inuithy/topic/config"
+TT_CONFIG = "inuithy/topic/config"
 # Traffc data to send via serial port on agent
-INUITHY_TOPIC_TRAFFIC = "inuithy/topic/traffic"
+TT_TRAFFIC = "inuithy/topic/traffic"
 # Configure network layout as given configure
-INUITHY_TOPIC_NWLAYOUT = "inuithy/topic/nwlayout"
+TT_NWLAYOUT = "inuithy/topic/nwlayout"
 # Message sent via inuithy shell
-INUITHY_TOPIC_TSH = "inuithy/topic/tsh"
+TT_TSH = "inuithy/topic/tsh"
+# Response from agent
+TT_REPLY = "inuithy/topic/reply"
 # Agents => Controller
 # Unregister agent
-INUITHY_TOPIC_UNREGISTER = "inuithy/topic/unregister"
+TT_UNREGISTER = "inuithy/topic/unregister"
 # Status of agent/nodes
-INUITHY_TOPIC_STATUS = "inuithy/topic/status"
+TT_STATUS = "inuithy/topic/status"
 # Heartbeat from agent
-INUITHY_TOPIC_HEARTBEAT = "inuithy/topic/heartbeat"
+TT_HEARTBEAT = "inuithy/topic/heartbeat"
 # Report data wriited to serial port
-INUITHY_TOPIC_REPORTWRITE = "inuithy/topic/reportwrite"
+TT_REPORTWRITE = "inuithy/topic/reportwrite"
 # Report data read from serial port
-INUITHY_TOPIC_NOTIFICATION = "inuithy/topic/notification"
+TT_NOTIFICATION = "inuithy/topic/notification"
 # Message sent via inuithy shell
 # <topic id>::<message>
 INUITHY_MQPAYLOAD_DELEMER = "::>"
@@ -43,7 +45,7 @@ CTRL_CLIENT_ID = "inuithy/ctrl/{}"
 # command message from Controller to Agents
 # <command> <parameters>
 INUITHY_CTRL_CMD = "{} {}"
-
+# Default paths
 INUITHY_NOHUP_OUTPUT = "/tmp/inuithy.nohup"
 INUITHY_LOGCONFIG = INUITHY_ROOT+"/config/logging.conf"
 INUITHY_CONFIG_PATH = INUITHY_ROOT+"/config/inuithy_config.yaml"
