@@ -29,7 +29,7 @@ lconf.fileConfig(INUITHY_LOGCONFIG)
     (NodeType.BleZbee, BzProto, SerialNode),
 ]]
 
-shared_manager = mp.Manager()
+#shared_manager = mp.Manager()
 
 class NodeAdapter(object):
     """Serial port adapter
@@ -54,7 +54,7 @@ class NodeAdapter(object):
         with NodeAdapter._mutex:
             NodeAdapter._initialized = True
         self.scan_done = threading.Event()
-        self.shared_nodes = shared_manager.Queue()
+#        self.shared_nodes = shared_manager.Queue()
 
     def start_nodes(self):
         NodeAdapter.lgr.info("Start connected nodes")
@@ -91,8 +91,9 @@ class NodeAdapter(object):
              for proto in SupportedProto.protocols.values():
                 if proto[1] == node.proto:
                     node.ntype = proto[0]
+                    break
              if len(self.expected_paths) != len(self.nodes):
-                NodeAdapter.lgr.info(to_string("Register node {}, {}", len(self.expected_paths), len(self.nodes)))
+                NodeAdapter.lgr.info(to_string("Register node {}/{}", len(self.nodes), len(self.expected_paths)))
                 return
              with_proto = [n for n in self.nodes.values() if n.ntype is not None]
              if len(with_proto) == len(self.nodes):
@@ -112,9 +113,11 @@ def get_type(node):
         try:
             proto = next(node.try_proto)
             NodeAdapter.lgr.info(to_string("Examine {}", proto))
+            if proto[1].prepare(node) is False:
+                get_type(node)
+                return
             if proto[1].start(node) is False:
                 get_type(node)
-            return
         except StopIteration:
             NodeAdapter.lgr.info(to_string("All proto tried"))
         except Exception as ex:
@@ -171,15 +174,17 @@ def scan_nodes(adapter, targets=None):
 #   [adapter.create_node(path) for path in paths]
 #   [adapter.worker.add_job(adapter.get_type, node) for node in adapter.nodes.values()]
     adapter.expected_paths = paths
-    pool = ProcTaskManager(NodeAdapter.lgr, daemon=True)
+    pool = ProcTaskManager(NodeAdapter.lgr)#, start_on_create=False)
     NodeAdapter.lgr.info("Scanning preparing")
     [pool.create_task(create_node, adapter, path) for path in paths]
+#    pool.start()
     NodeAdapter.lgr.info("Scanning started")
     pool.waitall()
 
     adapter.scan_done.wait()
     adapter.scan_done.clear()
     NodeAdapter.lgr.info("Scanning finished")
+#    adapter.start_nodes()
 
 if __name__ == '__main__':
 
