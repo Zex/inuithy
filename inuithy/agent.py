@@ -3,12 +3,12 @@
 """
 import sys
 sys.path.append('/opt/inuithy')
-from inuithy.common.predef import to_string, INUITHY_TITLE, INUITHY_TOPIC_NWLAYOUT, INUITHY_TOPIC_TSH,\
-__version__, INUITHY_CONFIG_PATH, CtrlCmd, INUITHY_TOPIC_TRAFFIC,\
-INUITHY_TOPIC_CONFIG, INUITHYAGENT_CLIENT_ID, T_ADDR, T_HOST, T_NODE,\
+from inuithy.common.predef import to_string, INUITHY_TITLE, TT_NWLAYOUT, TT_TSH,\
+__version__, INUITHY_CONFIG_PATH, CtrlCmd, TT_TRAFFIC,\
+TT_CONFIG, INUITHYAGENT_CLIENT_ID, T_ADDR, T_HOST, T_NODE,\
 T_CLIENTID, T_TID, T_INTERVAL, T_DURATION, T_NODES, T_DEST, T_DESTS,\
 T_TRAFFIC_STATUS, T_MSG, T_CTRLCMD, TrafficStatus, T_TRAFFIC_TYPE,\
-INUITHY_LOGCONFIG, INUITHY_TOPIC_COMMAND, TrafficType, DEV_TTY, T_GENID,\
+INUITHY_LOGCONFIG, TT_COMMAND, TrafficType, DEV_TTY, T_GENID,\
 T_SRC, T_PKGSIZE, T_EVERYONE, mqlog_map, T_VERSION, T_MSG_TYPE, T_MQTT_VERSION, T_JITTER
 from inuithy.common.runtime import Runtime as rt
 from inuithy.common.runtime import load_tcfg
@@ -248,17 +248,17 @@ class Agent(object):
 #        self.mqclient.on_subscribe = Agent.on_subscribe
         self.mqclient.connect(host, port)
         self.mqclient.subscribe([
-            (INUITHY_TOPIC_COMMAND, rt.tcfg.mqtt_qos),
-            (INUITHY_TOPIC_TRAFFIC, rt.tcfg.mqtt_qos),
-            (INUITHY_TOPIC_NWLAYOUT, rt.tcfg.mqtt_qos),
-            (INUITHY_TOPIC_TSH, rt.tcfg.mqtt_qos),
-            (INUITHY_TOPIC_CONFIG, rt.tcfg.mqtt_qos),
+            (TT_COMMAND, rt.tcfg.mqtt_qos),
+            (TT_TRAFFIC, rt.tcfg.mqtt_qos),
+            (TT_NWLAYOUT, rt.tcfg.mqtt_qos),
+            (TT_TSH, rt.tcfg.mqtt_qos),
+            (TT_CONFIG, rt.tcfg.mqtt_qos),
         ])
-        self.mqclient.message_callback_add(INUITHY_TOPIC_COMMAND, Agent.on_topic_command)
-        self.mqclient.message_callback_add(INUITHY_TOPIC_CONFIG, Agent.on_topic_config)
-        self.mqclient.message_callback_add(INUITHY_TOPIC_TRAFFIC, Agent.on_topic_traffic)
-        self.mqclient.message_callback_add(INUITHY_TOPIC_NWLAYOUT, Agent.on_topic_nwlayout)
-        self.mqclient.message_callback_add(INUITHY_TOPIC_TSH, Agent.on_topic_tsh)
+        self.mqclient.message_callback_add(TT_COMMAND, Agent.on_topic_command)
+        self.mqclient.message_callback_add(TT_CONFIG, Agent.on_topic_config)
+        self.mqclient.message_callback_add(TT_TRAFFIC, Agent.on_topic_traffic)
+        self.mqclient.message_callback_add(TT_NWLAYOUT, Agent.on_topic_nwlayout)
+        self.mqclient.message_callback_add(TT_TSH, Agent.on_topic_tsh)
         self.ctrlcmd_routes = {
             CtrlCmd.NEW_CONTROLLER.name:               self.on_new_controller,
             CtrlCmd.AGENT_STOP.name:                   self.on_agent_stop,
@@ -561,6 +561,7 @@ class Agent(object):
             node = self.addr2node.get(naddr)
             if node is not None:
                 self.lgr.debug(to_string("Found node: {}", node))
+                node.tsh_on = True
                 node.write(data.get(T_MSG))
             else: # DEBUG
                 self.lgr.error(to_string("{}: Node [{}] not found", self.clientid, naddr))
