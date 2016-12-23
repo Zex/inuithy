@@ -62,7 +62,10 @@ class AutoCtrl(CtrlBase):
             if self.traffic_state is not None:
                 self.traffic_state.traf_running = False
                 self.traffic_state.chk.set_all()
-            self.teardown()
+#            self.teardown()
+            if len(self.traffic_state.chk.available_agents) > 0:
+                self.lgr.info("Wait for last notifications")
+                self.traffic_state.chk._is_agents_unregistered.wait()#T_TRAFFIC_FINISH_DELAY)
         except NameError as ex:
             self.lgr.error(to_string("NameError: {}", ex))
             if self.traffic_state is not None:

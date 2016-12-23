@@ -320,7 +320,7 @@ class CtrlBase(object):
         try:
             self.del_agent(agentid)
             if len(self.available_agents) == 0:
-                self.traffic_state.chk._is_traffic_all_unregistered.set()
+                self.traffic_state.chk._is_agents_unregistered.set()
         except Exception as ex:
             self.lgr.error(to_string("Exception on unregistering agent {}: {}", agentid, ex))
 
