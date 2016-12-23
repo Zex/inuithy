@@ -299,7 +299,6 @@ class ZigbeeProtocol(Protocol):
             node.proto = PROTO
             if adapter is not None:
                 PROTO.lgr.debug(to_string("Register to adapter"))
-#                adapter.register(node, data)
                 if adapter.sender is not None:
                     adapter.sender.send((node.dev.fileno(), node.addr, node.fwver, node.proto, data))
             else:
