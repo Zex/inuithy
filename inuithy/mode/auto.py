@@ -2,8 +2,8 @@
  @author: Zex Li <top_zlynch@yahoo.com>
 """
 from inuithy.common.version import __version__
-from inuithy.common.predef import INUITHY_TOPIC_HEARTBEAT, INUITHY_TOPIC_STATUS,\
-INUITHY_TOPIC_REPORTWRITE, INUITHY_TOPIC_NOTIFICATION, INUITHY_TOPIC_UNREGISTER,\
+from inuithy.common.predef import TT_HEARTBEAT, TT_STATUS,\
+TT_REPORTWRITE, TT_NOTIFICATION, TT_UNREGISTER,\
 INUITHY_TITLE, INUITHY_LOGCONFIG, to_string, to_console
 from inuithy.mode.base import CtrlBase
 from inuithy.util.cmd_helper import stop_agents
@@ -26,17 +26,17 @@ class AutoCtrl(CtrlBase):
         self.mqclient.on_disconnect = AutoCtrl.on_disconnect
         self.mqclient.connect(host, port)
         self.mqclient.subscribe([
-            (INUITHY_TOPIC_HEARTBEAT, rt.tcfg.mqtt_qos),
-            (INUITHY_TOPIC_UNREGISTER, rt.tcfg.mqtt_qos),
-            (INUITHY_TOPIC_STATUS, rt.tcfg.mqtt_qos),
-            (INUITHY_TOPIC_REPORTWRITE, rt.tcfg.mqtt_qos),
-            (INUITHY_TOPIC_NOTIFICATION, rt.tcfg.mqtt_qos),
+            (TT_HEARTBEAT, rt.tcfg.mqtt_qos),
+            (TT_UNREGISTER, rt.tcfg.mqtt_qos),
+            (TT_STATUS, rt.tcfg.mqtt_qos),
+            (TT_REPORTWRITE, rt.tcfg.mqtt_qos),
+            (TT_NOTIFICATION, rt.tcfg.mqtt_qos),
         ])
-        self.mqclient.message_callback_add(INUITHY_TOPIC_HEARTBEAT, AutoCtrl.on_topic_heartbeat)
-        self.mqclient.message_callback_add(INUITHY_TOPIC_UNREGISTER, AutoCtrl.on_topic_unregister)
-        self.mqclient.message_callback_add(INUITHY_TOPIC_STATUS, AutoCtrl.on_topic_status)
-        self.mqclient.message_callback_add(INUITHY_TOPIC_REPORTWRITE, AutoCtrl.on_topic_reportwrite)
-        self.mqclient.message_callback_add(INUITHY_TOPIC_NOTIFICATION, AutoCtrl.on_topic_notification)
+        self.mqclient.message_callback_add(TT_HEARTBEAT, AutoCtrl.on_topic_heartbeat)
+        self.mqclient.message_callback_add(TT_UNREGISTER, AutoCtrl.on_topic_unregister)
+        self.mqclient.message_callback_add(TT_STATUS, AutoCtrl.on_topic_status)
+        self.mqclient.message_callback_add(TT_REPORTWRITE, AutoCtrl.on_topic_reportwrite)
+        self.mqclient.message_callback_add(TT_NOTIFICATION, AutoCtrl.on_topic_notification)
 
     def __init__(self, lgr=None, delay=4):
         CtrlBase.__init__(self, lgr, delay)

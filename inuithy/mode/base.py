@@ -7,8 +7,8 @@ T_HOST, T_NODES, AgentStatus, INUITHY_LOGCONFIG, mqlog_map, T_TID,\
 to_string, CTRL_CLIENT_ID, T_TRAFFIC_STATUS, T_MSG, to_console,\
 T_TRAFFIC_TYPE, TrafficType, T_NODE, TrafficStatus, T_VERSION,\
 MessageType, T_GENID
-from inuithy.common.predef import INUITHY_TOPIC_HEARTBEAT, INUITHY_TOPIC_STATUS,\
-INUITHY_TOPIC_REPORTWRITE, INUITHY_TOPIC_NOTIFICATION, INUITHY_TOPIC_UNREGISTER
+from inuithy.common.predef import TT_HEARTBEAT, TT_STATUS,\
+TT_REPORTWRITE, TT_NOTIFICATION, TT_UNREGISTER
 from inuithy.common.runtime import Runtime as rt
 from inuithy.common.runtime import load_configs
 from inuithy.util.helper import getnwlayoutid, isprocrunning
@@ -306,6 +306,15 @@ class CtrlBase(object):
 #            self.lgr.debug(to_string("{}", [str(a) for a in self.available_agents.values()]))
         except Exception as ex:
             self.lgr.error(to_string("Exception on registering agent {}: {}", agentid, ex))
+
+    @staticmethod
+    def on_topic_reply(client, userdata, message):
+        """Heartbeat message format:
+        """
+        self = userdata
+        self.lgr.info(to_string("On topic reply"))
+        data = extract_payload(message.payload)
+        to_console("{}:\n{}", data.get(T_NODE), data.get(T_MSG))
 
     @staticmethod
     def on_topic_unregister(client, userdata, message):
