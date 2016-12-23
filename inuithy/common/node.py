@@ -1,8 +1,8 @@
 """ General node definition
  @author: Zex Li <top_zlynch@yahoo.com>
 """
-from inuithy.common.predef import TrafficType, T_MSG, T_GENID,\
-INUITHY_LOGCONFIG, to_string, T_TYPE, T_ADDR, T_PATH, NodeType
+from inuithy.common.predef import TrafficType, T_MSG, T_GENID, T_TRAFFIC_STATUS,\
+INUITHY_LOGCONFIG, to_string, T_TYPE, T_ADDR, T_PATH, NodeType, TrafficStatus
 from inuithy.util.cmd_helper import pub_reportwrite, pub_notification, pub_status
 from inuithy.util.worker import Worker
 from inuithy.protocol.ble_proto import BleProtocol as BleProto
