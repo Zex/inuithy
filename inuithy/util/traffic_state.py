@@ -5,7 +5,7 @@ from inuithy.common.predef import T_TID, T_GENID, T_TRAFFIC_TYPE,\
 T_CLIENTID, T_NODE, T_HOST, T_DURATION, T_INTERVAL, T_GATEWAY, T_SRC,\
 T_DEST, T_PKGSIZE, T_NODES, T_PATH, T_NWLAYOUT, T_PANID, T_SPANID,\
 to_console, to_string, TrafficType, T_TRAFFIC_FINISH_DELAY,\
-TrafficStorage, StorageType, TrafficStatus
+TrafficStorage, StorageType, TrafficStatus, T_JITTER, T_DESTS
 from inuithy.common.runtime import Runtime as rt
 from inuithy.util.helper import getnwlayoutname
 from inuithy.util.cmd_helper import pub_nwlayout, pub_traffic, start_agents,\
@@ -44,33 +44,35 @@ class TrafStatChk(object):
         self._is_traffic_registered = threading.Event()
         self._is_traffic_all_fired = threading.Event()
         self._is_phase_finished = threading.Event()
-        self._is_traffic_all_unregistered = threading.Event()
+        self._is_agents_unregistered = threading.Event()
 
     def set_all(self):
         TrafStatChk.lgr.info("Notify all waiting processes")
         try:
             [e.set() for e in [
-#           self._is_agents_up,
+            self._is_agents_up,
             self._is_nwlayout_done,
             self._is_traffic_registered,
             self._is_traffic_all_fired,
             self._is_phase_finished,
-#           self._is_traffic_all_unregistered,
+#           self._is_agents_unregistered,
             ]]
         except Exception as ex:
             TrafStatChk.lgr.error("Failed to set all waiting")
 
     def clear_all(self):
         TrafStatChk.lgr.info("Clear all waiting processes")
-        [e.clear() for e in [
-#           self._is_agents_up,
+        try:
+            [e.clear() for e in [
+            self._is_agents_up,
             self._is_nwlayout_done,
             self._is_traffic_registered,
             self._is_traffic_all_fired,
             self._is_phase_finished,
-#           self._is_traffic_all_unregistered,
-            ]
-        ]
+    #           self._is_agents_unregistered,
+            ]]
+        except Exception as ex:
+            TrafStatChk.lgr.error("Failed to set all waiting")
 
     def create_nwlayout(self, nwinfo):#nwid, nodes):
         """Create map of network layout configure"""
@@ -220,10 +222,12 @@ def publish_traffic(genid, tg, tr, chk, pub, enable_localdebug=False):
                 pub_traffic(pub, data=data)
                 break
         TrafficState.lgr.debug(to_string("TRAFFIC: {}:{}:{}", data.get(T_TID), data.get(T_CLIENTID), tr))
+        return True
     except Exception as ex:
         TrafficState.lgr.error(to_string(
             "Exception on registering traffic, traffic [{}]: {}",
             tg.traffic_name, str(ex)))
+        return False
 
 def publish_phase(phase, chk, pub, enable_localdebug=False):
     """Register one phase to agent"""
@@ -231,8 +235,10 @@ def publish_phase(phase, chk, pub, enable_localdebug=False):
     TrafficState.lgr.info(to_string("network [{}]", phase.nwlayoutid))
     for tg in phase.tgs:
         for tr in tg.traffics:
-            publish_traffic(phase.genid, tg, tr, chk, pub, enable_localdebug)
+            if not publish_traffic(phase.genid, tg, tr, chk, pub, enable_localdebug):
+                return False
     TrafficState.lgr.debug(to_string("Total traffic: [{}]", len(chk.traffic_stat)))
+    return True
 
 @acts_as_state_machine
 class TrafficState:
@@ -512,15 +518,15 @@ class TrafficState:
         to_console("Registering traffic")
         phase = self.current_phase
         TrafficState.lgr.info(to_string("Register traffic: [{}]", str(phase)))
-        publish_phase(phase, self.chk, self.ctrl.mqclient, rt.tcfg.enable_localdebug)
+        if not publish_phase(phase, self.chk, self.ctrl.mqclient, rt.tcfg.enable_localdebug):
+            self.traf_running = False
 
     @after('fire')
     def do_fire(self):
         """Tell agents to fire registerd traffic"""
-        TrafficState.lgr.info(to_string("Fire traffic: {}", str(self.current_state)))
-        return
         if not self.traf_running:
             return
+        TrafficState.lgr.info(to_string("Fire traffic: {}", str(self.current_state)))
         to_console("Firing traffics ...")
         for agent in self.chk.available_agents.keys():
             if not self.traf_running:
@@ -535,9 +541,9 @@ class TrafficState:
     @before('phase_finish')
     def do_phase_finish(self):
         """Waif for one traffic finished"""
-        TrafficState.lgr.info(to_string("Traffic finished: {}", str(self.current_state)))
         if not self.traf_running:
             return
+        TrafficState.lgr.info(to_string("Traffic finished: {}", str(self.current_state)))
         try:
             self.chk._is_phase_finished.wait()
         except KeyboardInterrupt:
@@ -581,9 +587,10 @@ class TrafficState:
 
             if len(self.chk.available_agents) > 0:
                 TrafficState.lgr.info("Wait for last notifications")
-                self.chk._is_traffic_all_unregistered.wait()
+                self.chk._is_agents_unregistered.wait(int(rt.trcfg.config.get(T_TRAFFIC_FINISH_DELAY)))
         except KeyboardInterrupt:
             TrafficState.lgr.info("Terminating ...")
+            to_console("Terminating ...")
 #            self.chk.set_all()
         except Exception as ex:
             TrafficState.lgr.error(to_string("Exception on stopping agents: {}", ex))

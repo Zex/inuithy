@@ -20,11 +20,13 @@ logger = logging.getLogger('TaskManager')
 class ProcTaskManager(object):
     """Process task manager
     """
-    def __init__(self, lgr=None, with_child=False, daemon=False):
+    def __init__(self, lgr=None, with_child=False, daemon=False,\
+        start_on_create=True):
         self.__tasks = [] #self.shared_mng.Queue()
         self.lgr = lgr is None and logging or lgr
         self.with_child = with_child
         self.daemon = daemon
+        self.start_on_create = start_on_create
 
     def waitall(self):
         self.lgr.info(to_string('[{}] tasks running', len(self.__tasks)))
@@ -35,6 +37,17 @@ class ProcTaskManager(object):
         except Exception as ex:
             self.lgr.error(to_string("Exception on to waiting all: {}", ex))
 
+    def _start_one(self, task):
+
+        if self.with_child:
+            task.start()
+        else:
+            task.run()
+
+    def start(self):
+       
+       [self._start_one(t) for t in self.__tasks]
+
     def create_task(self, proc, *args):
         """Create one task with args
         """
@@ -42,10 +55,8 @@ class ProcTaskManager(object):
             t = mp.Process(target=proc, args=args)
             t.daemon = self.daemon
             self.__tasks.append(t)
-            if self.with_child:
-                t.start()
-            else:
-                t.run()
+            if self.start_on_create:
+                self._start_one(t)
         except Exception as ex:
             self.lgr.error(to_string("Create task with [{}] failed: {}", args, ex))
 

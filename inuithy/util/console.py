@@ -24,6 +24,7 @@ import logging
 import logging.config as lconf
 from random import randint
 import copy
+import code
 
 lconf.fileConfig(INUITHY_LOGCONFIG)
 
