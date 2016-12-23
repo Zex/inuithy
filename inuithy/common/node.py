@@ -3,7 +3,7 @@
 """
 from inuithy.common.predef import TrafficType, T_MSG, T_GENID, T_TRAFFIC_STATUS,\
 INUITHY_LOGCONFIG, to_string, T_TYPE, T_ADDR, T_PATH, NodeType, TrafficStatus
-from inuithy.util.cmd_helper import pub_reportwrite, pub_notification, pub_status
+from inuithy.util.cmd_helper import pub_reportwrite, pub_notification, pub_status, pub_reply
 from inuithy.util.worker import Worker
 from inuithy.protocol.ble_proto import BleProtocol as BleProto
 from inuithy.protocol.zigbee_proto import ZigbeeProtocol as ZbeeProto
@@ -53,6 +53,7 @@ class Node(object):
         self.writable = threading.Event()
         self.started = False # Indicate whether firmware is ready
         self.in_traffic = False # Indicate traffic started or not
+        self.tsh_on = False
 
     def __str__(self):
         if self.ntype is None:
@@ -175,6 +176,12 @@ class SerialNode(Node):
         try:
             while self.running:
                 rdbuf = self._read_one()
+                if self.tsh_on:
+                    pub_reply(self.reporter, data={
+                        T_NODE: self,
+                        T_MSG: rdbuf,
+                    })
+                    self.tsh_on = False
                 if len(rdbuf) > 0:
                     self.report_read(rdbuf)
         except serial.SerialException as ex:

@@ -55,6 +55,9 @@ class NodeAdapter(object):
             NodeAdapter._initialized = True
         self.scan_done = threading.Event()
 #        self.shared_nodes = shared_manager.Queue()
+        self.expected_paths = []
+        self.sender = None
+        self.recver = None
 
     def start_nodes(self):
         NodeAdapter.lgr.info("Start connected nodes")
@@ -124,19 +127,7 @@ def get_type(node):
             NodeAdapter.lgr.error(to_string(
             "Exception on examine node[{}]: {}", node, ex))
 
-def add_node(adapter, node):
-    """Add node to fileno-node map"""
-    try:
-        if node is not None:
-            adapter.nodes[node.dev.fileno()] = node
-            node.try_proto = yield_proto()
-            get_type(node)
-        else:
-            NodeAdapter.lgr.error(to_string("Invalid node"))
-    except Exception as ex:
-        NodeAdapter.lgr.error(to_string("Exception on adding node: {}", ex))
-
-def create_node(adapter, path, nodes=None):
+def create_node(adapter, path):#, sender=None):
     """Create node"""
     NodeAdapter.lgr.debug(to_string("Creating node {}", path))
     if not NodeAdapter._initialized:
@@ -148,10 +139,11 @@ def create_node(adapter, path, nodes=None):
     try:
         node = SerialNode(path=path, lgr=NodeAdapter.lgr, adapter=adapter, reporter=adapter.reporter)
 #       node = RawNode(path=RAWNODE_BASE+path, lgr=NodeAdapter.lgr, adapter=adapter.
-#        if nodes is not None:
-#            nodes.put(node)
-#        else:
-        add_node(adapter, node)
+        if node is not None:
+            adapter.nodes[node.dev.fileno()] = node
+            node.try_proto = yield_proto()
+        else:
+            NodeAdapter.lgr.error(to_string("Invalid node"))
     except KeyboardInterrupt:
         NodeAdapter.lgr.error(to_string("Received keyboard interrupt"))
     except Exception as ex:
@@ -169,22 +161,51 @@ def scan_nodes(adapter, targets=None):
         targets = [to_string(DEV_TTYUSB, T_EVERYONE), to_string(DEV_TTYACM, T_EVERYONE)]
     paths = []
     [paths.extend(glob.glob(target)) for target in targets]
-
+    if len(paths) == 0:
+        raise RuntimeError("No node connected")
     adapter.worker.start()
-#   [adapter.create_node(path) for path in paths]
-#   [adapter.worker.add_job(adapter.get_type, node) for node in adapter.nodes.values()]
+
     adapter.expected_paths = paths
-    pool = ProcTaskManager(NodeAdapter.lgr)#, start_on_create=False)
-    NodeAdapter.lgr.info("Scanning preparing")
-    [pool.create_task(create_node, adapter, path) for path in paths]
-#    pool.start()
-    NodeAdapter.lgr.info("Scanning started")
-    pool.waitall()
+#    pool = ProcTaskManager(NodeAdapter.lgr)#, start_on_create=False)
+#    NodeAdapter.lgr.info("Scanning preparing")
+#    [pool.create_task(create_node, adapter, path) for path in paths]
+#    NodeAdapter.lgr.info("Scanning started")
+#    pool.waitall()
+
+    pipe = mp.Pipe()
+    adapter.sender = pipe[0]
+    adapter.recver = pipe[1]
+    adapter.register_mutex = mp.Lock()
+
+    try:
+        NodeAdapter.lgr.info("Scanning preparing")
+        pool = ProcTaskManager(NodeAdapter.lgr, with_child=True)
+        [create_node(adapter, path) for path in paths]
+        [pool.create_task(get_type, node) for node in adapter.nodes.values()]
+        while not adapter.scan_done.isSet():
+            if adapter.recver.poll(2):
+                fd, addr, fwver, proto, data = adapter.recver.recv()
+                node = adapter.nodes.get(fd)
+                if node:
+                    node.addr, node.fwver, node.proto = addr, fwver, proto
+                    with adapter.register_mutex:
+                        adapter.register(node, data)
+                else:
+                    NodeAdapter.lgr.error(to_string("Unexpected node try to register ({})", (fd, fwver, proto, data)))
+        pool.waitall()
+    except Exception as ex:
+        NodeAdapter.lgr.error(to_string("Scanning failed: {}", ex))
+        [p.close() for p in pipe]
+        raise
 
     adapter.scan_done.wait()
     adapter.scan_done.clear()
+    [p.close() for p in pipe]
+    adapter.sender = None
+    adapter.recver = None
     NodeAdapter.lgr.info("Scanning finished")
-#    adapter.start_nodes()
+
+    adapter.start_nodes()
 
 if __name__ == '__main__':
 

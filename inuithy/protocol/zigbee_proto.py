@@ -108,7 +108,7 @@ class ZigbeeProtocol(Protocol):
     
                 rdbuf = node._read_one(in_wait=True)
                 node.proto.parse_rbuf(rdbuf, node)
-            if not retry <= 0 and not node.started:
+            if retry <= 0 and not node.started:
                 return False
         except Exception as ex:
             PROTO.lgr.error(to_string("Handshake failed: {}", ex))
@@ -299,7 +299,9 @@ class ZigbeeProtocol(Protocol):
             node.proto = PROTO
             if adapter is not None:
                 PROTO.lgr.debug(to_string("Register to adapter"))
-                adapter.register(node, data)
+#                adapter.register(node, data)
+                if adapter.sender is not None:
+                    adapter.sender.send((node.dev.fileno(), node.addr, node.fwver, node.proto, data))
             else:
                 PROTO.lgr.error(to_string("Failed to register node to adapter: no adapter given"))
             node.started = True
