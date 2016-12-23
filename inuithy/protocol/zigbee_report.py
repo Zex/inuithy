@@ -64,7 +64,6 @@ class ZbeeReport(object):
         df = None
         index_l = 0
         data = {}
-        addr_grp = None
         try:
             addr_grp = pdata.groupby([T_ZBEE_NWK_ADDR], as_index=False)
             if nodes is None or len(nodes) == 0:
@@ -73,42 +72,20 @@ class ZbeeReport(object):
             for addr in nodes:
                 try:
                     grp = addr_grp.get_group(addr)
-                    """
-                    a = pd.DataFrame({item:grp[item], T_TIME:grp[T_TIME]})#.diff()
-                    dtime = a[T_TIME]
-                    dtime = dtime.diff()
-                    dtime = dtime.fillna(value=0.0)
-                    print(dtime)
-                    print('----------------------------------------')
-                    index = dtime + np.arange(len(dtime))
-                    print(dtime)
-                    print('========================================')
-                    """
-#                    print(addr, item, len(grp[item]))
                     index_l = max(index_l, len(grp[item].values))
                     buf = np.array(grp[item].values)
                     buf = np.diff(buf)
-                    buf = buf[1:]
                     data[addr] = buf
-#                    buf = np.concatenate((buf, np.array([buf[-1]*(index_l-len(grp[item].values)))))
-#                    data = pd.DataFrame({addr: buf}, index=index)
-
-#                    if df is None:
-#                        df = data
-#                    else:
-#                        df.index = np.arange(index_l)
-#                        df = df.join(data, how='outer')
                 except KeyError as ex:
                     lgr.warning(to_string("No record for node [{}]: {}", addr, ex))
         except Exception as ex:
             lgr.error(to_string("Exception on processing diag data {}: {}", item, ex))
             return
 
-#       data = data.diff()
-#       df = df.fillna(value=0) 
         for k in data:
-            buf = data[k]
-            data[k] = np.concatenate((buf, np.array([buf[-1]]*(index_l-len(buf)))))
+            buf = [np.nan] * index_l
+            buf[:len(data[k])] = data[k]
+            data[k] = buf
         index = np.arange(0, index_l)
         df = pd.DataFrame(data, index=index)
 
@@ -289,6 +266,7 @@ class ZbeeReport(object):
             return
 #        pdata = pd.read_csv(ginfo.csv_path, index_col=False, names=ginfo.header, header=None)
         pdata.info(verbose=True)
+        failed = False
         with PdfPages(ginfo.pdf_path) as pdf_pg:
             ZbeeReport.total_pack(ginfo, raw, pdf_pg)
             if hasattr(ginfo, 'hasdiag') and ginfo.hasdiag:
@@ -300,12 +278,19 @@ class ZbeeReport(object):
                             title = to_string("{} by gateway {}", item, gwnode))#fig_base=ginfo.fig_base)
                 except Exception as ex:
                     lgr.error(to_string("Exception on saving gateway report: {}", ex))
+                    failed = True
     
                 try:
                     for item in ginfo.header[2:]:
                         ZbeeReport.diag_item_based(ginfo, pdata, item, pdf_pg, interest_nodes, irange)
                 except Exception as ex:
                     lgr.error(to_string("Exception on saving diag data report: {}", ex))
+                    failed = True
+        if not failed:
+            to_console("..............................................")
+            to_console("gid: {}\ncsv: {}\npdf: {}\nfigures: {}", ginfo.genid, ginfo.csv_path, ginfo.pdf_path, ginfo.fig_base)
+        else:
+            to_console("Generation failed, check out logs for more details")
 
     @staticmethod
     def generate(genid, gw=None, nodes=None, irange=None, csv_path=None):
