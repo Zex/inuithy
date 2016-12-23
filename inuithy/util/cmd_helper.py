@@ -2,10 +2,10 @@
  @author: Zex Li <top_zlynch@yahoo.com>
 """
 from inuithy.common.version import INUITHY_ROOT, PROJECT_PATH
-from inuithy.common.predef import T_CLIENTID, INUITHY_TOPIC_COMMAND,\
-T_CTRLCMD, CtrlCmd, INUITHY_TOPIC_UNREGISTER, INUITHY_TOPIC_STATUS,\
-INUITHY_TOPIC_NOTIFICATION, INUITHY_TOPIC_REPORTWRITE, INUITHY_NOHUP_OUTPUT,\
-INUITHY_TOPIC_HEARTBEAT, INUITHY_TOPIC_TRAFFIC, INUITHY_TOPIC_NWLAYOUT, to_string
+from inuithy.common.predef import T_CLIENTID, TT_COMMAND,\
+T_CTRLCMD, CtrlCmd, TT_UNREGISTER, TT_STATUS,\
+TT_NOTIFICATION, TT_REPORTWRITE, INUITHY_NOHUP_OUTPUT,\
+TT_HEARTBEAT, TT_TRAFFIC, TT_NWLAYOUT, to_string, TT_REPLY
 from inuithy.util.helper import runonremote
 import json
 import threading
@@ -16,7 +16,7 @@ def pub_ctrlcmd(publisher, qos=0, data=None):
     """Publish control command
     """
     payload = json.dumps(data)
-    publisher.publish(INUITHY_TOPIC_COMMAND, payload, qos, False)
+    publisher.publish(TT_COMMAND, payload, qos, False)
 
 def extract_payload(jdata):
     """Extract data from payload
@@ -53,7 +53,7 @@ def pub_nwlayout(publisher, qos=0, data=None):
     """Publish traffic message
     """
     payload = json.dumps(data)
-    publisher.publish(INUITHY_TOPIC_NWLAYOUT, payload, qos, False)
+    publisher.publish(TT_NWLAYOUT, payload, qos, False)
 
 #             tsh command
 # Agent <------------------------ Controller
@@ -61,7 +61,15 @@ def pub_tsh(publisher, qos=0, data=None):
     """Publish tsh message
     """
     payload = json.dumps(data)
-    publisher.publish(INUITHY_TOPIC_TSH, payload, qos, False)
+    publisher.publish(TT_TSH, payload, qos, False)
+
+#         reply to tsh command
+# Agent -------------------------> Controller
+def pub_reply(publisher, qos=0, data=None):
+    """Publish reply message
+    """
+    payload = json.dumps(data)
+    publisher.publish(TT_REPLY, payload, qos, False)
 
 #            traffic
 # Agent <------------------------ Controller
@@ -69,7 +77,7 @@ def pub_traffic(publisher, qos=0, data=None):
     """Publish traffic message
     """
     payload = json.dumps(data)
-    publisher.publish(INUITHY_TOPIC_TRAFFIC, payload, qos, False)
+    publisher.publish(TT_TRAFFIC, payload, qos, False)
 
 #            config
 # Agent <------------------------ Controller
@@ -78,7 +86,7 @@ def pub_config(publisher, qos, config=None, clientid="*"):
     """
     # TODO
     payload = json.dumps(config)
-    publisher.publish(INUITHY_TOPIC_COMMAND, payload, qos, False)
+    publisher.publish(TT_COMMAND, payload, qos, False)
 
 #           unregister
 # Agent ------------------> Controller
@@ -86,7 +94,7 @@ def pub_unregister(publisher, qos=0, clientid='*'):
     """Publish unregister message
     """
     payload = json.dumps({T_CLIENTID : clientid})
-    publisher.publish(INUITHY_TOPIC_UNREGISTER, payload, qos, False)
+    publisher.publish(TT_UNREGISTER, payload, qos, False)
 
 #           status
 # Agent ------------------> Controller
@@ -94,7 +102,7 @@ def pub_status(publisher, qos=0, data=None):
     """Publish status message
     """
     payload = json.dumps(data)
-    publisher.publish(INUITHY_TOPIC_STATUS, payload, qos, False)
+    publisher.publish(TT_STATUS, payload, qos, False)
 
 #           notification
 # Agent ------------------> Controller
@@ -102,7 +110,7 @@ def pub_notification(publisher, qos=0, data=None):
     """Publish notification message
     """
     payload = json.dumps(data)
-    publisher.publish(INUITHY_TOPIC_NOTIFICATION, payload, qos, False)
+    publisher.publish(TT_NOTIFICATION, payload, qos, False)
 
 #           response
 # Agent ------------------> Controller
@@ -110,7 +118,7 @@ def pub_reportwrite(publisher, qos=0, data=None):
     """Publish report message written message
     """
     payload = json.dumps(data)
-    publisher.publish(INUITHY_TOPIC_REPORTWRITE, payload, qos, False)
+    publisher.publish(TT_REPORTWRITE, payload, qos, False)
 
 #           heartbeat
 # Agent ------------------> Controller
@@ -118,7 +126,7 @@ def pub_heartbeat(publisher, qos=0, data=None):
     """Publish heartbeat message
     """
     payload = json.dumps(data)
-    publisher.publish(INUITHY_TOPIC_HEARTBEAT, payload, qos, False)
+    publisher.publish(TT_HEARTBEAT, payload, qos, False)
 
 class Heartbeat(threading.Thread):
     """Heartbeat generator
@@ -155,6 +163,8 @@ class Heartbeat(threading.Thread):
 def start_agents(hosts):
     """Start agent remotely"""
 #    cmd = to_string('pushd {};nohup python {}/agent.py &>> {}',
+#    cmd = to_string('pushd {} > /dev/null;> {};python {}/agent.py &>> {};exit',
+#            PROJECT_PATH, '\"/var/log/inuithy/inuithy.log\"', INUITHY_ROOT, INUITHY_NOHUP_OUTPUT)
     cmd = to_string('pushd {} > /dev/null;python {}/agent.py &>> {};exit',
             PROJECT_PATH, INUITHY_ROOT, INUITHY_NOHUP_OUTPUT)
     [runonremote('root', host, cmd) for host in hosts]
