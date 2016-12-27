@@ -2,9 +2,11 @@
  @author: Zex Li <top_zlynch@yahoo.com>
 """
 from inuithy.common.predef import TrafficType, T_MSG, T_GENID, T_TRAFFIC_STATUS,\
-INUITHY_LOGCONFIG, to_string, T_TYPE, T_ADDR, T_PATH, NodeType, TrafficStatus
+INUITHY_LOGCONFIG, to_string, T_TYPE, T_ADDR, T_PATH, NodeType, TrafficStatus,\
+INUITHYNODE_CLIENT_ID
 from inuithy.util.cmd_helper import pub_reportwrite, pub_notification, pub_status, pub_reply
 from inuithy.util.worker import Worker
+from inuithy.common.runtime import Runtime as rt
 from inuithy.protocol.ble_proto import BleProtocol as BleProto
 from inuithy.protocol.zigbee_proto import ZigbeeProtocol as ZbeeProto
 from inuithy.protocol.bzcombo_proto import BzProtocol as BzProto
@@ -18,6 +20,8 @@ import json
 from os.path import dirname, isdir, exists
 from os import makedirs, unlink
 from random import randint
+import paho.mqtt.client as mqtt
+
 try:
     from queue import Queue, Empty
 except ImportError:
@@ -38,7 +42,7 @@ class Node(object):
         self.path = path
         self.addr = addr
         self.ntype = ntype
-        self.reporter = reporter
+#        self.reporter = reporter
         self.proto = proto
         self.genid = None
         self.joined = False #DEBUG
@@ -54,6 +58,8 @@ class Node(object):
         self.started = False # Indicate whether firmware is ready
         self.in_traffic = False # Indicate traffic started or not
         self.tsh_on = False
+        self.clientid = None
+        self.reporter = None
 
     def __str__(self):
         if self.ntype is None:
@@ -81,6 +87,9 @@ class Node(object):
         self.reader.start()
         if self.writer:
             self.writer.start()
+        self.clientid = to_string(INUITHYNODE_CLIENT_ID, self.addr)
+        self.reporter = mqtt.Client(self.clientid, True, self)
+        self.reporter.connect(*rt.tcfg.mqtt)
 
     def stop(self):
         """Stop node workers"""

@@ -29,6 +29,8 @@ TT_HEARTBEAT = "inuithy/topic/heartbeat"
 TT_REPORTWRITE = "inuithy/topic/reportwrite"
 # Report data read from serial port
 TT_NOTIFICATION = "inuithy/topic/notification"
+# Sniffer data topic
+TT_SNIFFER = "inuithy/topic/sniffer"
 # Message sent via inuithy shell
 # <topic id>::<message>
 INUITHY_MQPAYLOAD_DELEMER = "::>"
@@ -37,7 +39,7 @@ INUITHY_MQPAYLOAD_FMT = "{}"+INUITHY_MQPAYLOAD_DELEMER+"{}"
 INUITHYAGENT_MSGFMT = "INUITHYAGENT [{}]"
 # Agent identity in MQ network: inuithy/agent/<host>"
 INUITHYAGENT_CLIENT_ID = "inuithy/agent/{}"
-#INUITHYAGENT_TOPIC_ID = "inuithy/agent/{}/topic/status"
+INUITHYNODE_CLIENT_ID = "inuithy/node/{}"
 
 CTRL_MSGFMT = "INUITHYCTRL [{}]"
 CTRL_CLIENT_ID = "inuithy/ctrl/{}"
@@ -69,10 +71,12 @@ T_MQTT = 'mqtt'
 T_HOST = 'host'
 T_PORT = 'port'
 T_QOS = 'qos'
+T_BAUD = 'baud'
 T_MQTT_VERSION = 'mqtt_version'
 T_VERSION = 'version'
 T_CONTROLLER = 'controller'
 T_AGENTS = 'agents'
+T_ENABLED = 'enabled'
 T_ENABLE_LDEBUG = 'enable_localdebug'
 T_ENABLE_MQDEBUG = 'enable_mqdebug'
 T_TRAFFIC_STORAGE = 'traffic_storage'

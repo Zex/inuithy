@@ -137,7 +137,7 @@ def create_node(adapter, path):#, sender=None):
     node = None
 
     try:
-        node = SerialNode(path=path, lgr=NodeAdapter.lgr, adapter=adapter, reporter=adapter.reporter)
+        node = SerialNode(path=path, lgr=NodeAdapter.lgr, adapter=adapter)#, reporter=adapter.reporter)
 #       node = RawNode(path=RAWNODE_BASE+path, lgr=NodeAdapter.lgr, adapter=adapter.
         if node is not None:
             adapter.nodes[node.dev.fileno()] = node
