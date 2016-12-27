@@ -76,16 +76,26 @@ traffic_7:
 #  srcs: ['A002', 'A003']
 traffic_8:
   dests: ['A001', 'A002', 'A003', 'A004']
-  duration: 180
+  duration: 540
   interval: 2
   jitter: 0.1
   pkgsize: 60
   srcs: ['*']
 traffic_9:
   dests: ['+']
-  duration: 180
-  interval: 1
-  jitter: 0.1
-  pkgsize: 50
+  duration: 600
+  interval: 3
+  jitter: 0
+  pkgsize: 60
   srcs: ['*']
-traffin_delay: 15
+traffin_delay: 30
+sniffer:
+  enabled: True
+  path: 'tools/pysniffer.py'
+  port: "/dev/ttyUSB4"
+  baud: 230400
+  log: "/var/log/inuithy/sniffer.log"
+  channel: 17
+  pcap: "/var/log/inuithy/sniffer"
+  tshark: "tshark"
+
