@@ -79,6 +79,12 @@ def pub_traffic(publisher, qos=0, data=None):
     payload = json.dumps(data)
     publisher.publish(TT_TRAFFIC, payload, qos, False)
 
+def pub_sniffer(publisher, qos=0, data=None):
+    """Publish traffic message
+    """
+    payload = json.dumps(data)
+    publisher.publish(TT_SNIFFER, payload, qos, False)
+
 #            config
 # Agent <------------------------ Controller
 def pub_config(publisher, qos, config=None, clientid="*"):
