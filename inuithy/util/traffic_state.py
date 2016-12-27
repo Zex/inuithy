@@ -92,7 +92,7 @@ class TrafStatChk(object):
             if all(nw.values()):
                 return True
             chks = [k for k, v in nw.items() if v is False]
-            to_console("Node join state: [{}/{}], waiting for [{}]", len(nw)-len(chks), len(nw), chks)
+            to_console("Node join state: [{}/{}], waiting for {}", len(nw)-len(chks), len(nw), chks)
             return False
         except Exception as ex:
             TrafStatChk.lgr.error(to_string("Failed to check network layout: {}", ex))
@@ -156,9 +156,14 @@ class TrafStatChk(object):
                 return False
             if len(expected) != len(available):
                 return False
-            for ai in available.values():
-                if ai.host not in expected:
-                    return False
+            avail = [ai.host for ai in available.values()]
+            notup = [a for a in expected if a not in avail]
+            if len(notup) != 0:
+                to_console("Waiting for {}", notup)
+                return False
+#            for ai in available.values():
+#                if ai.host not in expected:
+#                    return False
             return True
         except Exception as ex:
             TrafStatChk.lgr.error(to_string("Failed to check agent availability", ex))
