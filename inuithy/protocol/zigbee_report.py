@@ -93,8 +93,8 @@ class ZbeeReport(object):
             if df is not None and not df.empty:
                 if iloc_range is not None:
                     df = df.iloc[iloc_range[0]:iloc_range[1]]
-                else:
-                    df = df.iloc[1:]
+#                else:
+#                    df = df.iloc[1:]
                 if title is None or len(title) == 0:
                     title = to_string("{} by {}", item, T_ZBEE_NWK_ADDR)
                 df.plot(xticks=[], lw=1.5, colormap=ginfo.colormap, figsize=ginfo.figsize)
@@ -267,6 +267,7 @@ class ZbeeReport(object):
 #        pdata = pd.read_csv(ginfo.csv_path, index_col=False, names=ginfo.header, header=None)
         pdata.info(verbose=True)
         failed = False
+        pdata.sort_values(by=T_TIME, inplace=True)
         with PdfPages(ginfo.pdf_path) as pdf_pg:
             ZbeeReport.total_pack(ginfo, raw, pdf_pg)
             if hasattr(ginfo, 'hasdiag') and ginfo.hasdiag:
@@ -312,7 +313,7 @@ class ZbeeReport(object):
 #            lgr.error(to_string("Exception on generate reports: {}", ex))
 
     @staticmethod
-    def handle_args(in_args = None):
+    def handle_args(in_args=None):
         """Arguments handler"""    
         args = None
         try:
