@@ -17,6 +17,7 @@ from inuithy.util.traffic_state import TrafficState
 from inuithy.storage.storage import Storage
 from inuithy.common.agent_info import AgentInfo
 from inuithy.util.worker import Worker
+from random import randint
 import threading
 import logging
 import logging.config as lconf
@@ -370,6 +371,7 @@ class CtrlBase(object):
         self.lgr.info(to_string("On topic sniffer"))
         data = extract_payload(message.payload)
         try:
+            self.lgr.debug(data.get(T_MSG))
             self.storage.insert_sniffer_record(data.get(T_MSG))
         except Exception as ex:
             self.lgr.error(to_string("Failed to handle sniffer message: {}", ex))
