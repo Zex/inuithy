@@ -112,7 +112,7 @@ class MongodbStorage(object):
         """
         data[T_RECORDS] = []
         data[T_SNIFFER_RECORDS] = []
-        self.__coll_trafrec.insert_one(data)
+        self.trafrec.insert_one(data)
         return data[T_GENID]
 #        return str(self.__coll_trafrec.insert_one(data).inserted_id)
 
@@ -145,19 +145,28 @@ class MongodbStorage(object):
         Additional field
         -- T_TIME        : <recored datetime string>      => string
         """
-#        data[T_TIME] = str(dt.now())
-        self.trafrec.update(
-#            {"_id": ObjectId(data[T_GENID])},
-            {T_GENID: data.get(T_GENID)},
-            {'$push': {T_RECORDS: data}})
+        col = self.trafrec.find({T_GENID: data.get(T_GENID)},)
+        if col.count() == 0:
+            self.trafrec.insert_one({
+                T_GENID: data.get(T_GENID),
+                T_RECORDS: [data],
+                T_SNIFFER_RECORDS: [],
+            })
+        else:
+            self.trafrec.update(
+#               {"_id": ObjectId(data[T_GENID])},
+                {T_GENID: data.get(T_GENID)},
+                {'$push': {T_RECORDS: data}})
 
     def insert_sniffer_record(self, data):
-        col = sto.trafrec.find({T_GENID: data.get(T_GENID)},)
+        col = self.trafrec.find({T_GENID: data.get(T_GENID)},)
         if col.count() == 0:
-            to_console('{} not found', data.get(T_GENID))
-            self.__coll_trafrec.insert_one(data)
+            self.trafrec.insert_one({
+                T_GENID: data.get(T_GENID),
+                T_RECORDS: [],
+                T_SNIFFER_RECORDS: [data],
+            })
         else:
-            to_console('{} sniffer records updated', data.get(T_GENID))
             self.trafrec.update(
                 {T_GENID: data.get(T_GENID)},
                 {'$push': {T_SNIFFER_RECORDS: data}})
@@ -220,15 +229,16 @@ if __name__ == '__main__':
 
         sto = MongodbStorage(host, name)
         with open(gid+'.log', 'w') as fd:
-            col = sto.trafrec.find({T_GENID: genid,})
+            col = sto.trafrec.find({T_GENID: genid})
             for r in col:
 #                [fd.writelines(str(l)+'\n') for l in r[T_RECORDS]]
-                [fd.writelines(str(l)+'\n') for l in r[T_SNIFFER_RECORDS]]
+                if r.get(T_SNIFFER_RECORDS):
+                    [fd.writelines(str(l)+'\n') for l in r[T_SNIFFER_RECORDS]]
 
 if __name__ == '__main__':
 #    oid = '581fdfe3362ac719d1c96eb3'
 #    check_recv('192.168.1.185', 19713, oid)
-    gid = '1482907058'
+    gid = '1482914199'
     export('127.0.0.1', 19713, gid)
 
 
