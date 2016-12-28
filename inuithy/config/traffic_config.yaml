@@ -94,8 +94,7 @@ sniffer:
   path: 'tools/pysniffer.py'
   port: "/dev/ttyUSB4"
   baud: 230400
-  log: "/var/log/inuithy/sniffer.log"
   channel: 17
   pcap: "/var/log/inuithy/sniffer"
-  tshark: "tshark"
+  tshark: "/usr/local/bin/tshark"
 
