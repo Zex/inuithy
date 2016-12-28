@@ -95,7 +95,6 @@ class SplunkStorage(object):
 
     def insert_config(self, data):
     
-        data[T_GENID] = str(int(time.time()))
         msg = ' '.join(['{}={}'.format(k, v) for k, v in data.items()])
         msg += '\r\n'
         self.cli.send(msg.encode())
@@ -103,6 +102,12 @@ class SplunkStorage(object):
 
     def insert_record(self, data):
         msg = ' '.join(['{}={}'.format(k, v) for k, v in data.items() if k != T_MSG])
+        msg += ' '.join(['{}="{}"'.format(T_MSG, data.get(T_MSG))])
+        msg += '\r\n'
+        self.cli.send(msg.encode())
+
+    def insert_sniffer_record(self, data):
+        msg = ' '.join(['{}={}'.format(k, v) for k, v in data.items()])
         msg += ' '.join(['{}="{}"'.format(T_MSG, data.get(T_MSG))])
         msg += '\r\n'
         self.cli.send(msg.encode())

@@ -99,6 +99,16 @@ class Storage(object):
             self.lgr.error(to_string("Insert config failed: {}", ex))
             return None
 
+    def insert_sniffer_record(self, data):
+        """Insert one traffic record
+        @data Traffic data, dict
+        @return Inserted id
+        """
+        try:
+            self.__dbplugin.insert_sniffer_record(data)
+        except Exception as ex:
+            self.lgr.error(to_string("Insert sniffer record failed: {}", ex))
+
     def close(self):
         self.lgr.info("Close storage")
         if self.__dbplugin:

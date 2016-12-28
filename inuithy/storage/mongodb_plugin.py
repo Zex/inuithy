@@ -3,7 +3,7 @@
 """
 from inuithy.common.predef import MessageType, T_HOST, StorageType,\
 T_RECORDS, T_MSG_TYPE, to_string, T_TIME, T_GENID, T_CLIENTID,\
-T_SRC, T_DEST, T_PKGSIZE, to_console
+T_SRC, T_DEST, T_PKGSIZE, to_console, T_SNIFFER_RECORDS
 from pymongo import MongoClient
 #from bson.objectid import ObjectId
 #from datetime import datetime as dt
@@ -110,8 +110,8 @@ class MongodbStorage(object):
         Return
         - T_GENID           : <connect configure and records> => string
         """
-        data[T_GENID] = str(int(time.time()))
         data[T_RECORDS]     = []
+        data[T_SNIFFER_RECORDS] = []
         self.__coll_trafrec.insert_one(data)
         return data[T_GENID]
 #        return str(self.__coll_trafrec.insert_one(data).inserted_id)
@@ -148,6 +148,11 @@ class MongodbStorage(object):
 #        data[T_TIME] = str(dt.now())
         self.trafrec.update(
 #            {"_id": ObjectId(data[T_GENID])},
+            {T_GENID: data.get(T_GENID)},
+            {'$push': {T_SNIFFER_RECORDS: data}})
+
+    def insert_sniffer_record(self, data):
+        self.trafrec.update(
             {T_GENID: data.get(T_GENID)},
             {'$push': {T_RECORDS: data}})
 
@@ -212,9 +217,11 @@ if __name__ == '__main__':
             for r in sto.trafrec.find({T_GENID: genid,}):
                 [fd.writelines(str(l)+'\n') for l in r[T_RECORDS]]
 
+if __name__ == '__main__':
 #    oid = '581fdfe3362ac719d1c96eb3'
 #    check_recv('192.168.1.185', 19713, oid)
     gid = '1481793953'
+    gid = '1482854061'
     export('127.0.0.1', 19713, gid)
 
 
