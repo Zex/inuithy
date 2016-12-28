@@ -45,6 +45,9 @@ T_ACK = 'ack'
 
 class ZigbeeProtocol(Protocol):
     """Protocol for communication with Zigbee firmware"""
+    postboot_route = {}
+    preboot_route = {}
+    # Zigbee 0
     NAME = 'minimalDevice'
     JOIN = "join"
     WRITEATTRIBUTE2 = "writeAttribute2"
@@ -77,6 +80,7 @@ class ZigbeeProtocol(Protocol):
         'dgn',\
         'snd_req',\
     ])
+    # Zigbee 1
 
     @staticmethod
     def prepare(node):
@@ -85,6 +89,17 @@ class ZigbeeProtocol(Protocol):
             node.proto = None
             return False
         return True
+
+    @staticmethod
+    def check_new_zigbee(node, rdbuf):
+        if '[' in rdbuf:
+            while True:
+                buf = node._read_one(1)
+                rdbuf += buf
+                if rdbuf.endswith(']'):
+                    buf = node._read_one(2)
+                    break
+        return rdbuf
 
     @staticmethod
     def handshake(node):
@@ -98,15 +113,17 @@ class ZigbeeProtocol(Protocol):
     
                 node._write((PROTO.HELLO + PROTO.EOL).encode())
                 rdbuf = node._read_one(len(PROTO.UNKNOWN_CMD))
+                rdbuf = PROTO.check_new_zigbee(node, rdbuf) 
                 node.proto.parse_rbuf(rdbuf, node)
     
                 node._write(PROTO.HANDSHAKE_REQ)
                 rdbuf = node._read_one(len(PROTO.HANDSHAKE_RSP))
+                rdbuf = PROTO.check_new_zigbee(node, rdbuf) 
                 node.proto.parse_rbuf(rdbuf, node)
     
                 node._write(PROTO.POST_HANDSHAKE)
-    
                 rdbuf = node._read_one(in_wait=True)
+                rdbuf = PROTO.check_new_zigbee(node, rdbuf) 
                 node.proto.parse_rbuf(rdbuf, node)
             if retry <= 0 and not node.started:
                 return False
@@ -238,6 +255,117 @@ class ZigbeeProtocol(Protocol):
         return addr.upper().strip('0X')
 
     @staticmethod
+    def on_handshake_rsp(node, data, adapter=None):
+        PROTO.lgr.debug(to_string('{}: got handshake response', node))
+#        node._write(PROTO.POST_HANDSHAKE)
+        return
+
+    @staticmethod
+    def on_ack(node, data, adapter=None):
+        PROTO.lgr.debug(to_string('{}: got ack', node))
+        rdbuf = node._read_one()
+        PROTO.lgr.debug(to_string('{}: post ack', rdbuf))
+        node.started = True
+        return
+
+    @staticmethod
+    def on_unknown_cmd(node, data, adapter=None):
+        PROTO.lgr.debug(to_string('{}: got unknown command', node))
+        node.started = True
+        node.writable.set()
+        return
+
+    @staticmethod
+    def on_name(node, data, adapter=None):
+        node.fwver = data
+        node.proto = PROTO
+        if adapter is not None:
+            PROTO.lgr.debug(to_string("Register to adapter"))
+            if adapter.sender is not None:
+                adapter.sender.send((node.dev.fileno(), node.addr, node.fwver, node.proto, data))
+        else:
+            PROTO.lgr.error(to_string("Failed to register node to adapter: no adapter given"))
+        node.started = True
+        node.writable.set()
+        return
+
+    @staticmethod
+    def on_send(node, params, adapter=None):
+        """Send 0xc1 0x05 0xa001 0xa004 0x00"""
+        report = {
+            T_GENID: node.genid,
+            T_NODE: PROTO.unify_addr(node.addr),
+            T_TIME: time.time(),
+            T_TRAFFIC_TYPE: TrafficType.SCMD.name,
+            T_MSG_TYPE: MessageType.RECV.name,
+            T_TYPE: PROTO.MsgType.snd.name,
+            T_ZBEE_ZCL_CMD_TSN: params[1],
+            T_ZBEE_NWK_SRC: PROTO.unify_addr(params[3]),
+            T_ZBEE_NWK_DST: PROTO.unify_addr(params[4]),
+            T_STATUS: params[5],
+            T_SND_SEQ_NR: node.sequence_nr,
+        }
+        node.sequence_nr += 1
+        node.writable.set()
+        return report
+
+    @staticmethod
+    def on_recv(node, params, adapter=None):
+        """Recv 0xc1 0x05 0xa001 0xa004"""
+        report = {
+            T_GENID: node.genid,
+            T_TIME: time.time(),
+            T_NODE: PROTO.unify_addr(node.addr),
+            T_TRAFFIC_TYPE: TrafficType.SCMD.name,
+            T_MSG_TYPE: MessageType.RECV.name,
+            T_TYPE: PROTO.MsgType.rcv.name,
+            T_ZBEE_NWK_SRC: PROTO.unify_addr(params[3]),
+            T_ZBEE_NWK_DST: PROTO.unify_addr(params[4]),
+            T_ZBEE_ZCL_CMD_TSN: params[1],
+        }
+        return report
+
+    @staticmethod
+    def on_join(node, params, adapter=None):
+        report = {
+            T_GENID: node.genid,
+            T_TIME: time.time(),
+            T_NODE: PROTO.unify_addr(node.addr),
+            T_TRAFFIC_TYPE: TrafficType.JOIN.name,
+            T_MSG_TYPE: MessageType.RECV.name,
+        }
+        #DEBUG data
+        node.joined = True
+        node.writable.set()
+        return report
+
+    @staticmethod
+    def on_getuid(node, params, adapter=None):
+        node.uid = params[1]
+        node.addr = node.uid[-4:]
+        node.writable.set()
+        return
+
+    @staticmethod
+    def on_resetconf(node, params, adapter=None):
+        return None
+
+    @staticmethod
+    def on_dgn(node, params, adapter=None):
+        report = {
+            T_GENID: node.genid,
+            T_TIME: time.time(),
+            T_NODE: PROTO.unify_addr(node.addr),
+            T_MSG_TYPE: MessageType.RECV.name,
+            T_TRAFFIC_TYPE: TrafficType.SCMD.name,
+            T_TYPE: PROTO.MsgType.dgn.name,
+            T_ZBEE_NWK_ADDR: PROTO.unify_addr(node.addr),
+        }
+        report.update(dict(zip(PROTO.DIAG_ITEM, params[1:])))
+        node.writable.set()
+        return report
+
+    @staticmethod
     def parse_rbuf(data, node, adapter=None):
         """Parse recieved data
         @data Serial command sent
@@ -251,61 +379,16 @@ class ZigbeeProtocol(Protocol):
         report = {}
         data = data.strip('\t \r\n')
        
-        # DEBUG data
-#        rand = random.randint(MessageType.RECV.value, MessageType.UNKNOWN.value)
-#        if node.joined is False:
-#            params = []
-#            params.append(MessageType.JOINING.name)
-#        else:
-#            if rand == MessageType.RECV.value:
-#                params = []
-#                params.append(MessageType.RECV.name)
-#                params.append(str(random.randint(0, 10)))
-#                params.append(str(random.randint(0, 10)))
-#                params.append(str(random.randint(1100, 1144)))
-#            elif rand == MessageType.SEND.value:
-#                params = []
-#                params.append(MessageType.SEND.name)
-#                params.append(str(random.randint(0, 10)))
-#                params.append(str(random.randint(0, 10)))
-#                params.append(str(random.randint(0, 10)))
-#                params.append(str(random.randint(1100, 1144)))
-#                params.append(str(random.randint(10, 100)))
-#            else:
-#                params = [PROTO.DGN]
-#                params.extend([str(random.randint(0, 2000)) for _ in range(21)])
-        #------------end debug data--------------
+        hdr = PROTO.preboot_route.get(data)
+        if hdr is not None:
+            return hdr(node, data, adapter)
 
-        if data == PROTO.HANDSHAKE_RSP:
-            PROTO.lgr.debug(to_string('{}: got handshake response', node))
-            node._write(PROTO.POST_HANDSHAKE)
-            return
+        params = data.split(' ')
+        msg_type = params[0].upper()
 
-        if data == PROTO.ACK:
-            PROTO.lgr.debug(to_string('{}: got ack', node))
-            rdbuf = node._read_one()
-            PROTO.lgr.debug(to_string('{}: post ack', rdbuf))
-            node.started = True
-            return
-
-        if data == PROTO.UNKNOWN_CMD:
-            PROTO.lgr.debug(to_string('{}: got unknown command', node))
-            node.started = True
-            node.writable.set()
-            return
-
-        if data == PROTO.NAME:
-            node.fwver = data
-            node.proto = PROTO
-            if adapter is not None:
-                PROTO.lgr.debug(to_string("Register to adapter"))
-                if adapter.sender is not None:
-                    adapter.sender.send((node.dev.fileno(), node.addr, node.fwver, node.proto, data))
-            else:
-                PROTO.lgr.error(to_string("Failed to register node to adapter: no adapter given"))
-            node.started = True
-            node.writable.set()
-            return
+        hdr = PROTO.postboot_route.get(msg_type)
+        if hdr is not None:
+            return hdr(node, params, adapter)
 
         if PROTO.NWUPDATESTATUS in data:
             report.update({\
@@ -320,77 +403,11 @@ class ZigbeeProtocol(Protocol):
             node.writable.set()
             return report
 
-        params = data.split(' ')
-        msg_type = params[0].upper()
-
-        if msg_type == MessageType.SEND.name:
-            """Send 0xc1 0x05 0xa001 0xa004 0x00"""
-            report.update({
-                T_TIME: time.time(),
-                T_TRAFFIC_TYPE: TrafficType.SCMD.name,
-                T_MSG_TYPE: MessageType.RECV.name,
-                T_TYPE: PROTO.MsgType.snd.name,
-                T_ZBEE_ZCL_CMD_TSN: params[1],
-                T_ZBEE_NWK_SRC: PROTO.unify_addr(params[3]),
-                T_ZBEE_NWK_DST: PROTO.unify_addr(params[4]),
-                T_STATUS: params[5],
-                T_SND_SEQ_NR: node.sequence_nr,
-            })
-            node.sequence_nr += 1
-#           if status == '0x00':
-#               node.nr_messages_sent += 1
-            node.writable.set()
-        elif msg_type == MessageType.RECV.name:
-            """Recv 0xc1 0x05 0xa001 0xa004"""
-            report.update({
-                T_TRAFFIC_TYPE: TrafficType.SCMD.name,
-                T_MSG_TYPE: MessageType.RECV.name,
-                T_TYPE: PROTO.MsgType.rcv.name,
-                T_ZBEE_NWK_SRC: PROTO.unify_addr(params[3]),
-                T_ZBEE_NWK_DST: PROTO.unify_addr(params[4]),
-                T_ZBEE_ZCL_CMD_TSN: params[1],
-            })
-#            node.writable.set()
-        elif msg_type == MessageType.JOINING.name:
-            report = {
-                T_TRAFFIC_TYPE: TrafficType.JOIN.name,
-                T_MSG_TYPE: MessageType.RECV.name,
-            }
-            #DEBUG data
-            node.joined = True
-            node.writable.set()
-        elif params[0] == 'Trying' or params[0] == 'Network':
-            return None
-        elif params[0] == PROTO.GETUID:
-            node.uid = params[1]
-            node.addr = node.uid[-4:]
-            node.writable.set()
-        elif params[0] == PROTO.GETNETWORKADDRESS:
-            node.addr = data[-6:]
-        elif params[0] == PROTO.RESET_CONF:
-            return None
-        elif params[0] == PROTO.DGN:
-            report.update({
-                T_MSG_TYPE: MessageType.RECV.name,
-                T_TRAFFIC_TYPE: TrafficType.SCMD.name,
-                T_TYPE: PROTO.MsgType.dgn.name,
-                T_ZBEE_NWK_ADDR: PROTO.unify_addr(node.addr),
-            })
-            report.update(dict(zip(PROTO.DIAG_ITEM, params[1:])))
-            node.writable.set()
-        else:
-            report.update({
-                T_MSG_TYPE: MessageType.RECV.name,
-                T_UNKNOWN_RESP: T_YES,
-                T_ZBEE_NWK_ADDR: ' '.join([PROTO.unify_addr(node.addr), data]),
-            })
-
-        if report.get(T_TRAFFIC_TYPE):
-            report.update({
-                T_GENID: node.genid,
-                T_TIME: time.time(),
-                T_NODE: PROTO.unify_addr(node.addr),
-            })
+        report.update({
+            T_MSG_TYPE: MessageType.RECV.name,
+            T_UNKNOWN_RESP: T_YES,
+            T_ZBEE_NWK_ADDR: ' '.join([PROTO.unify_addr(node.addr), data]),
+        })
 
         return report
 
@@ -418,5 +435,23 @@ class ZigbeeProtocol(Protocol):
         }
         return report
 
+
+
 PROTO = ZigbeeProtocol
+
+PROTO.preboot_route = {
+        PROTO.HANDSHAKE_RSP: PROTO.on_handshake_rsp,
+        PROTO.ACK: PROTO.on_ack,
+        PROTO.UNKNOWN_CMD: PROTO.on_unknown_cmd,
+        PROTO.NAME: PROTO.on_name,
+    }
+
+PROTO.postboot_route = {
+        MessageType.SEND.name: PROTO.on_send,
+        MessageType.RECV.name: PROTO.on_recv,
+        MessageType.JOINING.name: PROTO.on_join,
+        PROTO.DGN.upper(): PROTO.on_dgn,
+        PROTO.GETUID.upper(): PROTO.on_getuid,
+        PROTO.RESET_CONF.upper(): PROTO.on_resetconf,
+    }
 
