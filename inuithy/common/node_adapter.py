@@ -6,13 +6,13 @@ sys.path.append('/opt/inuithy')
 from inuithy.common.predef import DEV_TTYUSB, DEV_TTYS, DEV_TTY,\
 to_string, T_EVERYONE, INUITHY_LOGCONFIG, T_MSG, NodeType, DEV_TTYACM
 from inuithy.util.helper import clear_list
-from inuithy.util.task_manager import ProcTaskManager
 from inuithy.common.supported_proto import SupportedProto
 from inuithy.common.node import SerialNode, RawNode, RAWNODE_BASE, RawNodeSvr
 from inuithy.protocol.ble_proto import BleProtocol as BleProto
 from inuithy.protocol.zigbee_proto import ZigbeeProtocol as ZbeeProto
 from inuithy.protocol.bzcombo_proto import BzProtocol as BzProto
 from inuithy.util.worker import Worker
+from inuithy.util.task_manager import ProcTaskManager
 import multiprocessing as mp
 import glob, logging
 import threading
@@ -164,13 +164,7 @@ def scan_nodes(adapter, targets=None):
     if len(paths) == 0:
         raise RuntimeError("No node connected")
     adapter.worker.start()
-
     adapter.expected_paths = paths
-#    pool = ProcTaskManager(NodeAdapter.lgr)#, start_on_create=False)
-#    NodeAdapter.lgr.info("Scanning preparing")
-#    [pool.create_task(create_node, adapter, path) for path in paths]
-#    NodeAdapter.lgr.info("Scanning started")
-#    pool.waitall()
 
     pipe = mp.Pipe()
     adapter.sender = pipe[0]
