@@ -123,6 +123,8 @@ def get_type(node):
                 get_type(node)
         except StopIteration:
             NodeAdapter.lgr.info(to_string("All proto tried"))
+            if not node.started:
+                raise RuntimeError(to_string("No proto found for node {}", node))
         except Exception as ex:
             NodeAdapter.lgr.error(to_string(
             "Exception on examine node[{}]: {}", node, ex))
