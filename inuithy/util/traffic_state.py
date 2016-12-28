@@ -13,6 +13,7 @@ stop_agents, force_stop_agents
 from inuithy.common.traffic import create_phases#, TRAFFIC_BROADCAST_ADDRESS
 from inuithy.analysis.report_adapter import ReportAdapter
 from inuithy.util.task_manager import ProcTaskManager
+#from inuithy.util.sniffer import start_sniffer, stop_sniffer
 from state_machine import State, Event, acts_as_state_machine,\
 after, before, InvalidStateTransition
 from datetime import datetime as dt
@@ -441,10 +442,10 @@ class TrafficState:
             self.wait_agent()
             try:
                 while self.traf_running:
-#                    gid = self.next()
                     self.current_phase = next(self.next_phase)
                     gid = self.record_phase()
                     if gid is not None:
+#                        start_sniffer()
                         self.start_phase()
             except StopIteration:
                 TrafficState.lgr.info("All traffic generator done")
@@ -466,10 +467,12 @@ class TrafficState:
         if not self.traf_running:
             return
         nwlayoutname = getnwlayoutname(self.current_phase.nwlayoutid)
+        self.current_phase.genid = str(int(time.time()))
         cfg = {
-            T_NWLAYOUT: deepcopy(rt.nwcfg.config.get(nwlayoutname))
+            T_GENID: self.current_phase.genid,
+            T_NWLAYOUT: deepcopy(rt.nwcfg.config.get(nwlayoutname)),
         }
-        self.current_phase.genid = self.ctrl.storage.insert_config(cfg)
+        self.ctrl.storage.insert_config(cfg)
         to_console("Current phase: {}", self.current_phase)
         self.record_genid(self.current_phase.genid)
         return self.current_phase
@@ -488,6 +491,8 @@ class TrafficState:
                 self.genreport,
             ]
             [transition(self, stat) for stat in phase_stat if self.traf_running]
+        except KeyboardInterrupt:
+            TrafficState.lgr.info("Terminating ...")
         except Exception as ex:
             TrafficState.lgr.error(to_string("Traffic state transition failed: {}", str(ex)))
 
@@ -551,6 +556,7 @@ class TrafficState:
         TrafficState.lgr.info(to_string("Traffic finished: {}", str(self.current_state)))
         try:
             self.chk._is_phase_finished.wait()
+#            stop_sniffer()
         except KeyboardInterrupt:
             TrafficState.lgr.info("Terminating ...")
         except Exception as rex:
@@ -589,6 +595,8 @@ class TrafficState:
             self.phases.clear()
             TrafficState.lgr.info("Stopping agents ...")
             stop_agents(self.ctrl.mqclient, rt.tcfg.mqtt_qos)
+
+            self.chk.set_all()
 
             if len(self.chk.available_agents) > 0:
                 TrafficState.lgr.info("Wait for last notifications")
