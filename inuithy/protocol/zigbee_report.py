@@ -261,7 +261,7 @@ class ZbeeReport(object):
     def gen_report(raw, pdata, ginfo, gw=None, interest_nodes=None, irange=None):
         """Report generation helper"""
         lgr.info(to_string("Generate report with gw={}, nodes={} irange={}", gw, interest_nodes, irange))
-        if raw is None or len(raw[T_TIME]) == 0:
+        if raw is None or raw.get(T_TIME) is None or len(raw[T_TIME]) == 0:
             lgr.warning(to_string("No time-based records found"))
             return
 #        pdata = pd.read_csv(ginfo.csv_path, index_col=False, names=ginfo.header, header=None)
