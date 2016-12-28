@@ -9,14 +9,16 @@
 \endcode
 """
 from inuithy.common.predef import to_string, to_console,\
-T_CHANNEL, T_PORT, T_BAUD, T_ENABLED, T_PATH, INUITHY_LOGCONFIG
+T_CHANNEL, T_PORT, T_BAUD, T_ENABLED, T_PATH, INUITHY_LOGCONFIG, T_GENID, T_MSG
 from inuithy.common.runtime import Runtime as rt
 from inuithy.util.task_manager import ProcTaskManager
+from inuithy.util.helper import remove_dotted_key
 from inuithy.util.cmd_helper import pub_sniffer
 from tools.pysniffer import SerialInputHandler, PcapStdOutHandler, PcapDumpOutHandler, FifoOutHandler, logger, Frame
 import paho.mqtt.client as mqtt
 from os import path, makedirs, mkfifo
 import subprocess as sp
+import json
 import logging.config as lconf
 import threading
 import logging
@@ -72,18 +74,19 @@ class PcapToMq(object):
         return True
 
     @staticmethod
-    def __try_load(data):
+    def __try_load(buf):
         """Return `true` if data is valid json block
         """
         try:
-            to_console(data)
-            if data is None or len(data) == 0:
+            if buf is None or len(buf) == 0:
                 return False
-            json.loads(data)
+            data = json.loads(buf)
             if PcapToMq._mqclient is not None:
-                pub_sniffer(PcapToMq._mqclient, data={T_GENID: PcapToMq.genid, T_MSG: data})
-        except json.decoder.JSONDecodeError:
-            return False
+                data = remove_dotted_key(data)
+                data.update({T_GENID: PcapToMq.genid})
+                pub_sniffer(PcapToMq._mqclient, data={T_MSG: data})
+#        except json.decoder.JSONDecodeError:
+#            return False
         except Exception as ex:
             logging.error(to_string("Try load failed: {}", ex))
             return False
@@ -162,7 +165,7 @@ class Sniffer():
             if not path.isdir(sniconf.get(T_PCAP)):
                 makedirs(sniconf.get(T_PCAP))
 
-            pcap_path = to_string('{}/{}.pcap', sniconf.get(T_PCAP), int(time.time()))
+            pcap_path = to_string('{}/{}.pcap', sniconf.get(T_PCAP), genid)
             to_console("PCAP path: {}", pcap_path)
 
             if not path.exists(Sniffer.fifo_path):
@@ -217,6 +220,7 @@ class Sniffer():
                     frame = Frame(raw)
                     for h in out_hdr:
                         h.handle(frame)
+                PcapToMq._mqclient.loop()
             except (KeyboardInterrupt, SystemExit):
                 in_hdr.close()
                 sys.exit(0)
@@ -248,7 +252,7 @@ if __name__ == '__main__':
 
     from inuithy.common.runtime import load_configs
     load_configs()
-    start_sniffer()
+    start_sniffer('1482907058')
     input('Enter to quit ...')
     stop_sniffer()
 
