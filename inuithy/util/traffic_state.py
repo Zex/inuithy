@@ -13,7 +13,7 @@ stop_agents, force_stop_agents
 from inuithy.common.traffic import create_phases#, TRAFFIC_BROADCAST_ADDRESS
 from inuithy.analysis.report_adapter import ReportAdapter
 from inuithy.util.task_manager import ProcTaskManager
-#from inuithy.util.sniffer import start_sniffer, stop_sniffer
+from inuithy.util.sniffer import start_sniffer, stop_sniffer
 from state_machine import State, Event, acts_as_state_machine,\
 after, before, InvalidStateTransition
 from datetime import datetime as dt
@@ -445,7 +445,7 @@ class TrafficState:
                     self.current_phase = next(self.next_phase)
                     gid = self.record_phase()
                     if gid is not None:
-#                        start_sniffer()
+                        start_sniffer()
                         self.start_phase()
             except StopIteration:
                 TrafficState.lgr.info("All traffic generator done")
@@ -556,7 +556,7 @@ class TrafficState:
         TrafficState.lgr.info(to_string("Traffic finished: {}", str(self.current_state)))
         try:
             self.chk._is_phase_finished.wait()
-#            stop_sniffer()
+            stop_sniffer()
         except KeyboardInterrupt:
             TrafficState.lgr.info("Terminating ...")
         except Exception as rex:
@@ -607,6 +607,13 @@ class TrafficState:
 #            self.chk.set_all()
         except Exception as ex:
             TrafficState.lgr.error(to_string("Exception on stopping agents: {}", ex))
+
+
+        try:
+            to_console("Stopping sniffer ...")
+            stop_sniffer()
+        except Exception as ex:
+            TrafficState.lgr.error(to_string("Exception on stopping sniffer: {}", ex))
 
         TrafficState.lgr.info("Stopping controller ...")
         self.ctrl.teardown()

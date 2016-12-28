@@ -85,12 +85,12 @@ def remove_dotted_key(data):
 
     new_data = {}
     for k, v in data.items():
+        new_k =  k
+        if '.' in new_k:
+            new_k = new_k.replace('.', '-')
         if isinstance(v, dict):
-            new_data.update({k:remove_dotted_key(v)})
+            new_data.update({new_k:remove_dotted_key(v)})
         else:
-            new_k =  k
-            if '.' in new_k:
-                new_k = new_k.replace('.', '-')
             new_data.update({new_k: v})
     return new_data
 

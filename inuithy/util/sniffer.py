@@ -101,7 +101,7 @@ class PcapToMq(object):
         
         try:
 
-            while PcapToMq.proc.poll() is None or Sniffer.running:
+            while PcapToMq.proc.poll() is None and Sniffer.running:
                 line = PcapToMq.proc.stdout.readline()
                 if line:
                     line = line.rstrip('\r\n ')
@@ -111,7 +111,7 @@ class PcapToMq(object):
                     break
             to_console("TSHARK HEAD SKIPPED")
             
-            while PcapToMq.proc.poll() is None or Sniffer.running:
+            while PcapToMq.proc.poll() is None and Sniffer.running:
                 line = PcapToMq.proc.stdout.readline()
                 if line:
                     line = line.rstrip('\r\n ')
@@ -208,7 +208,9 @@ class Sniffer():
 
         Sniffer.sniffer_worker = threading.Thread(target=Sniffer._start, args=(in_hdr, out_hdr))
         Sniffer.sniffer_worker.start()
-        PcapToMq.start()
+        Sniffer.tshark_worker = threading.Thread(target=PcapToMq.start)
+        Sniffer.tshark_worker.start()
+#        PcapToMq.start()
 
     @staticmethod
     def _start(in_hdr, out_hdr):
@@ -234,7 +236,9 @@ class Sniffer():
 
         if Sniffer.sniffer_worker:
             Sniffer.sniffer_worker.join()
-            
+
+        if Sniffer.tshark_worker:
+            Sniffer.tshark_worker.join()
         PcapToMq.stop()
 
 def start_sniffer(genid=None):
@@ -252,8 +256,11 @@ if __name__ == '__main__':
 
     from inuithy.common.runtime import load_configs
     load_configs()
-    start_sniffer('1482907058')
-    input('Enter to quit ...')
+    start_sniffer('1482914199')
+    try:
+        input('Enter to quit ...')
+    except SyntaxError:
+        to_console("Using Py2")
     stop_sniffer()
 
 
