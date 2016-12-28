@@ -3,7 +3,7 @@
 """
 from inuithy.common.version import INUITHY_ROOT, PROJECT_PATH
 from inuithy.common.predef import T_CLIENTID, TT_COMMAND,\
-T_CTRLCMD, CtrlCmd, TT_UNREGISTER, TT_STATUS,\
+T_CTRLCMD, CtrlCmd, TT_UNREGISTER, TT_STATUS, TT_SNIFFER,\
 TT_NOTIFICATION, TT_REPORTWRITE, INUITHY_NOHUP_OUTPUT,\
 TT_HEARTBEAT, TT_TRAFFIC, TT_NWLAYOUT, to_string, TT_REPLY
 from inuithy.util.helper import runonremote
