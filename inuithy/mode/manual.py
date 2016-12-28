@@ -3,8 +3,8 @@
 """
 from inuithy.common.version import __version__
 from inuithy.common.predef import TT_HEARTBEAT, TT_STATUS,\
-TT_REPORTWRITE, TT_NOTIFICATION, TT_UNREGISTER,\
-INUITHY_TITLE, INUITHY_LOGCONFIG, to_string, to_console
+TT_REPORTWRITE, TT_NOTIFICATION, TT_UNREGISTER, TT_REPLY,\
+INUITHY_TITLE, INUITHY_LOGCONFIG, to_string, to_console, TT_SNIFFER
 from inuithy.mode.base import CtrlBase
 from inuithy.util.cmd_helper import stop_agents
 from inuithy.util.console import Console
@@ -33,6 +33,7 @@ class ManualCtrl(CtrlBase):
             (TT_REPORTWRITE, rt.tcfg.mqtt_qos),
             (TT_NOTIFICATION, rt.tcfg.mqtt_qos),
             (TT_REPLY, rt.tcfg.mqtt_qos),
+            (TT_SNIFFER, rt.tcfg.mqtt_qos),
         ])
         self.mqclient.message_callback_add(TT_HEARTBEAT, ManualCtrl.on_topic_heartbeat)
         self.mqclient.message_callback_add(TT_UNREGISTER, ManualCtrl.on_topic_unregister)
@@ -40,6 +41,7 @@ class ManualCtrl(CtrlBase):
         self.mqclient.message_callback_add(TT_REPORTWRITE, ManualCtrl.on_topic_reportwrite)
         self.mqclient.message_callback_add(TT_NOTIFICATION, ManualCtrl.on_topic_notification)
         self.mqclient.message_callback_add(TT_REPLY, ManualCtrl.on_topic_reply)
+        self.mqclient.message_callback_add(TT_SNIFFER, ManualCtrl.on_topic_sniffer)
 
     def __init__(self, lgr=None, delay=4):
         CtrlBase.__init__(self, lgr, delay)

@@ -3,7 +3,7 @@
 """
 from inuithy.common.version import __version__
 from inuithy.common.predef import TT_HEARTBEAT, TT_STATUS,\
-TT_REPORTWRITE, TT_NOTIFICATION, TT_UNREGISTER,\
+TT_REPORTWRITE, TT_NOTIFICATION, TT_UNREGISTER, TT_SNIFFER,\
 TRAFFIC_CONFIG_PATH, INUITHY_CONFIG_PATH, INUITHY_TITLE, INUITHY_LOGCONFIG,\
 to_string, T_CLIENTID, T_HOST, T_NODES, T_VERSION
 from inuithy.common.runtime import Runtime as rt
@@ -32,12 +32,14 @@ class MoniCtrl(CtrlBase):
             (TT_STATUS, rt.tcfg.mqtt_qos),
             (TT_REPORTWRITE, rt.tcfg.mqtt_qos),
             (TT_NOTIFICATION, rt.tcfg.mqtt_qos),
+            (TT_SNIFFER, rt.tcfg.mqtt_qos),
         ])
         self.mqclient.message_callback_add(TT_HEARTBEAT, MoniCtrl.on_topic_heartbeat)
         self.mqclient.message_callback_add(TT_UNREGISTER, MoniCtrl.on_topic_unregister)
         self.mqclient.message_callback_add(TT_STATUS, MoniCtrl.on_topic_status)
         self.mqclient.message_callback_add(TT_REPORTWRITE, MoniCtrl.on_topic_reportwrite)
         self.mqclient.message_callback_add(TT_NOTIFICATION, MoniCtrl.on_topic_notification)
+        self.mqclient.message_callback_add(TT_SNIFFER, MoniCtrl.on_topic_sniffer)
 
     def __init__(self, lgr=None, delay=4):
         CtrlBase.__init__(self, lgr, delay)

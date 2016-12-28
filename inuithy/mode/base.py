@@ -134,7 +134,7 @@ class CtrlBase(object):
         self._storage = None
         self._current_nwlayout = ('', '')
         self._host = os.uname()[1]
-        self._clientid = to_string(CTRL_CLIENT_ID, self.host)
+        self._clientid = to_string(CTRL_CLIENT_ID, to_string('{}-{}', self.host, hex(randint(1048576, 10000000))[2:]))
         self.worker = Worker(2, self.lgr)
         load_configs()
 
@@ -364,6 +364,17 @@ class CtrlBase(object):
             self.lgr.debug(to_string("Unhandled status message {}", data))
 
     @staticmethod
+    def on_topic_sniffer(client, userdata, message):
+        """Sniffer topic handler"""
+        self = userdata
+        self.lgr.info(to_string("On topic sniffer"))
+        data = extract_payload(message.payload)
+        try:
+            self.storage.insert_sniffer_record(data.get(T_MSG))
+        except Exception as ex:
+            self.lgr.error(to_string("Failed to handle sniffer message: {}", ex))
+
+    @staticmethod
     def on_topic_reportwrite(client, userdata, message):
         """Report-written topic handler"""
         self = userdata
@@ -373,9 +384,7 @@ class CtrlBase(object):
             if data.get(T_TRAFFIC_TYPE) == TrafficType.JOIN.name:
                 self.lgr.debug(to_string("JOINING: {}", data.get(T_NODE)))
             elif data.get(T_TRAFFIC_TYPE) == TrafficType.SCMD.name:
-            # Record traffic only
                 self.lgr.debug(to_string("REPORT: {}", data))
-#                if data.get(T_MSG_TYPE) == MessageType.SEND.name and data.get(T_NODE) is not None:
                 if data.get(T_NODE) is not None:
                     self.storage.insert_record(data)
         except Exception as ex:
@@ -395,13 +404,10 @@ class CtrlBase(object):
                     self.traffic_state.chk.nwlayout[data.get(T_NODE)] = True
                     self.traffic_state.check("is_nwlayout_done")
             elif data.get(T_TRAFFIC_TYPE) == TrafficType.SCMD.name:
-            # Record traffic only
-#                if data.get(T_MSG_TYPE) == MessageType.RECV.name and data.get(T_NODE) is not None:
                 if data.get(T_NODE) is not None:
                     self.storage.insert_record(data)
             else:
                 pass
-#                self.storage.insert_record(data)
         except Exception as ex:
             self.lgr.error(to_string("Failed to handle notification message: {}", ex))
             self.teardown()
