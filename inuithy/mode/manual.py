@@ -64,8 +64,6 @@ class ManualCtrl(CtrlBase):
                 len(self.expected_agents), self.expected_agents))
             if self.worker is not None:
                 self.worker.start()
-#            self.mqworker.start()
-#            stop_agents(self.mqclient)
             self.alive_notification()
             ret = mqtt.MQTT_ERR_SUCCESS
             for retry_cnt in range(1, 4):
@@ -75,7 +73,7 @@ class ManualCtrl(CtrlBase):
                 self.mqclient.loop_stop()
                 self.lgr.warning(to_string('Retry [{}] ...', retry_cnt))
             if ret is not None and ret != mqtt.MQTT_ERR_SUCCESS:
-                raise Exception("Start MQTT loop failed")
+                raise RuntimeError("Start MQTT loop failed")
             self.term.start()
             to_console("\nBye~\n")
             self.mqclient.loop_stop()
