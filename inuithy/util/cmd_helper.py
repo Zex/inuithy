@@ -7,6 +7,7 @@ T_CTRLCMD, CtrlCmd, TT_UNREGISTER, TT_STATUS, TT_SNIFFER,\
 TT_NOTIFICATION, TT_REPORTWRITE, INUITHY_NOHUP_OUTPUT,\
 TT_HEARTBEAT, TT_TRAFFIC, TT_NWLAYOUT, to_string, TT_REPLY
 from inuithy.util.helper import runonremote
+import paho.mqtt.client as mqtt
 import json
 import threading
 
@@ -188,4 +189,15 @@ def force_stop_agents(hosts):
 #    cmd = 'kill `ps aux|grep inuithy/agent.py|awk \'{print $2,\"@\"$11,$12}\'|grep @python|awk \'{printf \" \"$1}\'` &> /dev/null'
     cmd = 'kill `ps aux|grep \" python.*inuithy/agent.py\"|awk \'{printf \" \"$2}\'` &> /dev/null'
     [runonremote('root', host, cmd) for host in hosts]
+
+def mqlog_map(lgr, level, msg):
+    if level == mqtt.MQTT_LOG_INFO:
+        lgr.info(INUITHY_MQLOG_FMT.format(msg))
+    elif level == mqtt.MQTT_LOG_ERR:
+        lgr.error(INUITHY_MQLOG_FMT.format(msg))
+    elif level == mqtt.MQTT_LOG_NOTICE or level == mqtt.MQTT_LOG_WARNING:
+        lgr.warning(INUITHY_MQLOG_FMT.format(msg))
+    else: # level == mqtt.MQTT_LOG_DEBUG:
+        lgr.debug(INUITHY_MQLOG_FMT.format(msg))
+        pass
 
