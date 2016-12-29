@@ -2,7 +2,12 @@
  @author: Zex Li <top_zlynch@yahoo.com>
 """
 import sys
-sys.path.append('/opt/inuithy')
+import os
+
+if os.uname()[-1] == 'armv7l':
+    sys.path.insert(0, '/usr/lib/python2.7/site-packages')
+    sys.path.append('/opt/inuithy')
+
 from inuithy.common.predef import DEV_TTYUSB, DEV_TTYS, DEV_TTY,\
 to_string, T_EVERYONE, INUITHY_LOGCONFIG, T_MSG, NodeType, DEV_TTYACM
 from inuithy.util.helper import clear_list
