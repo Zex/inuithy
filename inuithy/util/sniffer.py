@@ -9,8 +9,8 @@
 \endcode
 """
 from inuithy.common.predef import to_string, to_console,\
-T_CHANNEL, T_PORT, T_BAUD, T_ENABLED, INUITHY_LOGCONFIG, T_GENID, T_MSG
-T_SNIFFER, T_PCAP, T_SHARK
+T_CHANNEL, T_PORT, T_BAUD, T_ENABLED, INUITHY_LOGCONFIG, T_GENID, T_MSG,\
+T_SNIFFER, T_PCAP, T_TSHARK
 from inuithy.common.runtime import Runtime as rt
 from inuithy.common.runtime import load_configs
 from inuithy.util.task_manager import ProcTaskManager
