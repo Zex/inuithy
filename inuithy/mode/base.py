@@ -3,7 +3,7 @@
 """
 from inuithy.common.version import __version__
 from inuithy.common.predef import T_CTRLCMD, CtrlCmd, T_CLIENTID,\
-T_HOST, T_NODES, AgentStatus, INUITHY_LOGCONFIG, mqlog_map, T_TID,\
+T_HOST, T_NODES, AgentStatus, INUITHY_LOGCONFIG, T_TID,\
 to_string, CTRL_CLIENT_ID, T_TRAFFIC_STATUS, T_MSG, to_console,\
 T_TRAFFIC_TYPE, TrafficType, T_NODE, TrafficStatus, T_VERSION,\
 MessageType, T_GENID
@@ -12,7 +12,7 @@ TT_REPORTWRITE, TT_NOTIFICATION, TT_UNREGISTER
 from inuithy.common.runtime import Runtime as rt
 from inuithy.common.runtime import load_configs
 from inuithy.util.helper import getnwlayoutid, isprocrunning
-from inuithy.util.cmd_helper import pub_ctrlcmd, extract_payload
+from inuithy.util.cmd_helper import pub_ctrlcmd, extract_payload, mqlog_map
 from inuithy.util.traffic_state import TrafficState
 from inuithy.storage.storage import Storage
 from inuithy.common.agent_info import AgentInfo
