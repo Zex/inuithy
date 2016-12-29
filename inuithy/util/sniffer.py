@@ -9,8 +9,10 @@
 \endcode
 """
 from inuithy.common.predef import to_string, to_console,\
-T_CHANNEL, T_PORT, T_BAUD, T_ENABLED, T_PATH, INUITHY_LOGCONFIG, T_GENID, T_MSG
+T_CHANNEL, T_PORT, T_BAUD, T_ENABLED, INUITHY_LOGCONFIG, T_GENID, T_MSG
+T_SNIFFER, T_PCAP, T_SHARK
 from inuithy.common.runtime import Runtime as rt
+from inuithy.common.runtime import load_configs
 from inuithy.util.task_manager import ProcTaskManager
 from inuithy.util.helper import remove_dotted_key
 from inuithy.util.cmd_helper import pub_sniffer
@@ -24,10 +26,6 @@ import threading
 import logging
 import time
 import sys
-
-T_SNIFFER = 'sniffer'
-T_PCAP = 'pcap'
-T_TSHARK = 'tshark'
 
 lconf.fileConfig(INUITHY_LOGCONFIG)
 logger = logging
@@ -157,7 +155,7 @@ class Sniffer():
         try:
             sniconf = rt.trcfg.config.get(T_SNIFFER)
             if sniconf is not None:
-                if not sniconf.get(T_ENABLED):
+                if not sniconf.get(T_ENABLED) or sniconf.get(T_ENABLED) is False:
                     to_console("Sniffer not enabled")
                     return None, None
 
@@ -237,9 +235,9 @@ class Sniffer():
         if Sniffer.sniffer_worker:
             Sniffer.sniffer_worker.join()
 
+        PcapToMq.stop()
         if Sniffer.tshark_worker:
             Sniffer.tshark_worker.join()
-        PcapToMq.stop()
 
 def start_sniffer(genid=None):
 
@@ -252,11 +250,23 @@ def stop_sniffer():
 
     Sniffer.stop()
 
+def handle_args(in_args=None):
+    """Arguments handler"""    
+    args = None
+    try:
+        rt.parser.description = 'Inuithy Sniffer'
+        rt.parser.add_argument('-gid', '--genid', required=True, help='Traffic generation identifier')
+        args = rt.handle_args()
+        load_configs()
+    except Exception as ex:
+        to_console("Exception on handling sniffer arguments: {}", ex)
+        return None
+    return args
+
 if __name__ == '__main__':
 
-    from inuithy.common.runtime import load_configs
-    load_configs()
-    start_sniffer('1482914199')
+    args = handle_args()
+    start_sniffer(args.genid)
     try:
         input('Enter to quit ...')
     except SyntaxError:

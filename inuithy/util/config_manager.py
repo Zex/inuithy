@@ -10,7 +10,8 @@ T_PORT, WorkMode, TrafficStorage, StorageType, T_PASSWD, T_CHANNEL,\
 T_GATEWAY, T_TRAFFICS, T_DURATION, T_JITTER, T_PKGSIZE, T_INTERVAL,\
 T_DESTS, T_SRCS, T_NWLAYOUT, NETWORK_CONFIG_PATH, T_NOI,\
 TRAFFIC_CONFIG_PATH, T_HOST, T_REPORTDIR, T_TRAFFIC_FINISH_DELAY,\
-T_TARGET_PHASES, T_EVERYONE, T_RLOGBASE
+T_TARGET_PHASES, T_EVERYONE, T_RLOGBASE, T_SNIFFER, T_ENABLED,\
+T_BAUD, T_PCAP, T_TSHARK
 import logging
 import logging.config as lconf
 
@@ -509,6 +510,14 @@ class TrafficConfig(Config):
 
     def create_sample(self):
         # Delay befor finish one traffic, in second
+        self.config[T_SNIFFER] = {
+            T_ENABLED: True,
+            T_PORT: "/dev/ttyUSB5",
+            T_BAUD: 230400,
+            T_CHANNEL: 17,
+            T_PCAP: "/var/log/inuithy/sniffer",
+            T_TSHARK: "/usr/local/bin/tshark",
+            }
         self.config[T_TRAFFIC_FINISH_DELAY] = 30
         # Network config to use
         self.config["traffic_0"] = {
@@ -591,16 +600,16 @@ class TrafficConfig(Config):
         }
         self.config["traffic_6"] = {
             T_SRCS: [
-                '11a2',
+                '*',
             ],
             T_DESTS: [
-                '11b1',
+                '+',
             ],
-            T_INTERVAL: 2,
-            T_PKGSIZE: 2,
+            T_INTERVAL: 3,
+            T_PKGSIZE: 60,
             # seconds
-            T_DURATION: 10,
-            T_JITTER: 0.1,
+            T_DURATION: 600,
+            T_JITTER: 0,
         }
         # Network layout configure path
         self.config[T_NWCONFIG_PATH] = NETWORK_CONFIG_PATH
@@ -630,7 +639,7 @@ class TrafficConfig(Config):
         ]
 
 
-def generate_samples(lgr):
+def generate_samples(lgr=None):
     cfg = InuithyConfig(INUITHY_CONFIG_PATH, lgr)
     cfg.create_sample()
     cfg.dump_yaml()
@@ -655,6 +664,6 @@ def generate_samples(lgr):
 if __name__ == '__main__':
     lgr = logging.getLogger("InuithyConfig")
     lgr.info(to_string(INUITHY_TITLE, __version__, "InuithyConfig"))
-    
+    generate_samples(lgr)    
 #    cfg = load_trcfg(TRAFFIC_CONFIG_PATH)
     
