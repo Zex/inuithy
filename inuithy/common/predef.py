@@ -2,7 +2,6 @@
  @author: Zex Li <top_zlynch@yahoo.com>
 """
 from inuithy.common.version import __version__, INUITHY_ROOT
-import paho.mqtt.client as mqtt
 from enum import Enum
 
 # Controller => Agents
@@ -71,6 +70,9 @@ T_MQTT = 'mqtt'
 T_HOST = 'host'
 T_PORT = 'port'
 T_QOS = 'qos'
+T_SNIFFER = 'sniffer'
+T_PCAP = 'pcap'
+T_TSHARK = 'tshark'
 T_BAUD = 'baud'
 T_MQTT_VERSION = 'mqtt_version'
 T_VERSION = 'version'
@@ -170,18 +172,6 @@ class GenInfo(object):
     def __str__(self):
         return to_string("header: {}\ncsv: {}\npdf: {}\nfigures: {}\ngenid: {}\n",\
                 self.header, self.csv_path, self.pdf_path, self.fig_base, self.genid)
-
-
-def mqlog_map(lgr, level, msg):
-    if level == mqtt.MQTT_LOG_INFO:
-        lgr.info(INUITHY_MQLOG_FMT.format(msg))
-    elif level == mqtt.MQTT_LOG_ERR:
-        lgr.error(INUITHY_MQLOG_FMT.format(msg))
-    elif level == mqtt.MQTT_LOG_NOTICE or level == mqtt.MQTT_LOG_WARNING:
-        lgr.warning(INUITHY_MQLOG_FMT.format(msg))
-    else: # level == mqtt.MQTT_LOG_DEBUG:
-        lgr.debug(INUITHY_MQLOG_FMT.format(msg))
-        pass
 
 AgentStatus = Enum("AgentStatus", [
     "OFFLINE",
