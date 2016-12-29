@@ -1,6 +1,12 @@
 """ Common definition for inuithy
  @author: Zex Li <top_zlynch@yahoo.com>
 """
+import os
+import sys
+
+if os.uname()[-1] == 'armv7l':
+    sys.path.insert(0, '/usr/lib/python2.7/site-packages')
+
 from inuithy.common.version import __version__, INUITHY_ROOT
 from enum import Enum
 
