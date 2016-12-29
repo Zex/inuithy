@@ -2,8 +2,8 @@
 # @author: Zex Li <top_zlynch@yahoo.com>
 #
 
-temp_templ='/tmp/teeth-deploy-XXXXXX'
-deploy_log=/tmp/teeth-deploy.log
+temp_templ='/tmp/inuithy-deploy-XXXXXX'
+deploy_log=/tmp/inuithy-deploy.log
 
 function deploy_cust()
 {
