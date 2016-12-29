@@ -1,7 +1,7 @@
 network_config: /opt/inuithy/inuithy/config/network_config.yaml
 traffin_delay: 30
 sniffer: {
-  baud: 230400, channel: 17, enabled: true,
+  baud: 230400, channel: 17, enabled: false,
   pcap: /var/log/inuithy/sniffer,
   port: /dev/ttyUSB5,
   tshark: /usr/local/bin/tshark
