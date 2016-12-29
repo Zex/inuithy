@@ -71,6 +71,16 @@ class Node(object):
             T_ADDR:self.addr,
             T_PATH:self.path})
 
+    @staticmethod
+    def on_disconnect(client, userdata, rc):
+        """MQ disconnect event handler"""
+        userdata.lgr.info(to_string(
+            "MQ.Disconnection: client:{} userdata:[{}] rc:{}", client, userdata, rc))
+        if 0 != rc:
+            userdata.lgr.error(to_string("MQ.Disconnection: disconnection error"))
+        if userdata.running:
+            client.reconnect()
+
     def read(self, rdbyte=0):
         """Read data ultility"""
         pass
@@ -78,6 +88,14 @@ class Node(object):
     def write(self, data="", request=None):
         """Write data ultility"""
         pass
+
+    def connmq(self):
+        """Connect to MQ"""
+        if self.reporter is None:
+            self.clientid = to_string(INUITHYNODE_CLIENT_ID, self.addr)
+            self.reporter = mqtt.Client(self.clientid, True, self)
+            self.reporter.on_disconnect = Node.on_disconnect
+            self.reporter.connect(*rt.tcfg.mqtt)
 
     def start(self):
         """Start node workers"""
@@ -87,9 +105,7 @@ class Node(object):
         self.reader.start()
         if self.writer:
             self.writer.start()
-        self.clientid = to_string(INUITHYNODE_CLIENT_ID, self.addr)
-        self.reporter = mqtt.Client(self.clientid, True, self)
-        self.reporter.connect(*rt.tcfg.mqtt)
+        self.connmq()
 
     def stop(self):
         """Stop node workers"""
@@ -98,6 +114,8 @@ class Node(object):
         self.running = False
         if self.reader:
             self.reader.join()
+        if self.reporter:
+            self.reporter.disconnect()
 
     def join(self, data):
         """General join adapter for joining a node to network"""
@@ -184,6 +202,8 @@ class SerialNode(Node):
         rdbuf = ''
         try:
             while self.running:
+                if self.reporter:
+                    self.reporter.loop()
                 rdbuf = self._read_one()
                 if self.tsh_on:
                     pub_reply(self.reporter, data={
