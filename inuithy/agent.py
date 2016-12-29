@@ -9,14 +9,14 @@ TT_CONFIG, INUITHYAGENT_CLIENT_ID, T_ADDR, T_HOST, T_NODE,\
 T_CLIENTID, T_TID, T_INTERVAL, T_DURATION, T_NODES, T_DEST, T_DESTS,\
 T_TRAFFIC_STATUS, T_MSG, T_CTRLCMD, TrafficStatus, T_TRAFFIC_TYPE,\
 INUITHY_LOGCONFIG, TT_COMMAND, TrafficType, DEV_TTY, T_GENID,\
-T_SRC, T_PKGSIZE, T_EVERYONE, mqlog_map, T_VERSION, T_MSG_TYPE, T_MQTT_VERSION, T_JITTER
+T_SRC, T_PKGSIZE, T_EVERYONE, T_VERSION, T_MSG_TYPE, T_MQTT_VERSION, T_JITTER
 from inuithy.common.runtime import Runtime as rt
 from inuithy.common.runtime import load_tcfg
 from inuithy.common.node_adapter import NodeAdapter, scan_nodes
 from inuithy.common.traffic import TrafficExecutor, TRAFFIC_BROADCAST_ADDRESS
 from inuithy.util.helper import getpredefaddr, clear_list
 from inuithy.util.cmd_helper import pub_status, pub_heartbeat, pub_unregister, extract_payload
-from inuithy.util.cmd_helper import Heartbeat
+from inuithy.util.cmd_helper import Heartbeat, mqlog_map
 from inuithy.util.worker import Worker
 import paho.mqtt.client as mqtt
 import logging.config as lconf
