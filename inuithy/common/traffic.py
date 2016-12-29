@@ -101,14 +101,14 @@ class TrafficGenerator(object):
                 for sub_name in nwcfg.config.get(nw):
                     sub = nwcfg.subnet(nw, sub_name)
                     if sub is None:
-                        raise ValueError(to_string(TRAFFIC_ERR_NOSUBNET, sub_name, nw))
+                        raise RuntimeError(to_string(TRAFFIC_ERR_NOSUBNET, sub_name, nw))
                     [nodes.append(node) for node in sub[T_NODES]]
             elif is_number(s):
                 nodes.append(s)
             else:
                 sub = nwcfg.subnet(nw, s)
                 if sub is None:
-                    raise ValueError(to_string(TRAFFIC_ERR_NOSUBNET, s, nw))
+                    raise RuntimeError(to_string(TRAFFIC_ERR_NOSUBNET, s, nw))
                 [nodes.append(node) for node in sub[T_NODES]]
         return nodes
 
@@ -130,7 +130,7 @@ class TrafficGenerator(object):
             else:
                 sub = nwcfg.subnet(nw, s)
                 if sub is None:
-                    raise ValueError(to_string(TRAFFIC_ERR_NOSUBNET, s, nw))
+                    raise RuntimeError(to_string(TRAFFIC_ERR_NOSUBNET, s, nw))
                 [nodes.append(node) for node in sub[T_NODES]]
         return nodes
 
