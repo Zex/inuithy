@@ -329,7 +329,7 @@ class ZbeeReport(object):
             to_console("Subnet gateway {}", args.gateways)
             to_console("CSV Path {}", args.csv_path)
         except Exception as ex:
-            to_console("Exception on handlin report arguments: {}", ex)
+            to_console("Exception on handling report arguments: {}", ex)
             return None
         return args
 
