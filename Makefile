@@ -4,24 +4,23 @@
 PROJECT         := Inuithy
 MAJOR_VERSION   := 0
 MINOR_VERSION   := 1
-REVISION        := $(shell git rev-parse --short HEAD)
+REVISION        := $(shell [ -d .git ] && git rev-parse --short HEAD)
 VERSION         := $(MAJOR_VERSION).$(MINOR_VERSION).$(REVISION)
+AGENT_ARCH		:= armv7l
 
 include makefiles/predef.mk
 include makefiles/pack.mk
 
-#export PYTHONPATH=/opt/inuithy
+.PHONY: $(VERSION_PATH) $(OUTPUT_TAR_PATH) $(BUILD) clean version sample_config traffic_config_chk run_controller run_tsh $(LOGBASE) install run_agent run_mosquitto deploy
 
-.PHONY: $(VERSION_PATH) $(OUTPUT_TAR_PATH) $(BUILD) clean version sample_config traffic_config_chk run_controller run_tsh $(LOGBASE) install run_agent run_mosquitto
-
-all: tar #install
+all: deploy
 
 version: $(VERSION_PATH)
 
 clean:
 	$(ECHO) "\033[01;32m[Cleaning]\033[00m"
-#	$(FIND) . -name *.pyc -delete 
 	$(FIND) . -name __pycache__ -exec rm -rf {} \;
+	$(FIND) . -name *.pyc -delete 
 	$(RM) $(VERSION_PATH)
 	$(RM) $(BUILD)
 
@@ -70,31 +69,19 @@ install: preset install_dir
 	$(ECHO) "\033[01;36m[Installing Inuithy]\033[00m"
 	$(CP) $(OUTPUT_TAR_SOURCE) $(INSTALL_PREFIX)/$(PROJECT_ALIAS)
 	$(ECHO) "\033[01;32m[Inuithy installed @ $(INSTALL_PREFIX)/$(PROJECT_ALIAS)]\033[00m"
-	
+
 install_dir:
 	$(ECHO) "\033[01;36m[Creating target directory]\033[00m"
 	$(MKDIR) $(INSTALL_PREFIX)/$(PROJECT_ALIAS)
-
-#run_logstash:
-#	$(THIRDPARTY)/logstash/bin/logstash -f inuithy/config/logstash.yml
-#
-#run_elasticsearch:
-#	$(THIRDPARTY)/elasticsearch/bin/elasticsearch
-#	
-#run_kibana:
-#	$(THIRDPARTY)/kibana/bin/kibana
-#
-#run_elk: run_logstash run_elasticsearch run_kibana
 
 pylint:
 	$(MKDIR) $(PYLINT_OUTPUT)
 	$(PYLINT) --files-output=y $(PROJECT_ALIAS)
 #	$(MV) pylint*.txt $(PYLINT_OUTPUT)
 
-
-tar: latest
-	$(RM) $(OUTPUT_DEPLOY_SH)
-	make $(OUTPUT_DEPLOY_SH)
+deploy: latest
+	$(RM) $(OUTPUT_DEPEND)
+	make $(OUTPUT_DEPEND)
 
 latest: $(OUTPUT_TAR_PATH)
 	$(RM) $(BUILD)/latest
