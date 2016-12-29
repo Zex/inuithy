@@ -442,7 +442,7 @@ class Console(object):#threading.Thread):
             agents = list(hosts)
         if len(packs) == 0:
             to_console("Package not found")
-        cmd = ' '.join(['scp', '-rp', ' '.join(packs)])
+        cmd = ' '.join(['scp', '-r', ' '.join(packs)])
         failed = False
         for agent in agents:
             try:

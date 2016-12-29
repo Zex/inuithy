@@ -104,7 +104,7 @@ class TrafStatChk(object):
 #        TrafStatChk.lgr.info("Is traffic all fired")
         try:
             if len(self.available_agents) == 0:
-                raise ValueError("No agent available")
+                raise RuntimeError("No agent available")
             if len(self.traffic_stat) == 0:
                 return True
             TrafficState.lgr.debug(self.traffic_stat)
@@ -120,7 +120,7 @@ class TrafStatChk(object):
 #        TrafStatChk.lgr.info("Is traffic registered")
         try:
             if len(self.available_agents) == 0:
-                raise ValueError("No agent available")
+                raise RuntimeError("No agent available")
             if len(self.traffic_stat) == 0:
                 return True
 #            TrafficState.lgr.debug(self.traffic_stat)
@@ -136,7 +136,7 @@ class TrafStatChk(object):
 #        TrafStatChk.lgr.info("Is traffic all finished")
         try:
             if len(self.available_agents) == 0:
-                raise ValueError("No agent available")
+                raise RuntimeError("No agent available")
             if len(self.traffic_stat) == 0:
                 return True
             TrafficState.lgr.debug(self.traffic_stat)
@@ -187,7 +187,7 @@ def publish_nwlayout(nwlayoutname, nwcfg, tcfg, chk, genid, pub):
         for node in subnet.get(T_NODES):
             target_host = chk.node2host.get(node)
             if target_host is None:
-                raise ValueError(to_string("Node [{}] not found on any agent", node))
+                raise RuntimeError(to_string("Node [{}] not found on any agent", node))
             data[T_HOST] = target_host
             data[T_GENID] = genid #self.current_phase.genid
             data[T_NODE] = node
@@ -461,6 +461,7 @@ class TrafficState:
         if not self.traf_running:
             return
         yield from self.phases
+
 
     def record_phase(self):
         """Record running phase"""

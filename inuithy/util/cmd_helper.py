@@ -1,7 +1,7 @@
 """ Command helper
  @author: Zex Li <top_zlynch@yahoo.com>
 """
-from inuithy.common.version import INUITHY_ROOT, PROJECT_PATH
+from inuithy.common.version import INUITHY_ROOT, PROJECT_PATH, INUITHY_AGENT_INTERPRETER
 from inuithy.common.predef import T_CLIENTID, TT_COMMAND,\
 T_CTRLCMD, CtrlCmd, TT_UNREGISTER, TT_STATUS, TT_SNIFFER,\
 TT_NOTIFICATION, TT_REPORTWRITE, INUITHY_NOHUP_OUTPUT,\
@@ -172,8 +172,8 @@ def start_agents(hosts):
 #    cmd = to_string('pushd {};nohup python {}/agent.py &>> {}',
 #    cmd = to_string('pushd {} > /dev/null;> {};python {}/agent.py &>> {};exit',
 #            PROJECT_PATH, '\"/var/log/inuithy/inuithy.log\"', INUITHY_ROOT, INUITHY_NOHUP_OUTPUT)
-    cmd = to_string('pushd {} > /dev/null;python {}/agent.py &>> {};exit',
-            PROJECT_PATH, INUITHY_ROOT, INUITHY_NOHUP_OUTPUT)
+    cmd = to_string('pushd {} > /dev/null;{} {}/agent.py &>> {};exit',
+            PROJECT_PATH, INUITHY_AGENT_INTERPRETER, INUITHY_ROOT, INUITHY_NOHUP_OUTPUT)
     [runonremote('root', host, cmd) for host in hosts]
 
 def stop_agents(publisher, qos=0, clientid="*"):
@@ -187,7 +187,7 @@ def stop_agents(publisher, qos=0, clientid="*"):
 def force_stop_agents(hosts):
     """Force agent stop remotely"""
 #    cmd = 'kill `ps aux|grep inuithy/agent.py|awk \'{print $2,\"@\"$11,$12}\'|grep @python|awk \'{printf \" \"$1}\'` &> /dev/null'
-    cmd = 'kill `ps aux|grep \" python.*inuithy/agent.py\"|awk \'{printf \" \"$2}\'` &> /dev/null'
+    cmd = to_string('kill `ps aux|grep \" {}.*inuithy/agent.py\"|awk \'{printf \" \"$2}\'` &> /dev/null', INUITHY_AGENT_INTERPRETER)
     [runonremote('root', host, cmd) for host in hosts]
 
 def mqlog_map(lgr, level, msg):
