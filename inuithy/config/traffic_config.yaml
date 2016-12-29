@@ -1,4 +1,11 @@
 network_config: /opt/inuithy/inuithy/config/network_config.yaml
+traffin_delay: 30
+sniffer: {
+  baud: 230400, channel: 17, enabled: true,
+  pcap: /var/log/inuithy/sniffer,
+  port: /dev/ttyUSB5,
+  tshark: /usr/local/bin/tshark
+  }
 target_agents: [agent_01] #, agent_1, agent_2, agent_3, agent_4, agent_5, agent_6, agent_7,
  # agent_8, agent_9, agent_a, agent_b, agent_c, agent_d, agent_e, agent_f]
 target_phases:
@@ -88,13 +95,4 @@ traffic_9:
   jitter: 0
   pkgsize: 60
   srcs: ['*']
-traffin_delay: 30
-sniffer:
-  enabled: True
-  path: 'tools/pysniffer.py'
-  port: "/dev/ttyUSB4"
-  baud: 230400
-  channel: 17
-  pcap: "/var/log/inuithy/sniffer"
-  tshark: "/usr/local/bin/tshark"
 
