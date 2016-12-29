@@ -144,6 +144,7 @@ class Sniffer():
     running = False
     fifo_path = '/tmp/inuithy-sniffer.fifo'
     sniffer_worker = None
+    tshark_worker = None
 
     @staticmethod
     def init(genid='na'):
