@@ -1,8 +1,6 @@
 """ Controller application main thread
  @author: Zex Li <top_zlynch@yahoo.com>
 """
-import sys
-sys.path.append('/opt/inuithy')
 from inuithy.common.version import INUITHY_ROOT
 from inuithy.common.predef import INUITHY_LOGCONFIG, INUITHY_TITLE, __version__, to_string,\
 WorkMode, to_console
