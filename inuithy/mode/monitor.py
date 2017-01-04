@@ -9,7 +9,7 @@ to_string, T_CLIENTID, T_HOST, T_NODES, T_VERSION
 from inuithy.common.runtime import Runtime as rt
 from inuithy.mode.base import CtrlBase
 from inuithy.util.cmd_helper import pub_enable_hb, pub_disable_hb,\
-extract_payload
+extract_payload, subscribe
 import paho.mqtt.client as mqtt
 import logging
 import logging.config as lconf
@@ -26,20 +26,12 @@ class MoniCtrl(CtrlBase):
         self.mqclient.on_message = MoniCtrl.on_message
         self.mqclient.on_disconnect = MoniCtrl.on_disconnect
         self.mqclient.connect(host, port)
-        self.mqclient.subscribe([
-            (TT_HEARTBEAT, rt.tcfg.mqtt_qos),
-            (TT_UNREGISTER, rt.tcfg.mqtt_qos),
-            (TT_STATUS, rt.tcfg.mqtt_qos),
-            (TT_REPORTWRITE, rt.tcfg.mqtt_qos),
-            (TT_NOTIFICATION, rt.tcfg.mqtt_qos),
-            (TT_SNIFFER, rt.tcfg.mqtt_qos),
-        ])
-        self.mqclient.message_callback_add(TT_HEARTBEAT, MoniCtrl.on_topic_heartbeat)
-        self.mqclient.message_callback_add(TT_UNREGISTER, MoniCtrl.on_topic_unregister)
-        self.mqclient.message_callback_add(TT_STATUS, MoniCtrl.on_topic_status)
-        self.mqclient.message_callback_add(TT_REPORTWRITE, MoniCtrl.on_topic_reportwrite)
-        self.mqclient.message_callback_add(TT_NOTIFICATION, MoniCtrl.on_topic_notification)
-        self.mqclient.message_callback_add(TT_SNIFFER, MoniCtrl.on_topic_sniffer)
+        subscribe(self.mqclient, TT_HEARTBEAT, MoniCtrl.on_topic_heartbeat, rt.tcfg.mqtt_qos)
+        subscribe(self.mqclient, TT_UNREGISTER, MoniCtrl.on_topic_unregister, rt.tcfg.mqtt_qos)
+        subscribe(self.mqclient, TT_STATUS, MoniCtrl.on_topic_status, rt.tcfg.mqtt_qos)
+        subscribe(self.mqclient, TT_REPORTWRITE, MoniCtrl.on_topic_reportwrite, rt.tcfg.mqtt_qos)
+        subscribe(self.mqclient, TT_NOTIFICATION, MoniCtrl.on_topic_notification, rt.tcfg.mqtt_qos)
+        subscribe(self.mqclient, TT_SNIFFER, MoniCtrl.on_topic_sniffer, rt.tcfg.mqtt_qos)
 
     def __init__(self, lgr=None, delay=4):
         CtrlBase.__init__(self, lgr, delay)

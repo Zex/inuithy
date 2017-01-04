@@ -201,3 +201,10 @@ def mqlog_map(lgr, level, msg):
         lgr.debug(INUITHY_MQLOG_FMT.format(msg))
         pass
 
+def subscribe(client, topic, callback=None, qos=0):
+    if topic is None or len(topic) == 0:
+        return
+    client.subscribe(topic, qos)
+    if callback:
+        client.message_callback_add(topic, callback)
+

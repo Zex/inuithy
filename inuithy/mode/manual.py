@@ -6,7 +6,7 @@ from inuithy.common.predef import TT_HEARTBEAT, TT_STATUS,\
 TT_REPORTWRITE, TT_NOTIFICATION, TT_UNREGISTER, TT_REPLY,\
 INUITHY_TITLE, INUITHY_LOGCONFIG, to_string, to_console, TT_SNIFFER
 from inuithy.mode.base import CtrlBase
-from inuithy.util.cmd_helper import stop_agents
+from inuithy.util.cmd_helper import subscribe
 from inuithy.util.console import Console
 from inuithy.common.runtime import Runtime as rt
 import paho.mqtt.client as mqtt
@@ -26,22 +26,13 @@ class ManualCtrl(CtrlBase):
         self._mqclient.on_message = ManualCtrl.on_message
         self._mqclient.on_disconnect = ManualCtrl.on_disconnect
         self._mqclient.connect(host, port)
-        self._mqclient.subscribe([
-            (TT_HEARTBEAT, rt.tcfg.mqtt_qos),
-            (TT_UNREGISTER, rt.tcfg.mqtt_qos),
-            (TT_STATUS, rt.tcfg.mqtt_qos),
-            (TT_REPORTWRITE, rt.tcfg.mqtt_qos),
-            (TT_NOTIFICATION, rt.tcfg.mqtt_qos),
-            (TT_REPLY, rt.tcfg.mqtt_qos),
-            (TT_SNIFFER, rt.tcfg.mqtt_qos),
-        ])
-        self.mqclient.message_callback_add(TT_HEARTBEAT, ManualCtrl.on_topic_heartbeat)
-        self.mqclient.message_callback_add(TT_UNREGISTER, ManualCtrl.on_topic_unregister)
-        self.mqclient.message_callback_add(TT_STATUS, ManualCtrl.on_topic_status)
-        self.mqclient.message_callback_add(TT_REPORTWRITE, ManualCtrl.on_topic_reportwrite)
-        self.mqclient.message_callback_add(TT_NOTIFICATION, ManualCtrl.on_topic_notification)
-        self.mqclient.message_callback_add(TT_REPLY, ManualCtrl.on_topic_reply)
-        self.mqclient.message_callback_add(TT_SNIFFER, ManualCtrl.on_topic_sniffer)
+        subscribe(self.mqclient, TT_HEARTBEAT, ManualCtrl.on_topic_heartbeat, rt.tcfg.mqtt_qos)
+        subscribe(self.mqclient, TT_UNREGISTER, ManualCtrl.on_topic_unregister, rt.tcfg.mqtt_qos)
+        subscribe(self.mqclient, TT_STATUS, ManualCtrl.on_topic_status, rt.tcfg.mqtt_qos)
+        subscribe(self.mqclient, TT_REPORTWRITE, ManualCtrl.on_topic_reportwrite, rt.tcfg.mqtt_qos)
+        subscribe(self.mqclient, TT_NOTIFICATION, ManualCtrl.on_topic_notification, rt.tcfg.mqtt_qos)
+        subscribe(self.mqclient, TT_REPLY, ManualCtrl.on_topic_reply, rt.tcfg.mqtt_qos)
+        subscribe(self.mqclient, TT_SNIFFER, ManualCtrl.on_topic_sniffer, rt.tcfg.mqtt_qos)
 
     def __init__(self, lgr=None, delay=4):
         CtrlBase.__init__(self, lgr, delay)
