@@ -16,7 +16,7 @@ endif
 PROJECT_ALIAS		   := $(shell tr A-Z a-z <<< $(PROJECT))
 OUTPUT_TAR_BASE        := $(strip $(PROJECT_ALIAS))-$(strip $(VERSION))
 OUTPUT_TAR	           := $(OUTPUT_TAR_BASE).tar.bz2
-OUTPUT_TAR_SOURCE	   := inuithy thirdparty tools Makefile makefiles
+OUTPUT_TAR_SOURCE	   := inuithy thirdparty tools Makefile makefiles DEPENDENCIES
 OUTPUT_TAR_PATH        := $(BUILD)/$(OUTPUT_TAR)
 OUTPUT_LOGTAR          := $(strip $(PROJECT_ALIAS))-log-$(shell date +'%d%m%Y-%H%M').tar.bz2
 OUTPUT_LOGTAR_PATH     := $(BUILD)/$(OUTPUT_LOGTAR)
