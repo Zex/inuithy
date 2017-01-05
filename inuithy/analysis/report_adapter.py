@@ -1,16 +1,11 @@
 """ Data analysis with Pandas
  @uthor: Zex Li <top_zlynch@yahoo.com>
 """
-from inuithy.common.predef import INUITHY_LOGCONFIG, to_console, to_string
+from inuithy.common.predef import _c, _s, _l
 from inuithy.common.runtime import Runtime as rt
 from inuithy.common.agent_info import SupportedProto
-import logging
-import logging.config as lconf
 #from bson.objectid import ObjectId
 import sys
-
-lconf.fileConfig(INUITHY_LOGCONFIG)
-lgr = logging
 
 class ReportAdapter(object):
     """Analysis helper"""
@@ -23,17 +18,17 @@ class ReportAdapter(object):
         @nodes List of Node, sample nodes for guessing
         """
         if nodes is None or len(nodes) == 0:
-            lgr.error("No nodes sample to guess")
+            _l.error("No nodes sample to guess")
             return
         cnt = {}
         try:
             for proto in SupportedProto.protocols.keys():
                 cnt[proto] = len([node for node in nodes if node.ntype.name == proto])
-            lgr.info(to_string("Node summary: {}", cnt))
+            _l.info(_s("Node summary: {}", cnt))
             proto = max(cnt)
             ReportAdapter.handler = SupportedProto.protocols.get(proto)[3]
         except Exception as ex:
-            lgr.error(to_string("Exception on guessing protocol: {}", ex))
+            _l.error(_s("Exception on guessing protocol: {}", ex))
         
     #TODO
     @staticmethod
@@ -57,7 +52,7 @@ class ReportAdapter(object):
         if ReportAdapter.handler is not None:
             ReportAdapter.handler.generate(genid, gw, nodes, irange, csv_path)
         else:
-            lgr.error("No report handler avalable")
+            _l.error("No report handler avalable")
 
     @staticmethod
     def handle_args():
@@ -72,12 +67,12 @@ class ReportAdapter(object):
             rt.parser.add_argument('-gw', '--gateways', help='Gateway node', nargs="+")
             rt.parser.add_argument('-csv', '--csv_path', help='Path to CSV data source')
             args = rt.handle_args()
-            to_console("GENID {}", args.genid)
-            to_console("Nodes of interest {}", args.nodes)
-            to_console("Subnet gateway {}", args.gateways)
-            to_console("CSV Path {}", args.csv_path)
+            _c("GENID {}", args.genid)
+            _c("Nodes of interest {}", args.nodes)
+            _c("Subnet gateway {}", args.gateways)
+            _c("CSV Path {}", args.csv_path)
         except Exception as ex:
-            to_console("Exception on handlin report arguments: {}", ex)
+            _c("Exception on handling report arguments: {}", ex)
             return None
         return args
 
@@ -86,6 +81,6 @@ if __name__ == '__main__':
     args = ReportAdapter.handle_args()
     if args is not None:
         ReportAdapter.handler = SupportedProto.protocols.get(args.proto)[3]
-        to_console("Using report handler {}", ReportAdapter.handler)
+        _c("Using report handler {}", ReportAdapter.handler)
         ReportAdapter.generate(args.genid, gw=args.gateways, nodes=args.nodes, irange=None, csv_path=args.csv_path)
 

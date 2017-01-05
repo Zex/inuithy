@@ -71,12 +71,14 @@ network_0:
   subnet_0:
     channel: 15
     gateway: '1122'
+    coordinator: null
     nodes: ['1111', '1112', '1113', '1114', '1122', '1123', '1124', '1134']
     panid: F5F5E6E617171515
     spanid: '1515'
   subnet_1:
     channel: 16
     gateway: '1144'
+    coordinator: null
     nodes: ['1121', '1131', '1132', '1133', '1141', '1142', '1143', '1144']
     panid: '6262441166221516'
     spanid: '1516'
@@ -84,6 +86,7 @@ network_1:
   subnet_0:
     channel: 17
     gateway: '1122'
+    coordinator: null
     nodes: ['1101', '1102', '1103', '1104', '1111', '1112', '1113', '1114', '1121',
       '1122', '1123', '1124', '1131', '1132', '1133', '1134', '1141', '1142', '1143',
       '1144', '1151', '1152', '1153', '1154', '1161', '1162', '1163', '1164', '1171',
@@ -96,18 +99,21 @@ network_2:
   subnet_0:
     channel: 22
     gateway: '1122'
+    coordinator: null
     nodes: ['1111', '1112', '1113', '1114', '1122', '1123', '1124', '1134']
     panid: '1717909012121522'
     spanid: '1522'
   subnet_1:
     channel: 13
     gateway: '1121'
+    coordinator: null
     nodes: ['1121', '1131', '1132', '1133']
     panid: '4040101033441513'
     spanid: '1513'
   subnet_2:
     channel: 16
     gateway: '1144'
+    coordinator: null
     nodes: ['1141', '1142', '1143', '1144']
     panid: '5151131320201516'
     spanid: '1516'
@@ -115,6 +121,15 @@ network_3:
   subnet_0:
     channel: 17
     gateway: 'A002'
+    coordinator: null
     nodes: ['A004', 'A002', 'A001', 'A003']
     panid: '151A372143217856'
     spanid: '4321'
+network_4:
+  subnet_0:
+    channel: 17
+    gateway: '0000'
+    coordinator: '0000'
+    nodes: ['0A12', '0A11']
+    panid: '151A372143217856'
+    spanid: '1234'

@@ -2,7 +2,7 @@
  @uthor: Zex Li <top_zlynch@yahoo.com>
 """
 from inuithy.common.predef import T_NWLAYOUT_ID_FMT, IFACEPATH
-from inuithy.common.predef import to_string 
+from inuithy.common.predef import _s 
 import subprocess as sp
 import os
 import sys
@@ -10,10 +10,13 @@ import sys
 def runonremote(user, host, cmd):
     """Run command on remote host
     """
-    fmt = 'ssh -f {}@{} '#"{}"'
-    rcmd = to_string(fmt, user, host)#, cmd)
+    fmt = 'ssh -f {}@{} '
+    rcmd = _s(fmt, user, host)
     rcmd += "\"" + cmd + "\""
-    sp.call(rcmd, shell=True)
+    rcmd += "&>> /tmp/inuithy.ctrl"
+    ret = sp.call(rcmd, shell=True)
+    if ret != 0:
+        raise RuntimeError(_s("Command failed: {}", cmd))
 
 def isprocrunning(name):
     try:
@@ -31,7 +34,7 @@ def delimstr(delim, *args):
     return delim.join(list(args))
 
 def getnwlayoutid(nwcfg_path, layout_name):
-    return to_string(T_NWLAYOUT_ID_FMT, nwcfg_path, layout_name)
+    return _s(T_NWLAYOUT_ID_FMT, nwcfg_path, layout_name)
 
 def getnwlayoutname(nwlayoutid):
     return nwlayoutid.split(':')[1]

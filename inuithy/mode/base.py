@@ -3,8 +3,8 @@
 """
 from inuithy.common.version import __version__
 from inuithy.common.predef import T_CTRLCMD, CtrlCmd, T_CLIENTID,\
-T_HOST, T_NODES, AgentStatus, INUITHY_LOGCONFIG, T_TID,\
-to_string, CTRL_CLIENT_ID, T_TRAFFIC_STATUS, T_MSG, to_console,\
+T_HOST, T_NODES, AgentStatus, T_TID,\
+_s, CTRL_CLIENT_ID, T_TRAFFIC_STATUS, T_MSG, _c, _l,\
 T_TRAFFIC_TYPE, TrafficType, T_NODE, TrafficStatus, T_VERSION,\
 MessageType, T_GENID
 from inuithy.common.predef import TT_HEARTBEAT, TT_STATUS,\
@@ -19,11 +19,7 @@ from inuithy.common.agent_info import AgentInfo
 from inuithy.util.worker import Worker
 from random import randint
 import threading
-import logging
-import logging.config as lconf
 import os
-
-lconf.fileConfig(INUITHY_LOGCONFIG)
 
 INUITHY_MQTTMSGFMT = "dup:{}, info:{}, mid:{}, payload:[{}], \
 qos:{}, retain:{}, state:{}, timestamp:{}, topic:[{}]"
@@ -119,27 +115,27 @@ class CtrlBase(object):
     @property
     def initialized():
         """Indicate Controller initialization status"""
-        return CtrlBase.__initialized
+        with CtrlBase.__mutex:
+            return CtrlBase.__initialized
     @initialized.setter
     def initialized(val):
         with CtrlBase.__mutex:
             if not CtrlBase.__initialized:
                 CtrlBase.__initialized = val
 
-    def __init__(self, lgr=None, delay=4):
+    def __init__(self, delay=4):
         """
         @delay Start traffic after @delay seconds
         """
-        self.lgr = lgr is None and logging or lgr
         self._mqclient = None
         self._storage = None
         self._current_nwlayout = ('', '')
         self._host = os.uname()[1]
-        self._clientid = to_string(CTRL_CLIENT_ID, to_string('{}-{}', self.host, hex(randint(1048576, 10000000))[2:]))
-        self.worker = Worker(2, self.lgr)
+        self._clientid = _s(CTRL_CLIENT_ID, _s('{}-{}', self.host, hex(randint(1048576, 10000000))[2:]))
+        self.worker = Worker(2)
         load_configs()
 
-        self._traffic_state = TrafficState(self, self.lgr)
+        self._traffic_state = TrafficState(self)
         self._traffic_timer = threading.Timer(delay, self.traffic_state.start)
         self._do_init()
         self.load_storage()
@@ -148,64 +144,64 @@ class CtrlBase(object):
         pass
 
     def __str__(self):
-        return to_string("clientid:[{}] host:[{}]", self.clientid, self.host)
+        return _s("clientid:[{}] host:[{}]", self.clientid, self.host)
 
     @staticmethod
     def on_connect(client, userdata, rc):
         """MQ connect event handler"""
-        userdata.lgr.info(to_string(
+        _l.info(_s(
             "MQ.Connection client:{} userdata:[{}] rc:{}", client, userdata, rc))
         if rc != 0:
-            userdata.lgr.info(to_string("MQ.Connection: connection error"))
+            _l.info(_s("MQ.Connection: connection error"))
 
     @staticmethod
     def on_message(client, userdata, message):
         """MQ message event handler"""
-#        userdata.lgr.info(to_string("MQ.Message: userdata:[{}]", userdata))
-#        userdata.lgr.info(to_string("MQ.Message: message "+INUITHY_MQTTMSGFMT,
+#        _l.info(_s("MQ.Message: userdata:[{}]", userdata))
+#        _l.info(_s("MQ.Message: message "+INUITHY_MQTTMSGFMT,
 #            message.dup, message.info, message.mid, message.payload,
 #            message.qos, message.retain, message.state, message.timestamp,
 #            message.topic))
         try:
-            userdata.lgr.info("On message")
+            _l.info("On message")
 #            handler = userdata.topic_routes.get(message.topic)
 #            if handler is not None:
 #                userdata.worker.add_job(handler, message)
         except Exception as ex:
-            userdata.lgr.error(to_string("Exception on MQ message dispatching: {}", ex))
+            _l.error(_s("Exception on MQ message dispatching: {}", ex))
 
     @staticmethod
     def on_disconnect(client, userdata, rc):
         """MQ disconnect event handler"""
-        userdata.lgr.info(to_string(
+        _l.info(_s(
             "MQ.Disconnection: client:{} userdata:[{}] rc:{}",
             client, userdata, rc))
         if 0 != rc:
-            userdata.lgr.error(to_string("MQ.Disconnection: disconnection error"))
+            _l.error(_s("MQ.Disconnection: disconnection error"))
         userdata.teardown()
 
     @staticmethod
     def on_log(client, userdata, level, buf):
         """MQ log event handler"""
-        mqlog_map(userdata.lgr, level, buf)
+        mqlog_map(level, buf)
 
     @staticmethod
     def on_publish(client, userdata, mid):
         """MQ publish event handler"""
-        userdata.lgr.info(to_string(
+        _l.info(_s(
             "MQ.Publish: client:{} userdata:[{}], mid:{}", client, userdata, mid))
 
     @staticmethod
     def on_subscribe(client, userdata, mid, granted_qos):
         """MQ subscribe event handler"""
-        userdata.lgr.info(to_string(
+        _l.info(_s(
             "MQ.Subscribe: client:{} userdata:[{}], mid:{}, grated_qos:{}",
             client, userdata, mid, granted_qos))
 
     def alive_notification(self):
         """Broadcast on new controller startup
         """
-        self.lgr.info(to_string("New controller notification {}", self.clientid))
+        _l.info(_s("New controller notification {}", self.clientid))
         data = {
             T_CTRLCMD:  CtrlCmd.NEW_CONTROLLER.name,
             T_CLIENTID: self.clientid,
@@ -214,27 +210,27 @@ class CtrlBase(object):
 
     def add_agent(self, agentid, host, nodes):
         """Register started agent"""
-        self.lgr.info("Add agent") 
+        _l.info("Add agent") 
         if self.available_agents.get(agentid) is None:
             self.available_agents[agentid] = AgentInfo(agentid, host, AgentStatus.ONLINE, nodes)
-            self.lgr.info(to_string("Agent {} added", agentid))
+            _l.info(_s("Agent {} added", agentid))
         else:
             self.available_agents[agentid].nodes = nodes
-            self.lgr.info(to_string("Agent {} updated", agentid))
+            _l.info(_s("Agent {} updated", agentid))
         [self.traffic_state.chk.node2aid.__setitem__(node, agentid) for node in nodes]
 
     def del_agent(self, agentid):
         """Unregister started agent"""
         if self.available_agents.get(agentid):
             del self.available_agents[agentid]
-            self.lgr.info(to_string("Agent {} removed", agentid))
+            _l.info(_s("Agent {} removed", agentid))
 
     def _do_init(self):
         """
         _host: IP address of agent
 
         """
-        self.lgr.info(to_string("Do initialization"))
+        _l.info(_s("Do initialization"))
         try:
             self.node_to_host()
             for aname in rt.trcfg.target_agents:
@@ -243,7 +239,7 @@ class CtrlBase(object):
             self.create_mqtt_client(*rt.tcfg.mqtt)
             CtrlBase.initialized = True
         except Exception as ex:
-            self.lgr.error(to_string("Failed to initialize: {}", ex))
+            _l.error(_s("Failed to initialize: {}", ex))
 
     def create_mqtt_client(self, host, port):
         """Create MQTT subscriber"""
@@ -252,70 +248,67 @@ class CtrlBase(object):
     def node_to_host(self):
         """Map node address to connected host
         """
-        self.lgr.info("Map node address to host")
+        _l.info("Map node address to host")
         for agent in rt.nwcfg.agents:
             [self.traffic_state.chk.node2host.__setitem__(node, agent[T_HOST]) for node in agent[T_NODES]]
 
     def load_storage(self):
-        self.lgr.info(to_string("Load DB plugin:{}", rt.tcfg.storagetype))
+        _l.info(_s("Load DB plugin:{}", rt.tcfg.storagetype))
         try:
-            self._storage = Storage(rt.tcfg, self.lgr)
+            self._storage = Storage(rt.tcfg)
         except Exception as ex:
-            to_console("Failed to load plugin: {}", ex)
-            self.lgr.error(to_string("Failed to load plugin: {}", ex))
+            _c("Failed to load plugin: {}", ex)
+            _l.error(_s("Failed to load plugin: {}", ex))
 
     def teardown(self):
         """Cleanup"""
         try:
             if CtrlBase.initialized:
                 CtrlBase.initialized = False
-#                self.lgr.info("Stop agents")
-#                stop_agents(self._mqclient, rt.tcfg.mqtt_qos)
                 if self._traffic_timer:
                     self._traffic_timer.cancel()
-                if self.worker:
-                    self.worker.stop()
-                if self.traffic_state:
+                if self.traffic_state and self.traffic_state.traf_running:
                     self.traffic_state.traf_running = False
                     self.traffic_state.chk.set_all()
                 if self.mqclient:
                     self.mqclient.disconnect()
-#                self.traffic_state.chk.done.set()
+                if self.worker:
+                    self.worker.stop()
                 if self.storage:
                     self.storage.close()
         except Exception as ex:
-            self.lgr.error(to_string("Exception on teardown: {}", ex))
+            _l.error(_s("Exception on teardown: {}", ex))
 
     @staticmethod
     def on_topic_heartbeat(client, userdata, message):
         """Heartbeat message format:
         """
         self = userdata
-        self.lgr.info(to_string("On topic heartbeat"))
+        _l.info(_s("On topic heartbeat"))
         data = extract_payload(message.payload)
         agentid, host, nodes, version = data.get(T_CLIENTID), data.get(T_HOST),\
                 data.get(T_NODES), data.get(T_VERSION)
         if version != __version__:
-            self.lgr.error(to_string("Agent version not match"))
+            _l.error(_s("Agent version not match"))
             self.teardown()
         try:
-            self.lgr.info(to_string("On topic heartbeat: Agent Version {}", version))
+            _l.info(_s("On topic heartbeat: Agent Version {}", version))
             agentid = agentid.strip('\t\n ')
             self.add_agent(agentid, host, nodes)
             self.traffic_state.check("is_agents_up")
-            self.lgr.info(to_string("Found Agents({})", len(self.available_agents)))
-#            self.lgr.debug(to_string("{}", [str(a) for a in self.available_agents.values()]))
+            _l.info(_s("Found Agents({})", len(self.available_agents)))
+#            _l.debug(_s("{}", [str(a) for a in self.available_agents.values()]))
         except Exception as ex:
-            self.lgr.error(to_string("Exception on registering agent {}: {}", agentid, ex))
+            _l.error(_s("Exception on registering agent {}: {}", agentid, ex))
 
     @staticmethod
     def on_topic_reply(client, userdata, message):
         """Heartbeat message format:
         """
         self = userdata
-        self.lgr.info(to_string("On topic reply"))
+        _l.info(_s("On topic reply"))
         data = extract_payload(message.payload)
-        to_console("{}:\n{}", data.get(T_NODE), data.get(T_MSG))
+        _c("{}:\n{}", data.get(T_NODE), data.get(T_MSG))
 
     @staticmethod
     def on_topic_unregister(client, userdata, message):
@@ -325,82 +318,82 @@ class CtrlBase(object):
         self = userdata
         data = extract_payload(message.payload)
         agentid = data.get(T_CLIENTID)
-        self.lgr.info(to_string("On topic unregister: del {}", agentid))
+        _l.info(_s("On topic unregister: del {}", agentid))
 
         try:
             self.del_agent(agentid)
             if len(self.available_agents) == 0:
                 self.traffic_state.chk._is_agents_unregistered.set()
         except Exception as ex:
-            self.lgr.error(to_string("Exception on unregistering agent {}: {}", agentid, ex))
+            _l.error(_s("Exception on unregistering agent {}: {}", agentid, ex))
 
     @staticmethod
     def on_topic_status(client, userdata, message):
         """Status topic handler"""
         self = userdata
-        self.lgr.info(to_string("On topic status"))
+        _l.info(_s("On topic status"))
         data = extract_payload(message.payload)
         if data.get(T_TRAFFIC_STATUS) == TrafficStatus.REGISTERED.name:
-            self.lgr.info(to_string("Traffic {} registered on {}",\
+            _l.info(_s("Traffic {} registered on {}",\
                 data.get(T_TID), data.get(T_CLIENTID)))
             self.traffic_state.update_stat(data.get(T_TID), TrafficStatus.REGISTERED, "is_traffic_registered")
         elif data.get(T_TRAFFIC_STATUS) == TrafficStatus.RUNNING.name:
-            self.lgr.info(to_string("Traffic {} is running on {}",\
+            _l.info(_s("Traffic {} is running on {}",\
                 data.get(T_TID), data.get(T_CLIENTID)))
             self.traffic_state.update_stat(data.get(T_TID), TrafficStatus.RUNNING)
         elif data.get(T_TRAFFIC_STATUS) == TrafficStatus.FINISHED.name:
-            self.lgr.info(to_string("Traffic {} finished", data.get(T_TID)))
+            _l.info(_s("Traffic {} finished", data.get(T_TID)))
             self.traffic_state.update_stat(data.get(T_TID), TrafficStatus.FINISHED, "is_phase_finished")
         elif data.get(T_TRAFFIC_STATUS) == TrafficStatus.INITFAILED.name:
-            self.lgr.error(to_string("Agent {} failed to initialize: {}",\
+            _l.error(_s("Agent {} failed to initialize: {}",\
                 data.get(T_CLIENTID), data.get(T_MSG)))
             self.teardown()
         elif data.get(T_TRAFFIC_STATUS) == TrafficStatus.AGENTFAILED.name:
-            self.lgr.error(to_string("Failure on Agent: {}", data))
-            to_console("Agent failure: {}", data)
+            _l.error(_s("Failure on Agent: {}", data))
+            _c("Agent failure: {}", data)
             self.teardown()
         elif data.get(T_MSG) is not None:
-            self.lgr.info(data.get(T_MSG))
+            _l.info(data.get(T_MSG))
         else:
-            self.lgr.debug(to_string("Unhandled status message {}", data))
+            _l.debug(_s("Unhandled status message {}", data))
 
     @staticmethod
     def on_topic_sniffer(client, userdata, message):
         """Sniffer topic handler"""
         self = userdata
-        self.lgr.info(to_string("On topic sniffer"))
+        _l.info(_s("On topic sniffer"))
         data = extract_payload(message.payload)
         try:
-            self.lgr.debug(data.get(T_MSG))
+            _l.debug(data.get(T_MSG))
             self.storage.insert_sniffer_record(data.get(T_MSG))
         except Exception as ex:
-            self.lgr.error(to_string("Failed to handle sniffer message: {}", ex))
+            _l.error(_s("Failed to handle sniffer message: {}", ex))
 
     @staticmethod
     def on_topic_reportwrite(client, userdata, message):
         """Report-written topic handler"""
         self = userdata
-        self.lgr.info(to_string("On topic reportwrite"))
+        _l.info(_s("On topic reportwrite"))
         data = extract_payload(message.payload)
         try:
             if data.get(T_TRAFFIC_TYPE) == TrafficType.JOIN.name:
-                self.lgr.debug(to_string("JOINING: {}", data.get(T_NODE)))
+                _l.debug(_s("JOINING: {}", data.get(T_NODE)))
             elif data.get(T_TRAFFIC_TYPE) == TrafficType.SCMD.name:
-                self.lgr.debug(to_string("REPORT: {}", data))
+                _l.debug(_s("REPORT: {}", data))
                 if data.get(T_NODE) is not None:
                     self.storage.insert_record(data)
         except Exception as ex:
-            self.lgr.error(to_string("Failed to handle report write message: {}", ex))
+            _l.error(_s("Failed to handle report write message: {}", ex))
             self.teardown()
 
     @staticmethod
     def on_topic_notification(client, userdata, message):
         """Report-read topic handler"""
         self = userdata
-        self.lgr.info(to_string("On topic notification"))
+        _l.info(_s("On topic notification"))
         data = extract_payload(message.payload)
         try:
-            self.lgr.debug(to_string("NOTIFY: {}", data))
+            _l.debug(_s("NOTIFY: {}", data))
             if data.get(T_TRAFFIC_TYPE) == TrafficType.JOIN.name:
                 if self.traffic_state.chk.nwlayout.get(data.get(T_NODE)) is not None:
                     self.traffic_state.chk.nwlayout[data.get(T_NODE)] = True
@@ -411,7 +404,7 @@ class CtrlBase(object):
             else:
                 pass
         except Exception as ex:
-            self.lgr.error(to_string("Failed to handle notification message: {}", ex))
+            _l.error(_s("Failed to handle notification message: {}", ex))
             self.teardown()
 
 

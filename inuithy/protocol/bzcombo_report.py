@@ -1,9 +1,9 @@
 """ Report generator for Zigbee protocol
  @author: Zex Li <top_zlynch@yahoo.com>
 """
-from inuithy.common.predef import INUITHY_LOGCONFIG, INUITHY_CONFIG_PATH,\
+from inuithy.common.predef import INUITHY_CONFIG_PATH,\
 T_NODE, T_RECORDS, T_MSG_TYPE, T_TIME, T_GENID, T_REPORTDIR, T_PATH,\
-T_GATEWAY, to_console, to_string, MessageType, T_HOST, StorageType,\
+T_GATEWAY, _l, _c, _s, MessageType, T_HOST, StorageType,\
 GenInfo, T_TYPE, TrafficStorage
 from inuithy.protocol.zigbee_proto import T_ZBEE_NWK_ADDR, T_MACTXBCAST,\
 T_MACTXUCASTRETRY, T_MACTXUCASTFAIL, T_MACTXUCAST, T_MACRXUCAST,\
@@ -20,8 +20,6 @@ from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib as mplib
 import pandas as pd
 import numpy as np
-import logging
-import logging.config as lconf
 #from bson.objectid import ObjectId
 import json
 import sys
@@ -29,8 +27,6 @@ from os import path, makedirs
 from copy import deepcopy
 
 mplib.style.use('ggplot')
-lconf.fileConfig(INUITHY_LOGCONFIG)
-lgr = logging
 
 class BzReport(object):
     """Zigbee report helper"""
@@ -38,7 +34,7 @@ class BzReport(object):
     def create_csv(recs, ginfo):
         """Create CSV format from records
         """
-        lgr.info(to_string("Create csv data for genid {}", ginfo.genid))
+        _l.info(_s("Create csv data for genid {}", ginfo.genid))
         df = pd.DataFrame.from_records(recs)
         df = df.fillna(value=0)
         data = df.to_csv(columns=ginfo.header, index=False)
@@ -46,7 +42,7 @@ class BzReport(object):
 
     @staticmethod
     def item_based(ginfo, pdata, item, pdf_pg, nodes=None, iloc_range=None, title=None):
-        lgr.info(to_string("Creating figure for item {}", item))
+        _l.info(_s("Creating figure for item {}", item))
         try:
             df = None
             addr_grp = pdata.groupby([T_ZBEE_NWK_ADDR], as_index=False)
@@ -64,7 +60,7 @@ class BzReport(object):
                     else:
                         df = df.join(data, how='outer')
                 except KeyError as ex:
-                    lgr.error(to_string("No record for node [{}]: {}", addr, ex))
+                    _l.error(_s("No record for node [{}]: {}", addr, ex))
 
             if df is not None and not df.empty:
                 df = df.fillna(value=0)
@@ -72,11 +68,11 @@ class BzReport(object):
                 if iloc_range is not None:
                     df = df.iloc[iloc_range[0]:iloc_range[1]]
                 if title is None or len(title) == 0:
-                    title = to_string("{} by {}", item, T_ZBEE_NWK_ADDR)
+                    title = _s("{} by {}", item, T_ZBEE_NWK_ADDR)
 #                df.plot(xticks=[], lw=1.5, colormap='brg_r', figsize=ginfo.figsize)
                 df.plot(xticks=[], lw=1.5, colormap='jet_r', figsize=ginfo.figsize)
             else:
-                lgr.warning("WARN: DataFrame is empty")
+                _l.warning("WARN: DataFrame is empty")
 
 #            plt.ylim(0, df.max()[1])
 #            plt.ylim(df.min()[1], df.max()[1])
@@ -91,18 +87,18 @@ class BzReport(object):
             plt.yscale('linear')
 
             if ginfo.fig_base is not None:
-                plt.savefig(to_string("{}/{}.png", ginfo.fig_base, title), transparent=False, facecolor='w', edgecolor='b', bbox_inches='tight')
+                plt.savefig(_s("{}/{}.png", ginfo.fig_base, title), transparent=False, facecolor='w', edgecolor='b', bbox_inches='tight')
             if pdf_pg is not None:
                 pdf_pg.savefig(transparent=False, facecolor='w', edgecolor='b', bbox_inches='tight')
             plt.close()
         except Exception as ex:
-            lgr.error(to_string("Exception on creating item based figure {}: {}", item, ex))
+            _l.error(_s("Exception on creating item based figure {}: {}", item, ex))
             raise
 
     @staticmethod
     def total_pack(ginfo, pdata, pdf_pg, title=None):
         """Create package sent/recv summary"""
-        lgr.info("Create package summary")
+        _l.info("Create package summary")
 
         try:
             total_send = len(pdata[T_TYPE][pdata.type == ZbeeProto.MsgType.snd.name])
@@ -121,10 +117,10 @@ class BzReport(object):
             if df is not None and not df.empty:
                 df = df.fillna(value=0)
                 if title is None or len(title) == 0:
-                    title = to_string("Package summary")
+                    title = _s("Package summary")
                 df.plot(kind='bar', colormap='plasma', grid=False, figsize=ginfo.figsize)
             else:
-                lgr.warning("WARN: DataFrame is empty")
+                _l.warning("WARN: DataFrame is empty")
 
 #           plt.ylabel(item)
             plt.title(title)
@@ -132,12 +128,12 @@ class BzReport(object):
             plt.grid(axis='y')
 
             if ginfo.fig_base is not None:
-                plt.savefig(to_string("{}/{}.png", ginfo.fig_base, title), bbox_inches='tight')
+                plt.savefig(_s("{}/{}.png", ginfo.fig_base, title), bbox_inches='tight')
             if pdf_pg is not None:
                 pdf_pg.savefig(bbox_inches='tight')
             plt.close()
         except Exception as ex:
-            lgr.error(to_string("Exception on creating package summary figure: {}", ex))
+            _l.error(_s("Exception on creating package summary figure: {}", ex))
 
     @staticmethod
     def prep_info(genid):
@@ -148,16 +144,16 @@ class BzReport(object):
         routeDiscInitiated,relayedUcast,packetBufferAllocateFailure,
         apsTxBcast,apsTxUcastSuccess,apsTxUcastFail,apsTxUcastRetry,apsRxBcast,apsRxUcast
         """
-        lgr.info(to_string("Prepare generation info with {}", genid))
+        _l.info(_s("Prepare generation info with {}", genid))
         ginfo = GenInfo()
 
         ginfo.cfg = rt.tcfg
         ginfo.genid = genid
-        ginfo.fig_base = to_string('{}/{}',\
+        ginfo.fig_base = _s('{}/{}',\
             ginfo.cfg.config[T_REPORTDIR][T_PATH], ginfo.genid)
-        ginfo.csv_path = to_string('{}/{}.csv',\
+        ginfo.csv_path = _s('{}/{}.csv',\
             ginfo.cfg.config[T_REPORTDIR][T_PATH], ginfo.genid)
-        ginfo.pdf_path = to_string('{}/{}.pdf',\
+        ginfo.pdf_path = _s('{}/{}.pdf',\
             ginfo.cfg.config[T_REPORTDIR][T_PATH], ginfo.genid)
         ginfo.src_type = ginfo.cfg.storagetype[0]
         ginfo.figsize = (15, 6)
@@ -180,15 +176,15 @@ class BzReport(object):
         routeDiscInitiated,relayedUcast,packetBufferAllocateFailure,
         apsTxBcast,apsTxUcastSuccess,apsTxUcastFail,apsTxUcastRetry,apsRxBcast,apsRxUcast
         """
-        lgr.info(to_string("Generate csv with ginfo[{}]", ginfo))
-        storage = Storage(ginfo.cfg, lgr)
+        _l.info(_s("Generate csv with ginfo[{}]", ginfo))
+        storage = Storage(ginfo.cfg)
 
         if ginfo.src_type == TrafficStorage.DB.name:
             return BzReport.import_from_db(ginfo, storage)
         elif ginfo.src_type == TrafficStorage.FILE.name:
             return BzReport.import_from_file(ginfo, storage)
         else:
-            lgr.error(to_string("Unsupported storage type: {}", ginfo.src_type))
+            _l.error(_s("Unsupported storage type: {}", ginfo.src_type))
 
     @staticmethod
     def import_from_db(ginfo, storage):
@@ -222,9 +218,9 @@ class BzReport(object):
     @staticmethod
     def gen_report(raw, pdata, ginfo, gw=None, interest_nodes=None, irange=None):
         """Report generation helper"""
-        lgr.info(to_string("Generate report with gw={}, nodes={} irange={}", gw, interest_nodes, irange))
+        _l.info(_s("Generate report with gw={}, nodes={} irange={}", gw, interest_nodes, irange))
         if raw is None or len(raw[T_TIME]) == 0:
-            lgr.warning(to_string("No time-based records found"))
+            _l.warning(_s("No time-based records found"))
             return
 #        pdata = pd.read_csv(ginfo.csv_path, index_col=False, names=ginfo.header, header=None)
         pdata.info(verbose=True)
@@ -235,11 +231,11 @@ class BzReport(object):
                     for gwnode in gw: # Each subnet
                         for item in ginfo.header[2:]:
                             BzReport.item_based(ginfo, pdata, item, pdf_pg, [gwnode],\
-                            title = to_string("{} by gateway", item))#fig_base=ginfo.fig_base)
+                            title = _s("{} by gateway", item))#fig_base=ginfo.fig_base)
                 for item in ginfo.header[2:]:
                     BzReport.item_based(ginfo, pdata, item, pdf_pg, interest_nodes, irange)
             except Exception as ex:
-                lgr.error(to_string("Exception on saving report: {}", ex))
+                _l.error(_s("Exception on saving report: {}", ex))
                 raise
 
     @staticmethod
@@ -275,7 +271,7 @@ class BzReport(object):
             raw, pdata = BzReport.gen_csv(ginfo)
             BzReport.gen_report(raw, pdata, ginfo, gw, nodes, irange)
         except Exception as ex:
-            lgr.error(to_string("Exception on generate reports: {}", ex))
+            _l.error(_s("Exception on generate reports: {}", ex))
             raise
 
     @staticmethod
@@ -289,12 +285,12 @@ class BzReport(object):
             rt.parser.add_argument('-gw', '--gateways', help='Gateway node', nargs="+")
             rt.parser.add_argument('-csv', '--csv_path', help='Path to CSV data source')
             args = rt.handle_args()
-            to_console("GENID {}", args.genid)
-            to_console("Nodes of interest {}", args.nodes)
-            to_console("Subnet gateway {}", args.gateways)
-            to_console("CSV Path {}", args.csv_path)
+            _c("GENID {}", args.genid)
+            _c("Nodes of interest {}", args.nodes)
+            _c("Subnet gateway {}", args.gateways)
+            _c("CSV Path {}", args.csv_path)
         except Exception as ex:
-            to_console("Exception on handlin report arguments: {}", ex)
+            _c("Exception on handling report arguments: {}", ex)
             return None
         return args
 

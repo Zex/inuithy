@@ -8,8 +8,8 @@
     python tools/pysniffer.py -b 230400 -d /dev/ttyUSB4 -L build/sniffer.log -c 17 --stdout
 \endcode
 """
-from inuithy.common.predef import to_string, to_console,\
-T_CHANNEL, T_PORT, T_BAUD, T_ENABLED, INUITHY_LOGCONFIG, T_GENID, T_MSG,\
+from inuithy.common.predef import _s, _c, _l,\
+T_CHANNEL, T_PORT, T_BAUD, T_ENABLED, T_GENID, T_MSG,\
 T_SNIFFER, T_PCAP, T_TSHARK
 from inuithy.common.runtime import Runtime as rt
 from inuithy.common.runtime import load_configs
@@ -21,14 +21,11 @@ import paho.mqtt.client as mqtt
 from os import path, makedirs, mkfifo
 import subprocess as sp
 import json
-import logging.config as lconf
 import threading
-import logging
 import time
 import sys
 
-lconf.fileConfig(INUITHY_LOGCONFIG)
-logger = logging
+logger = _l
 
 class PcapToMq(object):
     """
@@ -50,13 +47,13 @@ class PcapToMq(object):
         """
         if @pcap_file is not `None`, read data from @pcap_file
         """
-        logging.info("Pcap2MQ initialization")
+        _l.info("Pcap2MQ initialization")
         try:
             if sniconf.get(T_TSHARK) is None:
                 return False
             
             PcapToMq.genid = genid
-            to_console("GENID: {}", PcapToMq.genid)
+            _c("GENID: {}", PcapToMq.genid)
 
             PcapToMq.__create_mqtt_client(host, port)
 
@@ -67,7 +64,7 @@ class PcapToMq(object):
                 cmd = [sniconf.get(T_TSHARK), '-l', '-T', 'json', '-r', pcap_file]
             PcapToMq.proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.STDOUT, shell=False, universal_newlines=True)
         except Exception as ex:
-            logging.error(to_string("Pcap to MQ init failed: {}", ex))
+            _l.error(_s("Pcap to MQ init failed: {}", ex))
             return False
         return True
 
@@ -86,7 +83,7 @@ class PcapToMq(object):
 #        except json.decoder.JSONDecodeError:
 #            return False
         except Exception as ex:
-            logging.error(to_string("Try load failed: {}", ex))
+            _l.error(_s("Try load failed: {}", ex))
             return False
         return True
     
@@ -94,7 +91,8 @@ class PcapToMq(object):
     def start():
         """Post data by block
         """
-        logging.info("Pcap2MQ routine started")
+        _l.info("Pcap2MQ routine started")
+        _c("Starting sniffer ...")
         buf, cnt = '', 0
         
         try:
@@ -107,7 +105,7 @@ class PcapToMq(object):
                     pass
                 if line.endswith('['):
                     break
-            to_console("TSHARK HEAD SKIPPED")
+            _c("TSHARK HEAD SKIPPED")
             
             while PcapToMq.proc.poll() is None and Sniffer.running:
                 line = PcapToMq.proc.stdout.readline()
@@ -127,12 +125,12 @@ class PcapToMq(object):
                     if cnt == 0 and len(buf) > 0:
                         PcapToMq.__try_load(buf)
                         buf = ''
-            to_console("TSHARK DATA END")
+            _c("TSHARK DATA END")
         except KeyboardInterrupt:
-            to_console("Terminating ...")
+            _c("Terminating ...")
             Sniffer.running = False
         except Exception as ex:
-            to_console("Exception on processing sniffer data: {}", ex)
+            _c("Exception on processing sniffer data: {}", ex)
 
     @staticmethod
     def stop():
@@ -150,26 +148,26 @@ class Sniffer():
     def init(genid='na'):
         """ python tools/pysniffer.py -b 230400 -d /dev/ttyUSB4 -L build/sniffer.log -c 17 --stdout
         """
-        logging.info("Sniffer initialization")
+        _l.info("Sniffer initialization")
         in_hdr, out_hdr = None, None
 
         try:
             sniconf = rt.trcfg.config.get(T_SNIFFER)
             if sniconf is not None:
                 if not sniconf.get(T_ENABLED) or sniconf.get(T_ENABLED) is False:
-                    to_console("Sniffer not enabled")
+                    _c("Sniffer not enabled")
                     return None, None
 
-            to_console("Sniffer enabled")
+            _c("Sniffer enabled")
             if not path.isdir(sniconf.get(T_PCAP)):
                 makedirs(sniconf.get(T_PCAP))
 
-            pcap_path = to_string('{}/{}.pcap', sniconf.get(T_PCAP), genid)
-            to_console("PCAP path: {}", pcap_path)
+            pcap_path = _s('{}/{}.pcap', sniconf.get(T_PCAP), genid)
+            _c("PCAP path: {}", pcap_path)
 
             if not path.exists(Sniffer.fifo_path):
                 mkfifo(Sniffer.fifo_path)
-            to_console("{}, {}, {}", sniconf.get(T_PORT), sniconf.get(T_BAUD),\
+            _c("{}, {}, {}", sniconf.get(T_PORT), sniconf.get(T_BAUD),\
                 sniconf.get(T_CHANNEL))
 
             in_hdr = SerialInputHandler(
@@ -188,9 +186,9 @@ class Sniffer():
                 return None, None
 #                Sniffer.sniffer_worker = threading.Thread(target=PcapToMq.start)
 
-            logging.info(to_string("Sniffer initialized"))
+            _l.info(_s("Sniffer initialized"))
         except Exception as ex:
-            logging.error(to_string("Failed to initialize sniffer: {}", ex))
+            _l.error(_s("Failed to initialize sniffer: {}", ex))
             return None, None
 
         Sniffer.running = True
@@ -201,7 +199,7 @@ class Sniffer():
         """
         python tools/pysniffer.py -f /tmp/sniffer.fifo -b 230400 -d /dev/ttyUSB5 -L build/sniffer.log -c 17
         """
-        logging.info("Sniffer start")
+        _l.info("Sniffer start")
         if in_hdr is None or out_hdr is None:
             return
 
@@ -213,7 +211,7 @@ class Sniffer():
 
     @staticmethod
     def _start(in_hdr, out_hdr):
-        logging.info("Sniffer routine started")
+        _l.info("Sniffer routine started")
         while Sniffer.running:
             try:
                 raw = in_hdr.read_frame()
@@ -226,11 +224,14 @@ class Sniffer():
                 in_hdr.close()
                 sys.exit(0)
             except Exception as ex:
-                logging.error(to_string("Runtime error in sniffer routine: {}", ex))
+                _l.error(_s("Runtime error in sniffer routine: {}", ex))
 
     @staticmethod
     def stop():
         
+        if not Sniffer.running:
+            return
+        _c("Stopping sniffer ...")
         Sniffer.running = False
 
         if Sniffer.sniffer_worker:
@@ -260,7 +261,7 @@ def handle_args(in_args=None):
         args = rt.handle_args()
         load_configs()
     except Exception as ex:
-        to_console("Exception on handling sniffer arguments: {}", ex)
+        _c("Exception on handling sniffer arguments: {}", ex)
         return None
     return args
 
@@ -271,7 +272,7 @@ if __name__ == '__main__':
     try:
         input('Enter to quit ...')
     except SyntaxError:
-        to_console("Using Py2")
+        _c("Using Py2")
     stop_sniffer()
 
 

@@ -12,41 +12,36 @@ from enum import Enum
 
 # Controller => Agents
 # Command for agents
-TT_COMMAND = "inuithy/topic/command"
+TT_COMMAND = "inuithy/command"
 # Configuration for agents
-TT_CONFIG = "inuithy/topic/config"
+TT_CONFIG = "inuithy/config"
 # Traffc data to send via serial port on agent
-TT_TRAFFIC = "inuithy/topic/traffic"
+TT_TRAFFIC = "inuithy/traffic"
 # Configure network layout as given configure
-TT_NWLAYOUT = "inuithy/topic/nwlayout"
+TT_NWLAYOUT = "inuithy/nwlayout"
 # Message sent via inuithy shell
-TT_TSH = "inuithy/topic/tsh"
+TT_TSH = "inuithy/tsh"
 # Response from agent
-TT_REPLY = "inuithy/topic/reply"
+TT_REPLY = "inuithy/reply"
 # Agents => Controller
 # Unregister agent
-TT_UNREGISTER = "inuithy/topic/unregister"
+TT_UNREGISTER = "inuithy/unregister"
 # Status of agent/nodes
-TT_STATUS = "inuithy/topic/status"
+TT_STATUS = "inuithy/status"
 # Heartbeat from agent
-TT_HEARTBEAT = "inuithy/topic/heartbeat"
+TT_HEARTBEAT = "inuithy/heartbeat"
 # Report data wriited to serial port
-TT_REPORTWRITE = "inuithy/topic/reportwrite"
+TT_REPORTWRITE = "inuithy/reportwrite"
 # Report data read from serial port
-TT_NOTIFICATION = "inuithy/topic/notification"
+TT_NOTIFICATION = "inuithy/notification"
 # Sniffer data topic
-TT_SNIFFER = "inuithy/topic/sniffer"
-# Message sent via inuithy shell
-# <topic id>::<message>
-INUITHY_MQPAYLOAD_DELEMER = "::>"
-INUITHY_MQPAYLOAD_FMT = "{}"+INUITHY_MQPAYLOAD_DELEMER+"{}"
+TT_SNIFFER = "inuithy/sniffer"
 
 INUITHYAGENT_MSGFMT = "INUITHYAGENT [{}]"
 # Agent identity in MQ network: inuithy/agent/<host>"
-INUITHYAGENT_CLIENT_ID = "inuithy/agent/{}"
-INUITHYNODE_CLIENT_ID = "inuithy/node/{}"
+AGENT_CLIENT_ID = "inuithy/agent/{}"
+NODE_CLIENT_ID = "inuithy/node/{}"
 
-CTRL_MSGFMT = "INUITHYCTRL [{}]"
 CTRL_CLIENT_ID = "inuithy/ctrl/{}"
 
 # command message from Controller to Agents
@@ -96,6 +91,7 @@ T_TSH = 'inuithy_shell'
 T_HISTORY = 'history'
 T_SUBNET = 'subnet'
 T_NODES = 'nodes'
+T_COORDINATOR = 'coordinator'
 T_GATEWAY = 'gateway'
 T_PKGSIZE = 'pkgsize'
 T_JITTER = 'jitter'
@@ -131,6 +127,8 @@ T_SNIFFER_RECORDS = 'sniffer_records'
 T_TRAFFIC_STATUS = 'traffic_status'
 T_TID = 'tid'
 T_TRAFFIC_FINISH_DELAY = 'traffin_delay'
+T_DELAY = 'delay'
+T_TIMEOUT = 'timeout'
 T_EVERYONE = '*'
 T_DIAG = '+'
 T_NOI = 'noi' # Nodes of interest
@@ -176,7 +174,7 @@ class GenInfo(object):
         self.colormap = 'jet_r' #'brg_r'
 
     def __str__(self):
-        return to_string("header: {}\ncsv: {}\npdf: {}\nfigures: {}\ngenid: {}\n",\
+        return _s("header: {}\ncsv: {}\npdf: {}\nfigures: {}\ngenid: {}\n",\
                 self.header, self.csv_path, self.pdf_path, self.fig_base, self.genid)
 
 AgentStatus = Enum("AgentStatus", [
@@ -216,12 +214,12 @@ CtrlCmd = Enum("CtrlCmd", [
     "AGENT_DISABLE_HEARTBEAT",
 ])
 
-def to_string(fmt, *params):
+def _s(fmt, *params):
     if params is None or len(params) == 0:
         return fmt
     return fmt.format(*params)
 
-def to_console(fmt, *params):
+def _c(fmt, *params):
     if params is None or len(params) == 0:
         print(fmt)
         return
@@ -233,4 +231,11 @@ NodeType = Enum("NodeType", [
     "BleZbee",
     "UNKNOWN",
 ])
+
+import logging
+import logging.config as lconf
+lconf.fileConfig(INUITHY_LOGCONFIG)
+_l = logging
+
+
 

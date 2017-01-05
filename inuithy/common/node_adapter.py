@@ -9,7 +9,7 @@ if os.uname()[-1] == 'armv7l':
     sys.path.append('/opt/inuithy')
 
 from inuithy.common.predef import DEV_TTYUSB, DEV_TTYS, DEV_TTY,\
-to_string, T_EVERYONE, INUITHY_LOGCONFIG, T_MSG, NodeType, DEV_TTYACM
+_s, _l, T_EVERYONE, T_MSG, NodeType, DEV_TTYACM
 from inuithy.util.helper import clear_list
 from inuithy.common.supported_proto import SupportedProto
 from inuithy.common.node import SerialNode, RawNode, RAWNODE_BASE, RawNodeSvr
@@ -19,14 +19,11 @@ from inuithy.protocol.bzcombo_proto import BzProtocol as BzProto
 from inuithy.util.worker import Worker
 from inuithy.util.task_manager import ProcTaskManager
 import multiprocessing as mp
-import glob, logging
+import glob
 import threading
 import select
 import socket
-import logging.config as lconf
 from random import randint
-
-lconf.fileConfig(INUITHY_LOGCONFIG)
 
 [SupportedProto.register(*proto) for proto in [
     (NodeType.BLE, BleProto, SerialNode),
@@ -50,12 +47,11 @@ class NodeAdapter(object):
 
     _initialized = False
 
-    def __init__(self, reporter=None, lgr=None):
+    def __init__(self, reporter=None):
         self.__nodes = {}
         self.reporter = reporter
-        NodeAdapter.lgr = lgr is None and logging or lgr
         self.run_listener = False
-        self.worker = Worker(1, NodeAdapter.lgr)
+        self.worker = Worker(1)
         with NodeAdapter._mutex:
             NodeAdapter._initialized = True
         self.scan_done = threading.Event()
@@ -65,15 +61,15 @@ class NodeAdapter(object):
         self.recver = None
 
     def start_nodes(self):
-        NodeAdapter.lgr.info("Start connected nodes")
+        _l.info("Start connected nodes")
         [n.start() for n in self.nodes.values()]
 
     def stop_nodes(self):
-        NodeAdapter.lgr.info("Stop connected nodes")
+        _l.info("Stop connected nodes")
         [n.stop() for n in self.nodes.values()]
 
     def teardown(self):
-        NodeAdapter.lgr.info("Serial adapter teardown")
+        _l.info("Serial adapter teardown")
         with NodeAdapter._mutex:
             if not NodeAdapter._initialized:
                 return
@@ -90,9 +86,9 @@ class NodeAdapter(object):
             [ntype.name] => (ntype, proto, node, report_hdr)
            callback for nodes
         """
-        NodeAdapter.lgr.info(to_string("Register node {}, {}", node.path, data))
+        _l.info(_s("Register node {}, {}", node.path, data))
         if node.fwver is None or len(node.fwver) == 0:
-            NodeAdapter.lgr.error(to_string("Unknown node {}", node.path))
+            _l.error(_s("Unknown node {}", node.path))
             return
         try:
     #        if node.proto is None:
@@ -101,13 +97,13 @@ class NodeAdapter(object):
                     node.ntype = proto[0]
                     break
              if len(self.expected_paths) != len(self.nodes):
-                NodeAdapter.lgr.info(to_string("Register node {}/{}", len(self.nodes), len(self.expected_paths)))
+                _l.info(_s("Register node {}/{}", len(self.nodes), len(self.expected_paths)))
                 return
              with_proto = [n for n in self.nodes.values() if n.ntype is not None]
              if len(with_proto) == len(self.nodes):
                 self.scan_done.set()
         except Exception as ex:
-            NodeAdapter.lgr.error(to_string("Exception on register node: {}", ex))
+            _l.error(_s("Exception on register node: {}", ex))
 
 def yield_proto():
     for proto in SupportedProto.protocols.values():
@@ -120,23 +116,23 @@ def get_type(node):
     if node is not None:
         try:
             proto = next(node.try_proto)
-            NodeAdapter.lgr.info(to_string("Examine {}", proto))
+            _l.info(_s("Examine {}", proto))
             if proto[1].prepare(node) is False:
                 get_type(node)
                 return
             if proto[1].start(node) is False:
                 get_type(node)
         except StopIteration:
-            NodeAdapter.lgr.info(to_string("All proto tried"))
+            _l.info(_s("All proto tried"))
             if not node.started:
-                raise RuntimeError(to_string("No proto found for node {}", node))
+                raise RuntimeError(_s("No proto found for node {}", node))
         except Exception as ex:
-            NodeAdapter.lgr.error(to_string(
+            _l.error(_s(
             "Exception on examine node[{}]: {}", node, ex))
 
 def create_node(adapter, path):#, sender=None):
     """Create node"""
-    NodeAdapter.lgr.debug(to_string("Creating node {}", path))
+    _l.debug(_s("Creating node {}", path))
     if not NodeAdapter._initialized:
         return
 
@@ -144,28 +140,28 @@ def create_node(adapter, path):#, sender=None):
     node = None
 
     try:
-        node = SerialNode(path=path, lgr=NodeAdapter.lgr, adapter=adapter)#, reporter=adapter.reporter)
-#       node = RawNode(path=RAWNODE_BASE+path, lgr=NodeAdapter.lgr, adapter=adapter.
+        node = SerialNode(path=path, adapter=adapter)#, reporter=adapter.reporter)
+#       node = RawNode(path=RAWNODE_BASE+path, adapter=adapter.
         if node is not None:
             adapter.nodes[node.dev.fileno()] = node
             node.try_proto = yield_proto()
         else:
-            NodeAdapter.lgr.error(to_string("Invalid node"))
+            _l.error(_s("Invalid node"))
     except KeyboardInterrupt:
-        NodeAdapter.lgr.error(to_string("Received keyboard interrupt"))
+        _l.error(_s("Received keyboard interrupt"))
     except Exception as ex:
-        NodeAdapter.lgr.error(to_string("Exception on creating node: {}", ex))
+        _l.error(_s("Exception on creating node: {}", ex))
     return node
 
 
 def scan_nodes(adapter, targets=None):
-    NodeAdapter.lgr.info(to_string("Scan for connected nodes {}", targets))
+    _l.info(_s("Scan for connected nodes {}", targets))
     clear_list(adapter.nodes)
     if targets is not None and not isinstance(targets, list):
-        NodeAdapter.lgr.error(to_string("Expecting a list for targets"))
+        _l.error(_s("Expecting a list for targets"))
         return
     if targets is None or len(targets) == 0:
-        targets = [to_string(DEV_TTYUSB, T_EVERYONE), to_string(DEV_TTYACM, T_EVERYONE)]
+        targets = [_s(DEV_TTYUSB, T_EVERYONE), _s(DEV_TTYACM, T_EVERYONE)]
     paths = []
     [paths.extend(glob.glob(target)) for target in targets]
     if len(paths) == 0:
@@ -179,8 +175,8 @@ def scan_nodes(adapter, targets=None):
     adapter.register_mutex = mp.Lock()
 
     try:
-        NodeAdapter.lgr.info("Scanning preparing")
-        pool = ProcTaskManager(NodeAdapter.lgr, with_child=True)
+        _l.info("Scanning preparing")
+        pool = ProcTaskManager(with_child=True)
         [create_node(adapter, path) for path in paths]
         [pool.create_task(get_type, node) for node in adapter.nodes.values()]
         while not adapter.scan_done.isSet():
@@ -192,10 +188,10 @@ def scan_nodes(adapter, targets=None):
                     with adapter.register_mutex:
                         adapter.register(node, data)
                 else:
-                    NodeAdapter.lgr.error(to_string("Unexpected node try to register ({})", (fd, fwver, proto, data)))
+                    _l.error(_s("Unexpected node try to register ({})", (fd, fwver, proto, data)))
         pool.waitall()
     except Exception as ex:
-        NodeAdapter.lgr.error(to_string("Scanning failed: {}", ex))
+        _l.error(_s("Scanning failed: {}", ex))
         [p.close() for p in pipe]
         raise
 
@@ -204,22 +200,27 @@ def scan_nodes(adapter, targets=None):
     [p.close() for p in pipe]
     adapter.sender = None
     adapter.recver = None
-    NodeAdapter.lgr.info("Scanning finished")
+    _l.info("Scanning finished")
 
     adapter.start_nodes()
 
 if __name__ == '__main__':
 
+    from inuithy.common.runtime import Runtime as rt
+    from inuithy.common.runtime import load_tcfg
+
+    rt.handle_args()
+    load_tcfg(rt.tcfg_path)
     adapter = NodeAdapter()
     try:
-#       NodeAdapter.lgr.debug(NodeAdapter.protocols)
+#       _l.debug(NodeAdapter.protocols)
         scan_nodes(adapter, targets=['/dev/ttyUSB*'])
-        NodeAdapter.lgr.debug([str(fd)+str(n) for fd, n in adapter.nodes.items()])
-        NodeAdapter.lgr.debug(len(adapter.nodes))
+        _l.debug([str(fd)+str(n) for fd, n in adapter.nodes.items()])
+        _l.debug(len(adapter.nodes))
     except KeyboardInterrupt:
-        NodeAdapter.lgr.error(to_string("Received keyboard interrupt"))
+        _l.error(_s("Received keyboard interrupt"))
     except Exception as ex:
-        NodeAdapter.lgr.error(to_string("Exception: {}", ex))
+        _l.error(_s("Exception: {}", ex))
         raise
     finally:
         adapter.teardown()

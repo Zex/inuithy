@@ -1,16 +1,12 @@
 """ General worker
  @author: Zex Li <top_zlynch@yahoo.com>
 """
-from inuithy.common.predef import INUITHY_LOGCONFIG, to_string
+from inuithy.common.predef import _s, _l
 try:
     from queue import Queue, Empty
 except ImportError:
     from Queue import Queue, Empty
 import threading
-import logging
-import logging.config as lconf
-
-lconf.fileConfig(INUITHY_LOGCONFIG)
 
 class Worker(object):
     """General worker
@@ -40,8 +36,7 @@ class Worker(object):
     stopper.start()
 """
 
-    def __init__(self, get_timeout=None, lgr=None):
-        self.lgr = lgr is None and logging or lgr
+    def __init__(self, get_timeout=None):
         self.jobs = Queue()
         self.get_timeout = get_timeout
         self._keep_working = True
@@ -62,12 +57,12 @@ class Worker(object):
                 pass
 
     def start(self):
-        self.lgr.info("Start worker")
+        _l.info("Start worker")
         self.workline = threading.Thread(target=self._do_start)
         self.workline.start()
     
     def stop(self):
-        self.lgr.info("Stop worker")
+        _l.info("Stop worker")
         self._keep_working = False
         while self.jobs.qsize():
             self.jobs.get_nowait()

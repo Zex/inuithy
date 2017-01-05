@@ -2,20 +2,16 @@
  @author: Zex Li <top_zlynch@yahoo.com>
 """
 from inuithy.common.version import __version__
-from inuithy.common.predef import TT_HEARTBEAT, TT_STATUS,\
+from inuithy.common.predef import TT_HEARTBEAT, TT_STATUS, _l,\
 TT_REPORTWRITE, TT_NOTIFICATION, TT_UNREGISTER, TT_SNIFFER,\
-TRAFFIC_CONFIG_PATH, INUITHY_CONFIG_PATH, INUITHY_TITLE, INUITHY_LOGCONFIG,\
-to_string, T_CLIENTID, T_HOST, T_NODES, T_VERSION
+TRAFFIC_CONFIG_PATH, INUITHY_CONFIG_PATH, INUITHY_TITLE,\
+_s, T_CLIENTID, T_HOST, T_NODES, T_VERSION
 from inuithy.common.runtime import Runtime as rt
 from inuithy.mode.base import CtrlBase
 from inuithy.util.cmd_helper import pub_enable_hb, pub_disable_hb,\
 extract_payload, subscribe
 import paho.mqtt.client as mqtt
-import logging
-import logging.config as lconf
 import time
-
-lconf.fileConfig(INUITHY_LOGCONFIG)
 
 class MoniCtrl(CtrlBase):
     """Controller in automatic mode
@@ -33,63 +29,61 @@ class MoniCtrl(CtrlBase):
         subscribe(self.mqclient, TT_NOTIFICATION, MoniCtrl.on_topic_notification, rt.tcfg.mqtt_qos)
         subscribe(self.mqclient, TT_SNIFFER, MoniCtrl.on_topic_sniffer, rt.tcfg.mqtt_qos)
 
-    def __init__(self, lgr=None, delay=4):
-        CtrlBase.__init__(self, lgr, delay)
-        self.lgr = lgr is None and logging or lgr
+    def __init__(self, delay=4):
+        CtrlBase.__init__(self, delay)
 
     @staticmethod
     def on_topic_heartbeat(client, userdata, message):
         """Heartbeat message format:
         """
         self = userdata
-        self.lgr.info(to_string("On topic heartbeat"))
+        _l.info(_s("On topic heartbeat"))
         data = extract_payload(message.payload)
         agentid, host, nodes, version = data.get(T_CLIENTID), data.get(T_HOST),\
                 data.get(T_NODES), data.get(T_VERSION)
         try:
-            self.lgr.info(to_string("On topic heartbeat: Agent Version {}", version))
+            _l.info(_s("On topic heartbeat: Agent Version {}", version))
             agentid = agentid.strip('\t\n ')
             self.add_agent(agentid, host, nodes)
 #            self.traffic_state.check("is_agents_up")
-            self.lgr.info(to_string("Found Agents({}): {}",\
+            _l.info(_s("Found Agents({}): {}",\
                 len(self.available_agents), self.available_agents))
             pub_enable_hb(self.mqclient, clientid=agentid)
         except Exception as ex:
-            self.lgr.error(to_string("Exception on registering agent {}: {}", agentid, ex))
+            _l.error(_s("Exception on registering agent {}: {}", agentid, ex))
 
     def start(self):
         """Start controller routine"""
         if not MoniCtrl.initialized:
-            self.lgr.error(to_string("MoniCtrl not initialized"))
+            _l.error(_s("MoniCtrl not initialized"))
             return
         try:
-#            if self._traffic_timer is not None:
-#                self._traffic_timer.start()
             if self.worker is not None:
                 self.worker.start()
             self.alive_notification()
 #            for agent in self.available_agents:
-#                self.lgr.debug(to_string("Enable heartbeat on {}", agent))
+#                _l.debug(_s("Enable heartbeat on {}", agent))
 #                pub_enable_hb(self.mqclient, clientid=agent.agentid)
             self._mqclient.loop_forever()
         except KeyboardInterrupt:
-            self.lgr.info(to_string("MoniCtrl received keyboard interrupt"))
+            _l.info(_s("MoniCtrl received keyboard interrupt"))
         except NameError as ex:
-            self.lgr.error(to_string("ERR: {}", ex))
+            _l.error(_s("ERR: {}", ex))
         except Exception as ex:
-            self.lgr.error(to_string("Exception on MoniCtrl: {}", ex))
+            _l.error(_s("Exception on MoniCtrl: {}", ex))
         pub_disable_hb(self.mqclient)
         self.teardown()
-        self.lgr.info(to_string("MoniCtrl terminated"))
+        _l.info(_s("MoniCtrl terminated"))
 
-def start_controller(args=None, lgr=None):
+def start_controller(args=None):
     """Shortcut to start controller"""
     rt.handle_args(args)
-    controller = MoniCtrl(lgr)
+    controller = MoniCtrl()
     controller.start()
 
 if __name__ == '__main__':
-    lgr = logging.getLogger('InuithyMoniCtrl')
-    lgr.info(to_string(INUITHY_TITLE, __version__, "MoniCtrl"))
-    start_controller(lgr=lgr)
+    import logging
+    _l = logging.getLogger('InuithyMoniCtrl')
+    _l.info(_s(INUITHY_TITLE, __version__, "MoniCtrl"))
+    start_controller()
 

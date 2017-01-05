@@ -1,7 +1,7 @@
 """ General command definition
  @author: Zex Li <top_zlynch@yahoo.com>
 """
-from inuithy.common.predef import to_console, to_string
+from inuithy.common.predef import _c, _s
 from inuithy.util.helper import delimstr
 
 TSH_ERR_GENERAL = "ERROR: {}"
@@ -28,29 +28,29 @@ class Command(object):
             try:
                 self.handler(*args, **kwargs)
             except Exception as ex:
-                to_console(TSH_ERR_HANDLING_CMD, self.name, ex)
+                _c(TSH_ERR_HANDLING_CMD, self.name, ex)
                 
     def __str__(self):
 
-        ret = to_string('{:<15} ', self.name)
+        ret = _s('{:<15} ', self.name)
         desc_fmt = ' {}'
 
         if len(self.args) >= 30:
-            ret += to_string('{:<30}\n', self.args)
-            ret += to_string(' ' * 46)
+            ret += _s('{:<30}\n', self.args)
+            ret += _s(' ' * 46)
         elif len(self.args) > 0 and len(self.args) < 30:
-            ret += to_string('{:<30}', self.args)
+            ret += _s('{:<30}', self.args)
         elif len(self.args) == 0:
-            ret += to_string(' ' * 30)
+            ret += _s(' ' * 30)
 
         descs = self.desc.split('\n')
 
-        ret += to_string(desc_fmt, descs[0])
+        ret += _s(desc_fmt, descs[0])
 
         if len(descs) > 1:
-            ret += to_string('\n' + ' ' * 46)
+            ret += _s('\n' + ' ' * 46)
             for line in descs[1:]:
-                ret += to_string(desc_fmt, line)
+                ret += _s(desc_fmt, line)
         ret = ret.strip('\n')
         return ret
 
@@ -72,5 +72,5 @@ if __name__ == "__main__":
     cmd_3 = Command('agent stop', '<host>', "Stop agent on <host>\n"\
                     "           '*' for all targetted hosts")
     for cmd in [cmd_0, cmd_1, cmd_2, cmd_3]:
-        to_console(str(cmd))
+        _c(str(cmd))
 

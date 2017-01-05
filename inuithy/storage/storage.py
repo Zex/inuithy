@@ -1,14 +1,10 @@
 """ High-level Storage definition
  @author: Zex Li <top_zlynch@yahoo.com>
 """
-from inuithy.common.predef import INUITHY_LOGCONFIG, T_PATH, T_TRAFFIC_STORAGE,\
-to_string, TrafficStorage, StorageType
+from inuithy.common.predef import T_PATH, T_TRAFFIC_STORAGE,\
+_s, TrafficStorage, StorageType, _l
 from inuithy.storage.mongodb_plugin import MongodbStorage
 from inuithy.storage.splunk_plugin import SplunkStorage
-import logging
-import logging.config as lconf
-
-lconf.fileConfig(INUITHY_LOGCONFIG)
 
 class Storage(object):
     """High-level storage
@@ -44,7 +40,7 @@ class Storage(object):
 
     @property
     def storage_path(self):
-        return self.localpath or to_string("{}:{}", self.host, self.port)
+        return self.localpath or _s("{}:{}", self.host, self.port)
     @storage_path.setter
     def storage_path(self, val):
         pass
@@ -56,16 +52,12 @@ class Storage(object):
     def trafrec(self, val):
         pass
 
-    def __init__(self, tcfg, lgr=None):
+    def __init__(self, tcfg):
         self.tcfg = tcfg
-        if lgr is None:
-            self.lgr = logging
-        else:
-            self.lgr = lgr
         self.load_plugin(*self.tcfg.storagetype)
 
     def load_plugin(self, sttype, stname):
-        self.lgr.info(to_string("Load plugin: {}:{}", sttype, stname))
+        _l.info(_s("Load plugin: {}:{}", sttype, stname))
         s = self.tcfg.config[T_TRAFFIC_STORAGE]
         if sttype == TrafficStorage.DB.name:
             if stname == StorageType.MongoDB.name:
@@ -87,7 +79,7 @@ class Storage(object):
         try:
             self.__dbplugin.insert_record(data)
         except Exception as ex:
-            self.lgr.error(to_string("Insert record failed: {}", ex))
+            _l.error(_s("Insert record failed: {}", ex))
 
     def insert_config(self, data):
         """Insert current configure
@@ -96,7 +88,7 @@ class Storage(object):
         try:
             return self.__dbplugin.insert_config(data)
         except Exception as ex:
-            self.lgr.error(to_string("Insert config failed: {}", ex))
+            _l.error(_s("Insert config failed: {}", ex))
             return None
 
     def insert_sniffer_record(self, data):
@@ -107,13 +99,12 @@ class Storage(object):
         try:
             self.__dbplugin.insert_sniffer_record(data)
         except Exception as ex:
-            self.lgr.error(to_string("Insert sniffer record failed: {}", ex))
+            _l.error(_s("Insert sniffer record failed: {}", ex))
 
     def close(self):
-        self.lgr.info("Close storage")
+        _l.info("Close storage")
         if self.__dbplugin:
             self.__dbplugin.close()
 
 if __name__ == '__main__':
-    lgr = logging.getLogger('InuithyStorage')
     pass

@@ -3,14 +3,10 @@
 """
 from inuithy.common.version import __version__
 from inuithy.common.predef import T_CLIENTID, T_HOST,\
-T_VERSION, T_ADDR, to_string, INUITHY_LOGCONFIG
+T_VERSION, T_ADDR, _s, _l
 import json
 import threading
 import socket
-import logging
-import logging.config as lconf
-
-lconf.fileConfig(INUITHY_LOGCONFIG)
 
 class Heartbeat(threading.Thread):
     """Heartbeat generator
@@ -22,7 +18,7 @@ class Heartbeat(threading.Thread):
     __mutex = threading.Lock()
 
     def __init__(self, interval=2, name="Heartbeat", info=None,\
-        daemon=False, lgr=None, *args, **kwargs):
+        daemon=False, *args, **kwargs):
         threading.Thread.__init__(self, target=None, name=name,\
             args=args, kwargs=kwargs, daemon=daemon)
         self.__interval = interval
@@ -31,22 +27,19 @@ class Heartbeat(threading.Thread):
         self.__kwargs = kwargs
         self.__sock = None
         self.done = threading.Event()
-        self.lgr = lgr
-        if self.lgr is None:
-            self.lgr = logging
         self.create_sock()
         self.info = info
 
     def create_sock(self):
-        self.lgr.info("Create heartbeat socket")
+        _l.info("Create heartbeat socket")
         self.__sock = socket.socket(type=socket.SocketKind.SOCK_DGRAM)
 #        self.__sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         self.__sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
     def run(self):
-        self.lgr.info(to_string("Heartbeat routine started"))
+        _l.info(_s("Heartbeat routine started"))
         if self.__target is None or self.info is None:
-            self.lgr.error(to_string("Heartbeat routine not defined or hearbeat info block empty"))
+            _l.error(_s("Heartbeat routine not defined or hearbeat info block empty"))
             return # or self.__src is None: return
         self.__running = True
 
@@ -65,7 +58,7 @@ class Heartbeat(threading.Thread):
             self.__sock.close()
 
     def __target(self):
-        self.lgr.info(to_string("Heartbeat routine"))
+        _l.info(_s("Heartbeat routine"))
         try:
             addr = (self.info.get(T_ADDR), Heartbeat.PORT)
             data = {
@@ -75,7 +68,7 @@ class Heartbeat(threading.Thread):
             }
             self.__sock.sendto(json.dumps(data), addr)
         except Exception as ex:
-            self.lgr.info(to_string("Heartbeat exception:{}", ex))
+            _l.info(_s("Heartbeat exception:{}", ex))
 
 
 if __name__ == '__main__':

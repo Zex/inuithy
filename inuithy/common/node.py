@@ -2,18 +2,14 @@
  @author: Zex Li <top_zlynch@yahoo.com>
 """
 from inuithy.common.predef import TrafficType, T_MSG, T_GENID, T_TRAFFIC_STATUS,\
-INUITHY_LOGCONFIG, to_string, T_TYPE, T_ADDR, T_PATH, NodeType, TrafficStatus,\
-INUITHYNODE_CLIENT_ID
+_s, T_TYPE, T_ADDR, T_PATH, NodeType, TrafficStatus, _l, NODE_CLIENT_ID
 from inuithy.util.cmd_helper import pub_reportwrite, pub_notification, pub_status, pub_reply
 from inuithy.util.worker import Worker
 from inuithy.common.runtime import Runtime as rt
 from inuithy.protocol.ble_proto import BleProtocol as BleProto
 from inuithy.protocol.zigbee_proto import ZigbeeProtocol as ZbeeProto
 from inuithy.protocol.bzcombo_proto import BzProtocol as BzProto
-
-import logging.config as lconf
 import threading
-import logging
 import serial
 import socket
 import json
@@ -31,29 +27,25 @@ RAWNODE_BASE = '/tmp'
 RAWNODE_SVR = RAWNODE_BASE+'/dev/svr'
 RAWNODE_RBUF_MAX = 1024
 
-lconf.fileConfig(INUITHY_LOGCONFIG)
-
 class Node(object):
     """Node control via serial port
     """
-    def __init__(self, ntype=None, proto=None, path="", addr="", reporter=None,\
-        lgr=None, adapter=None):
-        self.lgr = lgr is None and logging or lgr
+    def __init__(self, ntype=None, proto=None, path="", addr="", reporter=None, adapter=None):
         self.path = path
         self.addr = addr
         self.ntype = ntype
 #        self.reporter = reporter
         self.proto = proto
-        self.genid = None
+        self.genid = 'inuithy-debug'
         self.joined = False #DEBUG
         self.fwver = ''
         self.adapter = adapter
         self.sequence_nr = 0
         self.dev = None
         self.mutex = threading.Lock()
-        self.reader = None#Worker(lgr=self.lgr)
+        self.reader = None#Worker()
         self.running = True
-        self.writer = Worker(1, lgr=self.lgr)
+        self.writer = Worker(1)
         self.writable = threading.Event()
         self.started = False # Indicate whether firmware is ready
         self.in_traffic = False # Indicate traffic started or not
@@ -74,10 +66,10 @@ class Node(object):
     @staticmethod
     def on_disconnect(client, userdata, rc):
         """MQ disconnect event handler"""
-        userdata.lgr.info(to_string(
+        _l.info(_s(
             "MQ.Disconnection: client:{} userdata:[{}] rc:{}", client, userdata, rc))
         if 0 != rc:
-            userdata.lgr.error(to_string("MQ.Disconnection: disconnection error"))
+            _l.error(_s("MQ.Disconnection: disconnection error"))
         if userdata.running:
             client.reconnect()
 
@@ -92,7 +84,7 @@ class Node(object):
     def connmq(self):
         """Connect to MQ"""
         if self.reporter is None:
-            self.clientid = to_string(INUITHYNODE_CLIENT_ID, self.addr)
+            self.clientid = _s(NODE_CLIENT_ID, self.addr)
             self.reporter = mqtt.Client(self.clientid, True, self)
             self.reporter.on_disconnect = Node.on_disconnect
             self.reporter.connect(*rt.tcfg.mqtt)
@@ -147,7 +139,7 @@ class Node(object):
             if self.reporter is not None and report is not None and len(report) > 2:
                 pub_notification(self.reporter, data=report)
         except Exception as ex:
-            self.lgr.error(to_string("Exception on report read: {}", ex))
+            _l.error(_s("Exception on report read: {}", ex))
 
     def report_write(self, data=None, request=None):
         """Report writen data"""
@@ -159,7 +151,7 @@ class Node(object):
             if self.reporter is not None and report is not None and len(report) > 2:
                 pub_reportwrite(self.reporter, data=report)
         except Exception as ex:
-            self.lgr.error(to_string("Exception on report write: {}", ex))
+            _l.error(_s("Exception on report write: {}", ex))
 
     def close(self):
 
@@ -169,9 +161,9 @@ class Node(object):
 class SerialNode(Node):
 
     def __init__(self, ntype=None, proto=None, path="", addr="", reporter=None,\
-        lgr=None, timeout=3, baudrate=115200, adapter=None):
+        timeout=3, baudrate=115200, adapter=None):
         Node.__init__(self, ntype=ntype, proto=proto, path=path, addr=addr,\
-            reporter=reporter, lgr=lgr, adapter=adapter)
+            reporter=reporter, adapter=adapter)
         if path is not None and exists(path):
             self.dev = serial.Serial(path, baudrate=baudrate, timeout=timeout)
 #        self.writer = None
@@ -214,7 +206,7 @@ class SerialNode(Node):
                 if len(rdbuf) > 0:
                     self.report_read(rdbuf)
         except serial.SerialException as ex:
-            self.lgr.error(to_string("Serial exception on reading: {}", ex))
+            _l.error(_s("Serial exception on reading: {}", ex))
             pub_status(self.reporter, data={
                 T_TRAFFIC_STATUS: TrafficStatus.AGENTFAILED.name,
                 T_NODE: self,
@@ -231,9 +223,9 @@ class SerialNode(Node):
             written = self.dev.write(data)
             self.writable.clear()
             self.report_write(data, request)
-            self.lgr.info(to_string("NODE|W: {}, {}({})", self.path, data, written))
+            _l.info(_s("NODE|W: {}, {}({})", self.path, data, written))
         except serial.SerialException as ex:
-            self.lgr.error(to_string("Serial exception on writting: {}", ex))
+            _l.error(_s("Serial exception on writting: {}", ex))
             raise
 
     def write(self, data="", request=None):
@@ -251,9 +243,9 @@ class RawNode(Node):
     """Raw socket node for simulation"""
 
     def __init__(self, ntype=None, proto=None, path="", addr="", reporter=None,\
-        lgr=None, adapter=None):
+        adapter=None):
         Node.__init__(self, ntype=ntype, proto=proto, path=path, addr=addr,\
-            reporter=reporter, lgr=lgr, adapter=adapter)
+            reporter=reporter, adapter=adapter)
         if not isdir(dirname(path)):
             makedirs(dirname(path))
         if exists(path):
@@ -267,7 +259,7 @@ class RawNode(Node):
         """Read data ultility"""
         rdbuf = ""
         rdbuf, sender = self.dev.recvfrom(RAWNODE_RBUF_MAX)
-        self.lgr.info(to_string("NODE|R: {}, {}, {}", self.path, rdbuf, sender))
+        _l.info(_s("NODE|R: {}, {}, {}", self.path, rdbuf, sender))
         rdbuf = rdbuf.decode()
         self.report_read(rdbuf)
         return rdbuf
@@ -276,7 +268,7 @@ class RawNode(Node):
         """Write data ultility"""
         self.dev.sendto(data.encode(), 0, RAWNODE_SVR)
         self.report_write(data, request)
-        self.lgr.info(to_string("NODE|W: {}, {}", self.path, data))
+        _l.info(_s("NODE|W: {}, {}", self.path, data))
 
     def close(self):
 
@@ -288,14 +280,14 @@ class RawNode(Node):
 class RawNodeSvr(RawNode):
     """Raw node server"""
     def __init__(self, ntype=None, proto=None, path=RAWNODE_SVR, addr="", reporter=None,\
-        lgr=None, adapter=None):
+        adapter=None):
         RawNode.__init__(self, ntype=ntype, proto=proto, path=path, addr=addr,\
-            reporter=reporter, lgr=lgr, adapter=adapter)
+            reporter=reporter, adapter=adapter)
 
     def read(self, rdbyte=0):
         """Read data ultility"""
         rdbuf, sender = self.dev.recvfrom(RAWNODE_RBUF_MAX)
-        self.lgr.info(to_string("SVR|R: {}, {}, {}", self.path, rdbuf, sender))
+        _l.info(_s("SVR|R: {}, {}, {}", self.path, rdbuf, sender))
         self.dev.sendto(rdbuf, 0, sender)
         return rdbuf.decode()
 
@@ -304,6 +296,7 @@ class RawNodeSvr(RawNode):
         pass
 
 if __name__ == '__main__':
-    lgr = logging.getLogger('InuithyNode')
+    import logging
+    _l = logging.getLogger('InuithyNode')
     node = SerialNode(path='/dev/tty2')
     node.close()

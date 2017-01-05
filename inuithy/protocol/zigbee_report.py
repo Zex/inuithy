@@ -1,9 +1,9 @@
 """ Report generator for Zigbee protocol
  @author: Zex Li <top_zlynch@yahoo.com>
 """
-from inuithy.common.predef import INUITHY_LOGCONFIG, INUITHY_CONFIG_PATH,\
+from inuithy.common.predef import INUITHY_CONFIG_PATH,\
 T_NODE, T_RECORDS, T_MSG_TYPE, T_TIME, T_GENID, T_REPORTDIR, T_PATH,\
-T_GATEWAY, to_console, to_string, MessageType, T_HOST, StorageType,\
+T_GATEWAY, _c, _s, _l, MessageType, T_HOST, StorageType,\
 GenInfo, T_TYPE, TrafficStorage
 from inuithy.protocol.zigbee_proto import ZigbeeProtocol as PROTO
 from inuithy.protocol.zigbee_proto import T_ZBEE_NWK_ADDR
@@ -15,8 +15,6 @@ from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib as mplib
 import pandas as pd
 import numpy as np
-import logging
-import logging.config as lconf
 #from bson.objectid import ObjectId
 import json
 import sys
@@ -24,8 +22,6 @@ from os import path, makedirs
 from copy import deepcopy
 
 mplib.style.use('ggplot')
-lconf.fileConfig(INUITHY_LOGCONFIG)
-lgr = logging
 
 class ZbeeReport(object):
     """Zigbee report helper
@@ -52,7 +48,7 @@ class ZbeeReport(object):
     def create_csv(recs, ginfo):
         """Create CSV format from records
         """
-        lgr.info(to_string("Create csv data for genid {}", ginfo.genid))
+        _l.info(_s("Create csv data for genid {}", ginfo.genid))
         df = pd.DataFrame.from_records(recs)
         df = df.fillna(value=0)
         data = df.to_csv(columns=ginfo.header, index=False)
@@ -60,7 +56,7 @@ class ZbeeReport(object):
 
     @staticmethod
     def diag_item_based(ginfo, pdata, item, pdf_pg, nodes=None, iloc_range=None, title=None):
-        lgr.info(to_string("Creating figure for item {}", item))
+        _l.info(_s("Creating figure for item {}", item))
         df = None
         index_l = 0
         data = {}
@@ -77,9 +73,9 @@ class ZbeeReport(object):
                     buf = np.diff(buf)
                     data[addr] = buf
                 except KeyError as ex:
-                    lgr.warning(to_string("No record for node [{}]: {}", addr, ex))
+                    _l.warning(_s("No record for node [{}]: {}", addr, ex))
         except Exception as ex:
-            lgr.error(to_string("Exception on processing diag data {}: {}", item, ex))
+            _l.error(_s("Exception on processing diag data {}: {}", item, ex))
             return
 
         for k in data:
@@ -96,12 +92,12 @@ class ZbeeReport(object):
 #                else:
 #                    df = df.iloc[1:]
                 if title is None or len(title) == 0:
-                    title = to_string("{} by {}", item, T_ZBEE_NWK_ADDR)
+                    title = _s("{} by {}", item, T_ZBEE_NWK_ADDR)
                 df.plot(xticks=[], lw=1.5, colormap=ginfo.colormap, figsize=ginfo.figsize)
             else:
-                lgr.warning("DataFrame is empty")
+                _l.warning("DataFrame is empty")
         except Exception as ex:
-            lgr.error(to_string("Exception on creating diag data figure {}: {}", item, ex))
+            _l.error(_s("Exception on creating diag data figure {}: {}", item, ex))
             return
 
         try:
@@ -118,17 +114,17 @@ class ZbeeReport(object):
             plt.yscale('linear')
 
             if ginfo.fig_base is not None:
-                plt.savefig(to_string("{}/{}.png", ginfo.fig_base, title), transparent=False, facecolor='w', edgecolor='b', bbox_inches='tight')
+                plt.savefig(_s("{}/{}.png", ginfo.fig_base, title), transparent=False, facecolor='w', edgecolor='b', bbox_inches='tight')
             if pdf_pg is not None:
                 pdf_pg.savefig(transparent=False, facecolor='w', edgecolor='b', bbox_inches='tight')
             plt.close()
         except Exception as ex:
-            lgr.error(to_string("Exception on saving diag data figure {}: {}", item, ex))
+            _l.error(_s("Exception on saving diag data figure {}: {}", item, ex))
 
     @staticmethod
     def total_pack(ginfo, pdata, pdf_pg, title=None):
         """Create package sent/recv summary"""
-        lgr.info("Create package summary")
+        _l.info("Create package summary")
 
         try:
             total_send = len(pdata[T_TYPE][pdata.type == ZbeeProto.MsgType.snd.name])
@@ -147,10 +143,10 @@ class ZbeeReport(object):
             if df is not None and not df.empty:
                 df = df.fillna(value=0)
                 if title is None or len(title) == 0:
-                    title = to_string("Package summary")
+                    title = _s("Package summary")
                 df.plot(kind='bar', colormap='plasma', grid=False, figsize=ginfo.figsize)
             else:
-                lgr.warning("WARN: DataFrame is empty")
+                _l.warning("WARN: DataFrame is empty")
 
 #           plt.ylabel(item)
             plt.title(title)
@@ -158,12 +154,12 @@ class ZbeeReport(object):
             plt.grid(axis='y')
 
             if ginfo.fig_base is not None:
-                plt.savefig(to_string("{}/{}.png", ginfo.fig_base, title), bbox_inches='tight')
+                plt.savefig(_s("{}/{}.png", ginfo.fig_base, title), bbox_inches='tight')
             if pdf_pg is not None:
                 pdf_pg.savefig(bbox_inches='tight')
             plt.close()
         except Exception as ex:
-            lgr.error(to_string("Exception on creating package summary figure: {}", ex))
+            _l.error(_s("Exception on creating package summary figure: {}", ex))
 
     @staticmethod
     def prep_info(genid):
@@ -174,17 +170,17 @@ class ZbeeReport(object):
         routeDiscInitiated,relayedUcast,packetBufferAllocateFailure,
         apsTxBcast,apsTxUcastSuccess,apsTxUcastFail,apsTxUcastRetry,apsRxBcast,apsRxUcast
         """
-        lgr.info(to_string("Prepare generation info with {}", genid))
+        _l.info(_s("Prepare generation info with {}", genid))
         ginfo = GenInfo()
 
         ginfo.genid = genid
-        ginfo.fig_base = to_string('{}/{}',\
+        ginfo.fig_base = _s('{}/{}',\
             rt.tcfg.config[T_REPORTDIR][T_PATH], ginfo.genid)
-        ginfo.csv_path = to_string('{}/{}.csv',\
+        ginfo.csv_path = _s('{}/{}.csv',\
             rt.tcfg.config[T_REPORTDIR][T_PATH], ginfo.genid)
-        ginfo.raw_csv_path = to_string('{}/raw-{}.csv',\
+        ginfo.raw_csv_path = _s('{}/raw-{}.csv',\
             rt.tcfg.config[T_REPORTDIR][T_PATH], ginfo.genid)
-        ginfo.pdf_path = to_string('{}/{}.pdf',\
+        ginfo.pdf_path = _s('{}/{}.pdf',\
             rt.tcfg.config[T_REPORTDIR][T_PATH], ginfo.genid)
         ginfo.src_type = rt.tcfg.storagetype[0]
         ginfo.figsize = (15, 6)
@@ -204,18 +200,18 @@ class ZbeeReport(object):
         routeDiscInitiated,relayedUcast,packetBufferAllocateFailure,
         apsTxBcast,apsTxUcastSuccess,apsTxUcastFail,apsTxUcastRetry,apsRxBcast,apsRxUcast
         """
-        lgr.info(to_string("Generate csv with ginfo[{}]", ginfo))
+        _l.info(_s("Generate csv with ginfo[{}]", ginfo))
         try:
-            storage = Storage(rt.tcfg, lgr)
+            storage = Storage(rt.tcfg)
 
             if ginfo.src_type == TrafficStorage.DB.name:
                 return ZbeeReport.import_from_db(ginfo, storage)
             elif ginfo.src_type == TrafficStorage.FILE.name:
                 return ZbeeReport.import_from_file(ginfo, storage)
             else:
-                lgr.error(to_string("Unsupported storage type: {}", ginfo.src_type))
+                _l.error(_s("Unsupported storage type: {}", ginfo.src_type))
         except Exception as ex:
-            lgr.error(to_string("Import data failed: {}", ex))
+            _l.error(_s("Import data failed: {}", ex))
 
     @staticmethod
     def import_from_db(ginfo, storage):
@@ -227,7 +223,7 @@ class ZbeeReport(object):
         with storage.trafrec.find(req) as cursor:
 
             if cursor is None or cursor.count() == 0:
-                raise ValueError(to_string("Recored with {} not found", ginfo.genid))
+                raise ValueError(_s("Recored with {} not found", ginfo.genid))
     
             for r in cursor:
                 recs = r.get(T_RECORDS)
@@ -260,9 +256,9 @@ class ZbeeReport(object):
     @staticmethod
     def gen_report(raw, pdata, ginfo, gw=None, interest_nodes=None, irange=None):
         """Report generation helper"""
-        lgr.info(to_string("Generate report with gw={}, nodes={} irange={}", gw, interest_nodes, irange))
+        _l.info(_s("Generate report with gw={}, nodes={} irange={}", gw, interest_nodes, irange))
         if raw is None or raw.get(T_TIME) is None or len(raw[T_TIME]) == 0:
-            lgr.warning(to_string("No time-based records found"))
+            _l.warning(_s("No time-based records found"))
             return
 #        pdata = pd.read_csv(ginfo.csv_path, index_col=False, names=ginfo.header, header=None)
         pdata.info(verbose=True)
@@ -276,22 +272,22 @@ class ZbeeReport(object):
                         for item in ginfo.header[2:]:
                             for gwnode in gw: # Each subnet
                                 ZbeeReport.diag_item_based(ginfo, pdata, item, pdf_pg, [gwnode],\
-                            title = to_string("{} by gateway {}", item, gwnode))#fig_base=ginfo.fig_base)
+                            title = _s("{} by gateway {}", item, gwnode))#fig_base=ginfo.fig_base)
                 except Exception as ex:
-                    lgr.error(to_string("Exception on saving gateway report: {}", ex))
+                    _l.error(_s("Exception on saving gateway report: {}", ex))
                     failed = True
     
                 try:
                     for item in ginfo.header[2:]:
                         ZbeeReport.diag_item_based(ginfo, pdata, item, pdf_pg, interest_nodes, irange)
                 except Exception as ex:
-                    lgr.error(to_string("Exception on saving diag data report: {}", ex))
+                    _l.error(_s("Exception on saving diag data report: {}", ex))
                     failed = True
         if not failed:
-            to_console("..............................................")
-            to_console("gid: {}\ncsv: {}\npdf: {}\nfigures: {}", ginfo.genid, ginfo.csv_path, ginfo.pdf_path, ginfo.fig_base)
+            _c("..............................................")
+            _c("gid: {}\ncsv: {}\npdf: {}\nfigures: {}", ginfo.genid, ginfo.csv_path, ginfo.pdf_path, ginfo.fig_base)
         else:
-            to_console("Generation failed, check out logs for more details")
+            _c("Generation failed, check out logs for more details")
 
     @staticmethod
     def generate(genid, gw=None, nodes=None, irange=None, csv_path=None):
@@ -310,7 +306,7 @@ class ZbeeReport(object):
             ZbeeReport.gen_report(raw, pdata, ginfo, gw, nodes, irange)
 #        finally: pass
 #        except Exception as ex:
-#            lgr.error(to_string("Exception on generate reports: {}", ex))
+#            _l.error(_s("Exception on generate reports: {}", ex))
 
     @staticmethod
     def handle_args(in_args=None):
@@ -324,12 +320,12 @@ class ZbeeReport(object):
             rt.parser.add_argument('-csv', '--csv_path', help='Path to CSV data source')
             args = rt.handle_args()
             load_configs()
-            to_console("GENID {}", args.genid)
-            to_console("Nodes of interest {}", args.nodes)
-            to_console("Subnet gateway {}", args.gateways)
-            to_console("CSV Path {}", args.csv_path)
+            _c("GENID {}", args.genid)
+            _c("Nodes of interest {}", args.nodes)
+            _c("Subnet gateway {}", args.gateways)
+            _c("CSV Path {}", args.csv_path)
         except Exception as ex:
-            to_console("Exception on handling report arguments: {}", ex)
+            _c("Exception on handling report arguments: {}", ex)
             return None
         return args
 

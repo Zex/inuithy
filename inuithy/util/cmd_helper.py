@@ -2,10 +2,10 @@
  @author: Zex Li <top_zlynch@yahoo.com>
 """
 from inuithy.common.version import INUITHY_ROOT, PROJECT_PATH, INUITHY_AGENT_INTERPRETER
-from inuithy.common.predef import T_CLIENTID, TT_COMMAND,\
+from inuithy.common.predef import T_CLIENTID, TT_COMMAND, _l,\
 T_CTRLCMD, CtrlCmd, TT_UNREGISTER, TT_STATUS, TT_SNIFFER,\
 TT_NOTIFICATION, TT_REPORTWRITE, INUITHY_NOHUP_OUTPUT,\
-TT_HEARTBEAT, TT_TRAFFIC, TT_NWLAYOUT, to_string, TT_REPLY
+TT_HEARTBEAT, TT_TRAFFIC, TT_NWLAYOUT, _s, TT_REPLY
 from inuithy.util.helper import runonremote
 import paho.mqtt.client as mqtt
 import json
@@ -169,10 +169,10 @@ class Heartbeat(threading.Thread):
 
 def start_agents(hosts):
     """Start agent remotely"""
-#    cmd = to_string('pushd {};nohup python {}/agent.py &>> {}',
-#    cmd = to_string('pushd {} > /dev/null;> {};python {}/agent.py &>> {};exit',
+#    cmd = _s('pushd {};nohup python {}/agent.py &>> {}',
+#    cmd = _s('pushd {} > /dev/null;> {};python {}/agent.py &>> {};exit',
 #            PROJECT_PATH, '\"/var/log/inuithy/inuithy.log\"', INUITHY_ROOT, INUITHY_NOHUP_OUTPUT)
-    cmd = to_string('pushd {} > /dev/null;{} {}/agent.py &>> {};exit',
+    cmd = _s('pushd {} > /dev/null;{} {}/agent.py &>> {};exit',
             PROJECT_PATH, INUITHY_AGENT_INTERPRETER, INUITHY_ROOT, INUITHY_NOHUP_OUTPUT)
     [runonremote('root', host, cmd) for host in hosts]
 
@@ -187,18 +187,18 @@ def stop_agents(publisher, qos=0, clientid="*"):
 def force_stop_agents(hosts):
     """Force agent stop remotely"""
 #    cmd = 'kill `ps aux|grep inuithy/agent.py|awk \'{print $2,\"@\"$11,$12}\'|grep @python|awk \'{printf \" \"$1}\'` &> /dev/null'
-    cmd = to_string('kill `ps aux|grep \" {}.*inuithy/agent.py\"|awk \'{printf \" \"$2}\'` &> /dev/null', INUITHY_AGENT_INTERPRETER)
+    cmd = _s('kill `ps aux|grep \" {}.*inuithy/agent.py\"|awk \'{printf \" \"$2}\'` &> /dev/null', INUITHY_AGENT_INTERPRETER)
     [runonremote('root', host, cmd) for host in hosts]
 
-def mqlog_map(lgr, level, msg):
+def mqlog_map(level, msg):
     if level == mqtt.MQTT_LOG_INFO:
-        lgr.info(INUITHY_MQLOG_FMT.format(msg))
+        _l.info(INUITHY_MQLOG_FMT.format(msg))
     elif level == mqtt.MQTT_LOG_ERR:
-        lgr.error(INUITHY_MQLOG_FMT.format(msg))
+        _l.error(INUITHY_MQLOG_FMT.format(msg))
     elif level == mqtt.MQTT_LOG_NOTICE or level == mqtt.MQTT_LOG_WARNING:
-        lgr.warning(INUITHY_MQLOG_FMT.format(msg))
+        _l.warning(INUITHY_MQLOG_FMT.format(msg))
     else: # level == mqtt.MQTT_LOG_DEBUG:
-        lgr.debug(INUITHY_MQLOG_FMT.format(msg))
+        _l.debug(INUITHY_MQLOG_FMT.format(msg))
         pass
 
 def subscribe(client, topic, callback=None, qos=0):

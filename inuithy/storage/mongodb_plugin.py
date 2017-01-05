@@ -2,8 +2,8 @@
  @uthor: Zex Li <top_zlynch@yahoo.com>
 """
 from inuithy.common.predef import MessageType, T_HOST, StorageType,\
-T_RECORDS, T_MSG_TYPE, to_string, T_TIME, T_GENID, T_CLIENTID,\
-T_SRC, T_DEST, T_PKGSIZE, to_console, T_SNIFFER_RECORDS
+T_RECORDS, T_MSG_TYPE, _s, T_TIME, T_GENID, T_CLIENTID,\
+T_SRC, T_DEST, T_PKGSIZE, _c, T_SNIFFER_RECORDS, _l
 from pymongo import MongoClient
 #from bson.objectid import ObjectId
 #from datetime import datetime as dt
@@ -55,7 +55,7 @@ class MongodbStorage(object):
 
     @property
     def storage_path(self):
-        return self.localpath or to_string("{}:{}", self.host, self.port)
+        return self.localpath or _s("{}:{}", self.host, self.port)
     @storage_path.setter
     def storage_path(self, val):
         pass
@@ -86,7 +86,7 @@ class MongodbStorage(object):
         self.cli.close()
 
     def __str__(self):
-        return str(to_string("cli:{} host:{} port:{} name:{}", self.cli, self.host, self.port, self.storage_name))
+        return str(_s("cli:{} host:{} port:{} name:{}", self.cli, self.host, self.port, self.storage_name))
 
     def insert_config(self, data):
         """
@@ -177,11 +177,11 @@ if __name__ == '__main__':
     def update_test(host, port):
 
         sto = MongodbStorage(host, port)
-        to_console(sto.trafrec)
+        _c(sto.trafrec)
         for r in sto.trafrec.find():
             oid = r.get('_id')
-            to_console("------------------------{}---------------------".format(oid))
-            to_console(r)
+            _c("------------------------{}---------------------".format(oid))
+            _c(r)
             rec = {
                 T_GENID:    str(r.get('_id')),
                 T_MSG:      "lignton 1122",
@@ -192,17 +192,17 @@ if __name__ == '__main__':
                 T_PKGSIZE:  "10",
             }
             sto.insert_record(rec)
-            to_console(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-#        to_console(sto.trafrec.find_one({"_id": ObjectId(oid)}))
-            to_console("{}", sto.trafrec.find_one({T_GENID: oid}))
+            _c(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+#        _c(sto.trafrec.find_one({"_id": ObjectId(oid)}))
+            _c("{}", sto.trafrec.find_one({T_GENID: oid}))
 
     def check_records(host, port):
         sto = MongodbStorage(host, port)
-        to_console(sto.trafrec)
+        _c(sto.trafrec)
         for r in sto.trafrec.find():
             oid = r.get('_id')
-            to_console("------------------------{}---------------------", oid)
-            to_console(r)
+            _c("------------------------{}---------------------", oid)
+            _c(r)
 
     def check_recv(host, port, genid):
         sto = MongodbStorage(host, port)
@@ -211,7 +211,7 @@ if __name__ == '__main__':
                 T_GENID: genid,
                 #"records": { "$elemMatch": {"msgtype": "RECV"} }
             }):
-            [to_console(v) for v in r[T_RECORDS] if v[T_MSG_TYPE] == MessageType.RECV.name]
+            [_c(v) for v in r[T_RECORDS] if v[T_MSG_TYPE] == MessageType.RECV.name]
 
     def check_sent(host, port, genid):
         sto = MongodbStorage(host, port)
@@ -219,7 +219,7 @@ if __name__ == '__main__':
 #            "_id": ObjectId(genid),
                 T_GENID: genid,
             }):
-            [to_console(v) for v in r[T_RECORDS] if v[T_MSG_TYPE] == MessageType.SEND.name]
+            [_c(v) for v in r[T_RECORDS] if v[T_MSG_TYPE] == MessageType.SEND.name]
 
     def cleanup(host, name):
         sto = MongodbStorage(host, name)

@@ -2,8 +2,8 @@
  @author: Zex Li <top_zlynch@yahoo.com>
 """
 from inuithy.common.version import INUITHY_ROOT, __version__, DEPLOY_SH, PROJECT
-from inuithy.common.predef import INUITHY_LOGCONFIG, INUITHY_TITLE,\
-to_console, to_string, T_EVERYONE, T_TRAFFIC_TYPE, T_HOST, T_NODE,\
+from inuithy.common.predef import INUITHY_TITLE, _l,\
+_c, _s, T_EVERYONE, T_TRAFFIC_TYPE, T_HOST, T_NODE,\
 T_CLIENTID, T_MSG, T_RLOGBASE
 from inuithy.common.command import TSH_ERR_GENERAL, TSH_ERR_HANDLING_CMD,\
 Command, Usage, TSH_ERR_INVALID_CMD
@@ -15,18 +15,13 @@ from inuithy.common.traffic import Phase
 import socket
 import threading
 import glob
-from os import path, makedirs
-from os.path import exists
+from os import makedirs
+from os.path import exists, abspath, isfile
 import os
 import sys
-import os.path
-import logging
-import logging.config as lconf
 from random import randint
 import copy
 import code
-
-lconf.fileConfig(INUITHY_LOGCONFIG)
 
 DEFAULT_PROMPT = "inuithy@{}>"
 # Inuithy shell commands
@@ -59,8 +54,6 @@ TSH_CMD_GETLOG = "getlog"
 
 #console_reader = hasattr(__builtins__, 'raw_input') and raw_input or input
 
-lconf.fileConfig(INUITHY_LOGCONFIG)
-
 class Dispatcher(object):
     # TODO
     pass
@@ -81,7 +74,7 @@ class Console(object):#threading.Thread):
 
     def _setup_banner(self):
         try:
-            self._banner_path = os.path.abspath(INUITHY_ROOT+'/banner/*')
+            self._banner_path = abspath(INUITHY_ROOT+'/banner/*')
             banners = glob.glob(self._banner_path)
             if banners is None or len(banners) == 0:
                 return
@@ -89,7 +82,7 @@ class Console(object):#threading.Thread):
             with open(self._banner_path, 'r') as fd:
                 self._banner = fd.read()
         except Exception as ex:
-            to_console("Setup banner failed: {}", ex)
+            _c("Setup banner failed: {}", ex)
 
     def _register_routes(self):
         self.usages = {
@@ -192,10 +185,7 @@ class Console(object):#threading.Thread):
             TSH_CMD_GENREPORT: self.on_cmd_traffic_genreport,
         }
 
-    def __init__(self, ctrl=None, lgr=None):
-        self.lgr = lgr
-        if self.lgr is None:
-            self.lgr = logging #logging.getLogger("InuithyShell")
+    def __init__(self, ctrl=None):
         self._title = INUITHY_TITLE.format(__version__, "Shell")
         self._running = True
         self._banner = ""
@@ -206,7 +196,7 @@ class Console(object):#threading.Thread):
 
     def on_cmd_agent_start(self, *args, **kwargs):
         """Agent start command handler"""
-        self.lgr.info("On command agent start")
+        _l.info("On command agent start")
         if args is None or len(args) < 1:
             return
         hosts = list(args)
@@ -216,12 +206,12 @@ class Console(object):#threading.Thread):
             agents = hosts
 #TODO check for non-configured hosts
         start_agents(agents)
-        to_console("Waiting for agents to get ready")
+        _c("Waiting for agents to get ready")
         self.ctrl.traffic_state.wait_agent()
 
     def on_cmd_agent_stop(self, *args, **kwargs):
         """Agent stop command handler"""
-        self.lgr.info("On command agent stop")
+        _l.info("On command agent stop")
         if args is None or len(args) < 1:
             return
         clientid = args[0]
@@ -229,7 +219,7 @@ class Console(object):#threading.Thread):
 
     def on_cmd_agent_stop_force(self, *args, **kwargs):
         """Agent force stop command handler"""
-        self.lgr.info("On command agent force stop")
+        _l.info("On command agent force stop")
         if args is None or len(args) < 1:
             return
         hosts = args[0]
@@ -241,37 +231,37 @@ class Console(object):#threading.Thread):
 
     def on_cmd_agent_list_less(self, *args, **kwargs):
         """List available agnents with less details"""
-        self.lgr.info("On command agent list less")
-        [to_console("{}", k) for k in self.ctrl.available_agents.keys()]
+        _l.info("On command agent list less")
+        [_c("{}", k) for k in self.ctrl.available_agents.keys()]
 
     def on_cmd_agent_list(self, *args, **kwargs):
         """List available agnents"""
-        self.lgr.info("On command agent list")
-        [to_console("AGENT[{}]:{}", k, str(v)) for k, v in self.ctrl.available_agents.items()]
+        _l.info("On command agent list")
+        [_c("AGENT[{}]:{}", k, str(v)) for k, v in self.ctrl.available_agents.items()]
 
     def on_cmd_agent(self, *args, **kwargs):
         """Operation on agent"""
-        self.lgr.info("On command agent")
+        _l.info("On command agent")
         if args is None or len(args) == 0:
-            to_console(str(self.usages['usage_agent']))
+            _c(str(self.usages['usage_agent']))
             return
         params = args[1:]
         if self._cmd_agent_routes.get(args[0]):
             self._cmd_agent_routes[args[0]](*(params))
         else:
-            to_console(str(self.usages['usage_agent']))
+            _c(str(self.usages['usage_agent']))
 
     def on_cmd_traffic(self, *args, **kwargs):
         """Traffic command handler"""
-        self.lgr.info("On command traffic")
+        _l.info("On command traffic")
         if args is None or len(args) == 0:
-            to_console(str(self.usages['usage_traffic']))
+            _c(str(self.usages['usage_traffic']))
             return
         params = args[1:]
         if self._cmd_traffic_routes.get(args[0]):
             self._cmd_traffic_routes[args[0]](*(params))
         else:
-            to_console(str(self.usages['usage_traffic']))
+            _c(str(self.usages['usage_traffic']))
 
     def on_cmd_traffic_host(self, *args, **kwargs):
         """Run serial command on specific host
@@ -279,12 +269,12 @@ class Console(object):#threading.Thread):
         ['traffic', 'host', '127.0.0.1', 'lighton', '1112']
         ('127.0.0.1', 'lighton', '1112')
         """
-        self.lgr.info("On command traffic host")
+        _l.info("On command traffic host")
         if len(args) < 2:
-            to_console(str(self.usages['usage_traffic']))
+            _c(str(self.usages['usage_traffic']))
             return
         if len(self.ctrl.node2aid) == 0:
-            to_console("No available agent")
+            _c("No available agent")
             return
         host, node = args[0].split(':')
         data = {
@@ -294,82 +284,82 @@ class Console(object):#threading.Thread):
             T_CLIENTID:     self.ctrl.node2aid.get(node),
             T_MSG:          ' '.join(list(args[1:])),
         }
-        to_console("Sending {}", ' '.join(list(args[1:])))
+        _c("Sending {}", ' '.join(list(args[1:])))
         pub_tsh(self.ctrl.mqclient, rt.tcfg.mqtt_qos, data)
 
     def on_cmd_traffic_list_phase(self, *args, **kwargs):
         """Traffic load phase command handler"""
-        self.lgr.info("On command load phase")
+        _l.info("On command load phase")
         for ph in rt.trcfg.target_phases:
-            to_console("[{}] {}", rt.trcfg.target_phases.index(ph), ph)
+            _c("[{}] {}", rt.trcfg.target_phases.index(ph), ph)
 
     def on_cmd_traffic_load_phase(self, *args, **kwargs):
         """Traffic load phase command handler"""
-        self.lgr.info("On command load phase")
+        _l.info("On command load phase")
         if len(args) < 1:
-            to_console(str(self.usages['usage_traffic']))
+            _c(str(self.usages['usage_traffic']))
             return
-        to_console("loading phase {}", args[0])
+        _c("loading phase {}", args[0])
         self.ctrl.traffic_state.current_phase = Phase(
             rt.trcfg, rt.nwcfg, rt.trcfg.target_phases[int(args[0])])
-        to_console("current phase\n{}", self.ctrl.traffic_state.current_phase)
+        _c("current phase\n{}", self.ctrl.traffic_state.current_phase)
 
     def on_cmd_traffic_deploy(self, *args, **kwargs):
         """Traffic deploy command handler
             self.deploy, self.wait_nwlayout, self.register, self.wait_traffic,
             self.fire, self.phase_finish, self.genreport,
         """
-        self.lgr.info("On command traffic deploy")
+        _l.info("On command traffic deploy")
 #        self.ctrl.traffic_state.next()
         self.ctrl.traffic_state.chk.clear_all()
-        to_console("Start deploying network layout")
+        _c("Start deploying network layout")
         self.ctrl.traffic_state.deploy()
         self.ctrl.traffic_state.wait_nwlayout()
-        to_console("Netowrk deployment finished")
+        _c("Netowrk deployment finished")
 
     def on_cmd_traffic_genreport(self, *args, **kwargs):
         """Traffic report generation handler"""
-        self.lgr.info("On command traffic genreport")
-        to_console("Generating traffic report")
+        _l.info("On command traffic genreport")
+        _c("Generating traffic report")
         self.ctrl.traffic_state.genreport()
-        to_console("Report [{}]", self.ctrl.traffic_state.current_genid)
+        _c("Report [{}]", self.ctrl.traffic_state.current_genid)
 
     def on_cmd_traffic_register(self, *args, **kwargs):
         """Register traffic command handler"""
-        self.lgr.info("On command traffic register")
-        to_console("Registering traffic")
+        _l.info("On command traffic register")
+        _c("Registering traffic")
         self.ctrl.traffic_state.register()
         self.ctrl.traffic_state.wait_traffic()
-        to_console("Traffic registerd")
+        _c("Traffic registerd")
 
     def on_cmd_traffic_run(self, *args, **kwargs):
         """Run traffic command handler"""
-        self.lgr.info("On command traffic run")
-        to_console("Start firing")
+        _l.info("On command traffic run")
+        _c("Start firing")
         self.ctrl.traffic_state.fire()
         self.ctrl.traffic_state.phase_finish()
-        to_console("One traffic fired")
+        _c("One traffic fired")
 
     def on_cmd_help(self, *args, **kwargs):
         """Help command handler"""
-        self.lgr.info("On command help")
+        _l.info("On command help")
         if args is None or len(args) == 0 or len(args[0]) == 0:
-            to_console(str(self.usages['usage']))
+            _c(str(self.usages['usage']))
             return
         command = args[0].strip()
         cmds = valid_cmds(command)
         if len(cmds) == 0:
-            to_console(str(self.usages['usage']))
+            _c(str(self.usages['usage']))
             return
         subhelp = 'usage_{}'.format(cmds[0])
         if self.usages.get(subhelp):
-            to_console(str(self.usages[subhelp]))
+            _c(str(self.usages[subhelp]))
             return
-        to_console(TSH_ERR_INVALID_CMD, command, 'help')
+        _c(TSH_ERR_INVALID_CMD, command, 'help')
 
     def on_cmd_quit(self, *args, **kwargs):
         """Quit command handler"""
-        self.lgr.info("On command quit")
+        _l.info("On command quit")
         try:
             self.running = False
             if self.ctrl and self.ctrl.traffic_state:
@@ -377,31 +367,31 @@ class Console(object):#threading.Thread):
                 self.ctrl.traffic_state.phases.clear()
                 self.ctrl.teardown()
         except Exception as ex:
-            to_console("Exception on quit: {}", ex)
+            _c("Exception on quit: {}", ex)
 
     def on_cmd_getlog(self, *args, **kwargs):
         """Grab logs from specified agent"""
-        self.lgr.info("On command getlog")
+        _l.info("On command getlog")
         if args is None or len(args) < 1:
             return
 
         user = 'root'
         host = args[0]
         srcs = ["/tmp/inuithy.*", "/var/log/inuithy"]
-        dest = to_string('{}/{}', rt.tcfg.rlogbase, host)
+        dest = _s('{}/{}', rt.tcfg.rlogbase, host)
 #TODO
-#        if path.isdir(dest):
+#        if isdir(dest):
         
         makedirs(dest)
 
-        cmd = to_string('scp -r {}@{}:{} {}', user, host, '"'+' '.join(srcs)+'"', dest)
-        to_console(cmd)
+        cmd = _s('scp -r {}@{}:{} {}', user, host, '"'+' '.join(srcs)+'"', dest)
+        _c(cmd)
         os.system(cmd)
-        to_console("Saved @ {}", dest)
+        _c("Saved @ {}", dest)
         
     def on_cmd_whohas(self, *args, **kwargs):
         """Query which agent has connected node with given address"""
-        self.lgr.info("On command whohas")
+        _l.info("On command whohas")
         if args is None or len(args) < 1:
             return
         node = args[0]
@@ -410,30 +400,30 @@ class Console(object):#threading.Thread):
             if node in agent.nodes:
                 host = agent.host
         reply = host is None and "Node not found" or host
-        to_console('ACT: {}', reply)
+        _c('ACT: {}', reply)
 
         reply = self.ctrl.node2host.get(node)
         reply = host is None and "Node not found" or host
-        to_console('EXP: {}', reply)
+        _c('EXP: {}', reply)
 
     def on_cmd_update(self, *args, **kwargs):
         """Update inuithy handler
             update build/* 192.168.1.190 192.168.1.185
         """
-        self.lgr.info("On command update")
+        _l.info("On command update")
         if args is None or len(args) < 2:
             return
         dest_base = '/media/card'
-        targets = to_string('{}/{}', args[0], T_EVERYONE)
-        packs = [DEPLOY_SH, to_string('{}-{}.tar.bz2', PROJECT, __version__)]
+        targets = _s('{}/{}', args[0], T_EVERYONE)
+        packs = [DEPLOY_SH, _s('{}-{}.tar.bz2', PROJECT, __version__)]
 #        [packs.extend(glob.glob(target)) for target in targets]
 #        packs.extend(glob.glob(targets))
-        packs = [to_string('{}/{}', args[0], p) for p in packs]
+        packs = [_s('{}/{}', args[0], p) for p in packs]
 #        found = [p for p in packs if exists(p)]
 #        if len(found) == len(packs):
-#            to_console(to_string("Found {}", packs))
+#            _c(_s("Found {}", packs))
 #        else:
-#            raise FileNotFoundError(to_string("Expecting {}", packs))
+#            raise FileNotFoundError(_s("Expecting {}", packs))
         hosts = args[1:]
         user = 'root'
         if T_EVERYONE in hosts:
@@ -441,44 +431,44 @@ class Console(object):#threading.Thread):
         else:
             agents = list(hosts)
         if len(packs) == 0:
-            to_console("Package not found")
+            _c("Package not found")
         cmd = ' '.join(['scp', '-r', ' '.join(packs)])
         failed = False
         for agent in agents:
             try:
-                to_console("loading {}@{}", packs, agent)
-                buf = ' '.join([cmd, to_string("{}@{}:{}", user, agent, dest_base)])
+                _c("loading {}@{}", packs, agent)
+                buf = ' '.join([cmd, _s("{}@{}:{}", user, agent, dest_base)])
                 os.system(buf)
-                runonremote(user, agent, to_string('{}/{}', dest_base, DEPLOY_SH))
+                runonremote(user, agent, _s('{}/{}', dest_base, DEPLOY_SH))
             except Exception as ex:
-                to_console("Unable to deploy {} on {}: {}", packs, agent, ex)
+                _c("Unable to deploy {} on {}: {}", packs, agent, ex)
                 failed = True
                 break
 
-        to_console("Update {}!", failed and 'failed' or 'finished!')
+        _c("Update {}!", failed and 'failed' or 'finished!')
 
     def on_cmd_rsys(self, *args, **kwargs):
         """Remote system command handler"""
-        self.lgr.info("On command rsys")
+        _l.info("On command rsys")
         if args is None or len(args) < 2:
             return
         runonremote('root', args[0], ' '.join(args[1:]))
 
     def on_cmd_sys(self, *args, **kwargs):
         """System command handler"""
-        self.lgr.info("On command sys")
+        _l.info("On command sys")
         if args is None or len(args) == 0:
             return
         os.system(' '.join(list(args)))
 
     def on_cmd_py(self, *args, **kwargs):
         """Execute python script"""
-        self.lgr.info("On command sys")
+        _l.info("On command sys")
         if args is None or len(args) == 0:
             return
         path = args[0]
         try:
-            if os.path.isfile(path):
+            if isfile(path):
                 with open(path) as fd:
                     exec(fd.read())
             elif len(path) == 1:
@@ -486,16 +476,16 @@ class Console(object):#threading.Thread):
             elif len(path) > 1:
                 exec(' '.join(list(args)), globals(), locals())
             else:
-                to_console("Unable to execute {}, no such file or command", path)
+                _c("Unable to execute {}, no such file or command", path)
         except Exception as ex:
-            to_console("Exception on executing {}: {}", args, ex)
+            _c("Exception on executing {}: {}", args, ex)
 
     def console_loop(self, tshhist=None):
         """Console main loop"""
-        self.lgr.info("Console loop started")
+        _l.info("Console loop started")
         while self.running:
             try:
-                command = console_reader(to_string(DEFAULT_PROMPT, self._host))
+                command = console_reader(_s(DEFAULT_PROMPT, self._host))
                 command = command.strip()
                 if len(command) == 0:
                     continue
@@ -503,27 +493,27 @@ class Console(object):#threading.Thread):
                     tshhist.write(str(command)+'\n')
                 self.dispatch(command)
             except Exception as ex:
-                to_console(TSH_ERR_GENERAL, ex)
+                _c(TSH_ERR_GENERAL, ex)
             except KeyboardInterrupt:
-                to_console("Terminating ...")
+                _c("Terminating ...")
                 self.on_cmd_quit()
 
     def start(self):
         """Start inuithy shell"""
-        self.lgr.info("Start console")
-        to_console(self._title)
-        to_console(self._banner)
-        mod = os.path.exists(rt.tcfg.tsh_hist) and 'a+' or 'w+'
+        _l.info("Start console")
+        _c(self._title)
+        _c(self._banner)
+        mod = exists(rt.tcfg.tsh_hist) and 'a+' or 'w+'
         with open(rt.tcfg.tsh_hist, mod) as tshhist:
             self.console_loop(tshhist)
 
     def dispatch(self, command):
-        self.lgr.info("Dispatch command")
+        _l.info("Dispatch command")
         if command is None or len(command) == 0:
             return
         cmds = valid_cmds(command)
         if len(cmds) == 0 or len(cmds[0]) == 0:
-            to_console(TSH_ERR_INVALID_CMD, command, 'help')
+            _c(TSH_ERR_INVALID_CMD, command, 'help')
         params = cmds[1:]
         try:
             if self._cmd_routes.get(cmds[0]):
@@ -531,13 +521,13 @@ class Console(object):#threading.Thread):
             else:
                 self.on_cmd_help()
         except Exception as ex:
-            to_console(TSH_ERR_HANDLING_CMD, command, ex)
+            _c(TSH_ERR_HANDLING_CMD, command, ex)
 
 #def start_console(ctrl):
 #    """Shortcut to start a inuithy shell"""
 #    term = Console(ctrl)
 #    term.start()
-#    to_console("\nBye~\n")
+#    _c("\nBye~\n")
 #
 #if __name__ == '__main__':
 #    start_console()

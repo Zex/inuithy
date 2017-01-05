@@ -1,7 +1,7 @@
 """ Supported proto definition
  @author: Zex Li <top_zlynch@yahoo.com>
 """
-#from inuithy.common.predef import T_TYPE, AgentStatus, T_ADDR, to_string
+#from inuithy.common.predef import T_TYPE, AgentStatus, T_ADDR, _s
 #from inuithy.protocol.ble_proto import BleProtocol as BleProto
 #from inuithy.protocol.zigbee_proto import ZigbeeProtocol as ZbeeProto
 #from inuithy.protocol.bzcombo_proto import BzProtocol as BzProto
