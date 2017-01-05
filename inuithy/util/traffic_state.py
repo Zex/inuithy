@@ -191,12 +191,12 @@ def publish_nwlayout(nwlayoutname, nwcfg, tcfg, chk, genid, pub):
             data[T_TRAFFIC_TYPE] = TrafficType.JOIN.name
 
             if not tcfg.enable_localdebug:
-                data[T_CLIENTID] = chk.node2aid.get(node)
-                pub_nwlayout(pub, data=data)
+#                data[T_CLIENTID] = chk.node2aid.get(node)
+                pub_nwlayout(pub, chk.node2aid.get(node), data=data)
             else: # DEBUG
                 for aid in chk.node2aid.values():
-                    data[T_CLIENTID] = aid
-                    pub_nwlayout(pub, data=data)
+#                    data[T_CLIENTID] = aid
+                    pub_nwlayout(pub, aid, data=data)
                     break
 
 def publish_traffic(genid, tg, tr, chk, pub, enable_localdebug=False):
@@ -217,12 +217,12 @@ def publish_traffic(genid, tg, tr, chk, pub, enable_localdebug=False):
         }
         chk.traffic_stat[tr.tid] = TrafficStatus.REGISTERING
         if not enable_localdebug:
-            data[T_CLIENTID] = chk.node2aid.get(tr.src)
-            pub_traffic(pub, data=data)
+#            data[T_CLIENTID] = chk.node2aid.get(tr.src)
+            pub_traffic(pub, chk.node2aid.get(tr.src), data=data)
         else: # DEBUG
             for aid in chk.node2aid.values():
-                data[T_CLIENTID] = aid
-                pub_traffic(pub, data=data)
+#                data[T_CLIENTID] = aid
+                pub_traffic(pub, aid, data=data)
                 break
         _l.debug(_s("TRAFFIC: {}:{}:{}", data.get(T_TID), data.get(T_CLIENTID), tr))
         return True
@@ -585,7 +585,7 @@ class TrafficState:
         try:
             self.phases.clear()
             _l.info("Stopping agents ...")
-            stop_agents(self.ctrl.mqclient, rt.tcfg.mqtt_qos)
+            stop_agents(self.ctrl.mqclient, 'all', rt.tcfg.mqtt_qos)
             self.chk.set_all()
             if len(self.chk.available_agents) > 0:
                 _l.info("Wait for last notifications")

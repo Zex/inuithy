@@ -37,13 +37,12 @@ class AutoCtrl(CtrlBase):
             _l.error(_s("AutoCtrl not initialized"))
             return
         try:
-            _l.info(_s("Expected Agents({}): {}",\
-                len(self.expected_agents), self.expected_agents))
+            _l.info(_s("Expected Agents({}): {}", len(self.expected_agents), self.expected_agents))
+            stop_agents(self.mqclient)
             if self._traffic_timer is not None:
                 self._traffic_timer.start()
             if self.worker is not None:
                 self.worker.start()
-            stop_agents(self.mqclient)
             self.alive_notification()
             self._mqclient.loop_forever()
         except KeyboardInterrupt:

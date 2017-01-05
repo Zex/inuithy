@@ -76,25 +76,16 @@ class CtrlBase(object):
     def available_agents(self):
         """Available agent, agentid => AgentInfo"""
         return self.traffic_state.chk.available_agents
-#    @available_agents.setter
-#    def available_agents(self, val):
-#        pass
 
     @property
     def expected_agents(self):
         """List of expected agents"""
         return self.traffic_state.chk.expected_agents
-#    @expected_agents.setter
-#    def expected_agents(self, val):
-#        pass
 
     @property
     def node2host(self):
         """Node address => connected host"""
         return self.traffic_state.chk.node2host
-#    @node2host.setter
-#    def node2host(self, val):
-#        pass
 
     @property
     def node2aid(self):
@@ -206,7 +197,7 @@ class CtrlBase(object):
             T_CTRLCMD:  CtrlCmd.NEW_CONTROLLER.name,
             T_CLIENTID: self.clientid,
         }
-        pub_ctrlcmd(self.mqclient, rt.tcfg.mqtt_qos, data)
+        pub_ctrlcmd(self.mqclient, 'all', rt.tcfg.mqtt_qos, data)
 
     def add_agent(self, agentid, host, nodes):
         """Register started agent"""

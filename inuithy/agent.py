@@ -245,11 +245,17 @@ class Agent(object):
 #        self.mqclient.on_publish = Agent.on_publish
 #        self.mqclient.on_subscribe = Agent.on_subscribe
         self.mqclient.connect(host, port)
-        subscribe(self.mqclient, TT_COMMAND, Agent.on_topic_command, rt.tcfg.mqtt_qos)
-        subscribe(self.mqclient, TT_CONFIG, Agent.on_topic_config, rt.tcfg.mqtt_qos)
-        subscribe(self.mqclient, TT_TRAFFIC, Agent.on_topic_traffic, rt.tcfg.mqtt_qos)
-        subscribe(self.mqclient, TT_NWLAYOUT, Agent.on_topic_nwlayout, rt.tcfg.mqtt_qos)
-        subscribe(self.mqclient, TT_TSH, Agent.on_topic_tsh, rt.tcfg.mqtt_qos)
+        subscribe(self.mqclient, _s(TT_COMMAND, self.clientid), Agent.on_topic_command, rt.tcfg.mqtt_qos)
+        subscribe(self.mqclient, _s(TT_COMMAND, 'all'), Agent.on_topic_command, rt.tcfg.mqtt_qos)
+        subscribe(self.mqclient, _s(TT_CONFIG, self.clientid), Agent.on_topic_config, rt.tcfg.mqtt_qos)
+        subscribe(self.mqclient, _s(TT_CONFIG, 'all'), Agent.on_topic_config, rt.tcfg.mqtt_qos)
+        subscribe(self.mqclient, _s(TT_TRAFFIC, self.clientid), Agent.on_topic_traffic, rt.tcfg.mqtt_qos)
+        subscribe(self.mqclient, _s(TT_TRAFFIC, 'all'), Agent.on_topic_traffic, rt.tcfg.mqtt_qos)
+        subscribe(self.mqclient, _s(TT_NWLAYOUT, self.clientid), Agent.on_topic_nwlayout, rt.tcfg.mqtt_qos)
+        subscribe(self.mqclient, _s(TT_NWLAYOUT, 'all'), Agent.on_topic_nwlayout, rt.tcfg.mqtt_qos)
+        subscribe(self.mqclient, _s(TT_TSH, self.clientid), Agent.on_topic_tsh, rt.tcfg.mqtt_qos)
+        subscribe(self.mqclient, _s(TT_TSH, 'all'), Agent.on_topic_tsh, rt.tcfg.mqtt_qos)
+        #TODO agent-based topic
         self.ctrlcmd_routes = {
             CtrlCmd.NEW_CONTROLLER.name:               self.on_new_controller,
             CtrlCmd.AGENT_STOP.name:                   self.on_agent_stop,
@@ -400,8 +406,6 @@ class Agent(object):
         self = userdata
         try:
             data = extract_payload(message.payload)
-            if not self.is_msg_for_me([data.get(T_CLIENTID)]):
-                return
             _l.debug(_s("JOIN: {}", data))
             naddr = data.get(T_NODE)
             if naddr is None:
@@ -435,8 +439,6 @@ class Agent(object):
 #        _l.info(_s("On topic traffic"))
         try:
             data = extract_payload(message.payload)
-            if not self.is_msg_for_me([data.get(T_CLIENTID)]):
-                return
             _l.debug(_s("Traffic data: {}", data))
             self.traffic_dispatch(data)
         except Exception as ex:
@@ -507,8 +509,6 @@ class Agent(object):
         try:
             _l.info(_s("TSH request"))
             data = extract_payload(message.payload)
-            if not self.is_msg_for_me([data.get(T_CLIENTID)]):
-                return
             naddr = data.get(T_NODE)
             node = self.addr2node.get(naddr)
             if node is not None:
@@ -565,21 +565,11 @@ class Agent(object):
         _l.info(_s("New controller"))
         self.alive_notification(False)
 
-    def is_msg_for_me(self, targets): # FIXME
-        """Determine message is for me"""
-        for target in targets:
-            if target is None:
-                continue
-            if target in [self.clientid, self.host, T_EVERYONE]:
-                return True
-        return False
-
     def on_agent_stop(self, message):
         """Agent stop command handler"""
         _l.info(_s("On agent stop {}", message))
-        if self.is_msg_for_me([message.get(T_CLIENTID)]):
-            _l.info(_s("Stop agent {}", self.clientid))
-            self.teardown()
+        _l.info(_s("Stop agent {}", self.clientid))
+        self.teardown()
 
     def on_agent_enable_heartbeat(self, message):
         """Heartbeat enable command handler"""

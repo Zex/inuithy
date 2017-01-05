@@ -215,7 +215,7 @@ class Console(object):#threading.Thread):
         if args is None or len(args) < 1:
             return
         clientid = args[0]
-        stop_agents(self.ctrl.mqclient, clientid=clientid)
+        stop_agents(self.ctrl.mqclient, target=clientid)
 
     def on_cmd_agent_stop_force(self, *args, **kwargs):
         """Agent force stop command handler"""
@@ -281,11 +281,11 @@ class Console(object):#threading.Thread):
             T_TRAFFIC_TYPE: TrafficType.TSH.name,
             T_HOST:         host,
             T_NODE:         node,
-            T_CLIENTID:     self.ctrl.node2aid.get(node),
+#            T_CLIENTID:     self.ctrl.node2aid.get(node),
             T_MSG:          ' '.join(list(args[1:])),
         }
         _c("Sending {}", ' '.join(list(args[1:])))
-        pub_tsh(self.ctrl.mqclient, rt.tcfg.mqtt_qos, data)
+        pub_tsh(self.ctrl.mqclient, self.ctrl.node2aid.get(node), rt.tcfg.mqtt_qos, data)
 
     def on_cmd_traffic_list_phase(self, *args, **kwargs):
         """Traffic load phase command handler"""

@@ -12,15 +12,15 @@ from enum import Enum
 
 # Controller => Agents
 # Command for agents
-TT_COMMAND = "inuithy/command"
+TT_COMMAND = "inuithy/command/{}"
 # Configuration for agents
-TT_CONFIG = "inuithy/config"
+TT_CONFIG = "inuithy/config/{}"
 # Traffc data to send via serial port on agent
-TT_TRAFFIC = "inuithy/traffic"
+TT_TRAFFIC = "inuithy/traffic/{}"
 # Configure network layout as given configure
-TT_NWLAYOUT = "inuithy/nwlayout"
+TT_NWLAYOUT = "inuithy/nwlayout/{}"
 # Message sent via inuithy shell
-TT_TSH = "inuithy/tsh"
+TT_TSH = "inuithy/tsh/{}"
 # Response from agent
 TT_REPLY = "inuithy/reply"
 # Agents => Controller

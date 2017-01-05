@@ -2,7 +2,7 @@
  @author: Zex Li <top_zlynch@yahoo.com>
 """
 from inuithy.common.version import INUITHY_ROOT, PROJECT_PATH, INUITHY_AGENT_INTERPRETER
-from inuithy.common.predef import T_CLIENTID, TT_COMMAND, _l,\
+from inuithy.common.predef import T_CLIENTID, TT_CONFIG, TT_COMMAND, _l,\
 T_CTRLCMD, CtrlCmd, TT_UNREGISTER, TT_STATUS, TT_SNIFFER,\
 TT_NOTIFICATION, TT_REPORTWRITE, INUITHY_NOHUP_OUTPUT,\
 TT_HEARTBEAT, TT_TRAFFIC, TT_NWLAYOUT, _s, TT_REPLY
@@ -13,11 +13,11 @@ import threading
 
 #            newctrl
 # Agent <------------------------ Controller
-def pub_ctrlcmd(publisher, qos=0, data=None):
+def pub_ctrlcmd(publisher, target='all', qos=0, data=None):
     """Publish control command
     """
     payload = json.dumps(data)
-    publisher.publish(TT_COMMAND, payload, qos, False)
+    publisher.publish(_s(TT_COMMAND, target), payload, qos, False)
 
 def extract_payload(jdata):
     """Extract data from payload
@@ -28,41 +28,39 @@ def extract_payload(jdata):
 
 #            enable heartbeat
 # Agent <------------------------ Controller
-def pub_enable_hb(publisher, qos=0, clientid="*"):
+def pub_enable_hb(publisher, target='all', qos=0):
     """Publish disable heartbeat command
     """
     data = {
         T_CTRLCMD:  CtrlCmd.AGENT_ENABLE_HEARTBEAT.name,
-        T_CLIENTID: clientid,
     }
-    pub_ctrlcmd(publisher, qos, data)
+    pub_ctrlcmd(publisher, target, qos, data)
 
 #            disable heartbeat
 # Agent <------------------------ Controller
-def pub_disable_hb(publisher, qos=0, clientid="*"):
+def pub_disable_hb(publisher, target='all', qos=0):
     """Publish disable heartbeat command
     """
     data = {
         T_CTRLCMD:  CtrlCmd.AGENT_DISABLE_HEARTBEAT.name,
-        T_CLIENTID: clientid,
     }
-    pub_ctrlcmd(publisher, qos, data)
+    pub_ctrlcmd(publisher, target, qos, data)
 
 #             network layout
 # Agent <------------------------ Controller
-def pub_nwlayout(publisher, qos=0, data=None):
+def pub_nwlayout(publisher, target='all', qos=0, data=None):
     """Publish traffic message
     """
     payload = json.dumps(data)
-    publisher.publish(TT_NWLAYOUT, payload, qos, False)
+    publisher.publish(_s(TT_NWLAYOUT, target), payload, qos, False)
 
 #             tsh command
 # Agent <------------------------ Controller
-def pub_tsh(publisher, qos=0, data=None):
+def pub_tsh(publisher, target='all', qos=0, data=None):
     """Publish tsh message
     """
     payload = json.dumps(data)
-    publisher.publish(TT_TSH, payload, qos, False)
+    publisher.publish(_s(TT_TSH, target), payload, qos, False)
 
 #         reply to tsh command
 # Agent -------------------------> Controller
@@ -74,11 +72,11 @@ def pub_reply(publisher, qos=0, data=None):
 
 #            traffic
 # Agent <------------------------ Controller
-def pub_traffic(publisher, qos=0, data=None):
+def pub_traffic(publisher, target='all', qos=0, data=None):
     """Publish traffic message
     """
     payload = json.dumps(data)
-    publisher.publish(TT_TRAFFIC, payload, qos, False)
+    publisher.publish(_s(TT_TRAFFIC, target), payload, qos, False)
 
 def pub_sniffer(publisher, qos=0, data=None):
     """Publish traffic message
@@ -88,12 +86,12 @@ def pub_sniffer(publisher, qos=0, data=None):
 
 #            config
 # Agent <------------------------ Controller
-def pub_config(publisher, qos, config=None, clientid="*"):
+def pub_config(publisher, target='all', qos=0, config=None):
     """Publish configure message
     """
     # TODO
     payload = json.dumps(config)
-    publisher.publish(TT_COMMAND, payload, qos, False)
+    publisher.publish(_s(TT_CONFIG, target), payload, qos, False)
 
 #           unregister
 # Agent ------------------> Controller
@@ -176,13 +174,12 @@ def start_agents(hosts):
             PROJECT_PATH, INUITHY_AGENT_INTERPRETER, INUITHY_ROOT, INUITHY_NOHUP_OUTPUT)
     [runonremote('root', host, cmd) for host in hosts]
 
-def stop_agents(publisher, qos=0, clientid="*"):
+def stop_agents(publisher, target='all', qos=0):
     """Stop agent remotely"""
     data = {
         T_CTRLCMD: CtrlCmd.AGENT_STOP.name,
-        T_CLIENTID: clientid,
     }
-    pub_ctrlcmd(publisher, qos, data)
+    pub_ctrlcmd(publisher, target, qos, data)
 
 def force_stop_agents(hosts):
     """Force agent stop remotely"""
