@@ -13,7 +13,12 @@ ifndef VERSION_PATH
 $(error "VERSION_PATH not defined")
 endif
 
-PROJECT_ALIAS		   := $(shell tr A-Z a-z <<< $(PROJECT))
+ifeq ($(PROJECT_ALIAS),)
+PROJECT_ALIAS	:= $(shell tr A-Z a-z <<< $(PROJECT))
+endif
+ifeq ($(PROJECT_ALIAS),)
+PROJECT_ALIAS	:= $(shell echo $(PROJECT) | tr A-Z a-z)
+endif
 OUTPUT_TAR_BASE        := $(strip $(PROJECT_ALIAS))-$(strip $(VERSION))
 OUTPUT_TAR	           := $(OUTPUT_TAR_BASE).tar.bz2
 OUTPUT_TAR_SOURCE	   := inuithy thirdparty tools Makefile makefiles DEPENDENCIES
