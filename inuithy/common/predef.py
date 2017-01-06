@@ -133,6 +133,8 @@ T_EVERYONE = '*'
 T_DIAG = '+'
 T_NOI = 'noi' # Nodes of interest
 T_RLOGBASE = 'rlog_base'
+T_PIDFILE = 'pidfile'
+T_ALL = 'all'
 
 TrafficStatus = Enum("TrafficStatus", [
     "INITFAILED",       # Initialization failure

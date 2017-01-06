@@ -9,5 +9,6 @@ inuithy_shell: {history: /var/log/inuithy/inuithy.cache}
 traffic_storage: {passwd: '', path: '127.0.0.1:19713', type: 'DB:MongoDB', user: ''}
 #traffic_storage: {passwd: '', path: '127.0.0.1:8191', type: 'DB:Splunk', user: ''}
 rlog_base: /tmp/inuithy-logs
+pidfile: /tmp/inuithy.pid
 workmode: AUTO
 #workmode: MANUAL
