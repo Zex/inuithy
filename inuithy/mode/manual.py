@@ -22,13 +22,13 @@ class ManualCtrl(CtrlBase):
         self._mqclient.on_message = ManualCtrl.on_message
         self._mqclient.on_disconnect = ManualCtrl.on_disconnect
         self._mqclient.connect(host, port)
-        subscribe(self.mqclient, TT_HEARTBEAT, ManualCtrl.on_topic_heartbeat, rt.tcfg.mqtt_qos)
-        subscribe(self.mqclient, TT_UNREGISTER, ManualCtrl.on_topic_unregister, rt.tcfg.mqtt_qos)
-        subscribe(self.mqclient, TT_STATUS, ManualCtrl.on_topic_status, rt.tcfg.mqtt_qos)
-        subscribe(self.mqclient, TT_REPORTWRITE, ManualCtrl.on_topic_reportwrite, rt.tcfg.mqtt_qos)
-        subscribe(self.mqclient, TT_NOTIFICATION, ManualCtrl.on_topic_notification, rt.tcfg.mqtt_qos)
-        subscribe(self.mqclient, TT_REPLY, ManualCtrl.on_topic_reply, rt.tcfg.mqtt_qos)
-        subscribe(self.mqclient, TT_SNIFFER, ManualCtrl.on_topic_sniffer, rt.tcfg.mqtt_qos)
+        subscribe(self.mqclient, TT_HEARTBEAT, ManualCtrl.on_topic_heartbeat)
+        subscribe(self.mqclient, TT_UNREGISTER, ManualCtrl.on_topic_unregister)
+        subscribe(self.mqclient, TT_STATUS, ManualCtrl.on_topic_status)
+        subscribe(self.mqclient, TT_REPORTWRITE, ManualCtrl.on_topic_reportwrite)
+        subscribe(self.mqclient, TT_NOTIFICATION, ManualCtrl.on_topic_notification)
+        subscribe(self.mqclient, TT_REPLY, ManualCtrl.on_topic_reply)
+        subscribe(self.mqclient, TT_SNIFFER, ManualCtrl.on_topic_sniffer)
 
     def __init__(self, delay=4):
         CtrlBase.__init__(self, delay)

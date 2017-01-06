@@ -3,7 +3,7 @@
 """
 from inuithy.common.version import __version__
 from inuithy.common.predef import T_CTRLCMD, CtrlCmd, T_CLIENTID,\
-T_HOST, T_NODES, AgentStatus, T_TID,\
+T_HOST, T_NODES, AgentStatus, T_TID, T_ALL,\
 _s, CTRL_CLIENT_ID, T_TRAFFIC_STATUS, T_MSG, _c, _l,\
 T_TRAFFIC_TYPE, TrafficType, T_NODE, TrafficStatus, T_VERSION,\
 MessageType, T_GENID
@@ -197,7 +197,7 @@ class CtrlBase(object):
             T_CTRLCMD:  CtrlCmd.NEW_CONTROLLER.name,
             T_CLIENTID: self.clientid,
         }
-        pub_ctrlcmd(self.mqclient, 'all', rt.tcfg.mqtt_qos, data)
+        pub_ctrlcmd(self.mqclient, T_ALL, data)
 
     def add_agent(self, agentid, host, nodes):
         """Register started agent"""

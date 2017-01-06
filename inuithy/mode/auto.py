@@ -21,12 +21,12 @@ class AutoCtrl(CtrlBase):
         self.mqclient.on_message = AutoCtrl.on_message
         self.mqclient.on_disconnect = AutoCtrl.on_disconnect
         self.mqclient.connect(host, port)
-        subscribe(self.mqclient, TT_HEARTBEAT, AutoCtrl.on_topic_heartbeat, rt.tcfg.mqtt_qos)
-        subscribe(self.mqclient, TT_UNREGISTER, AutoCtrl.on_topic_unregister, rt.tcfg.mqtt_qos)
-        subscribe(self.mqclient, TT_STATUS, AutoCtrl.on_topic_status, rt.tcfg.mqtt_qos)
-        subscribe(self.mqclient, TT_REPORTWRITE, AutoCtrl.on_topic_reportwrite, rt.tcfg.mqtt_qos)
-        subscribe(self.mqclient, TT_NOTIFICATION, AutoCtrl.on_topic_notification, rt.tcfg.mqtt_qos)
-        subscribe(self.mqclient, TT_SNIFFER, AutoCtrl.on_topic_sniffer, rt.tcfg.mqtt_qos)
+        subscribe(self.mqclient, TT_HEARTBEAT, AutoCtrl.on_topic_heartbeat)
+        subscribe(self.mqclient, TT_UNREGISTER, AutoCtrl.on_topic_unregister)
+        subscribe(self.mqclient, TT_STATUS, AutoCtrl.on_topic_status)
+        subscribe(self.mqclient, TT_REPORTWRITE, AutoCtrl.on_topic_reportwrite)
+        subscribe(self.mqclient, TT_NOTIFICATION, AutoCtrl.on_topic_notification)
+        subscribe(self.mqclient, TT_SNIFFER, AutoCtrl.on_topic_sniffer)
 
     def __init__(self, delay=4):
         CtrlBase.__init__(self, delay)
