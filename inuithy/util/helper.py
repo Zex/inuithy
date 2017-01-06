@@ -97,3 +97,12 @@ def remove_dotted_key(data):
             new_data.update({new_k: v})
     return new_data
 
+def gen_pidfile(pidfile, pid=None):
+
+    if pid is None:
+        pid = os.getpid()
+
+    with open(pidfile, 'a') as fd:
+        fd.write(str(pid)+'\n')
+
+

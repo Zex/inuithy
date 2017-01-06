@@ -285,7 +285,7 @@ class Console(object):#threading.Thread):
             T_MSG:          ' '.join(list(args[1:])),
         }
         _c("Sending {}", ' '.join(list(args[1:])))
-        pub_tsh(self.ctrl.mqclient, self.ctrl.node2aid.get(node), rt.tcfg.mqtt_qos, data)
+        pub_tsh(self.ctrl.mqclient, self.ctrl.node2aid.get(node), data)
 
     def on_cmd_traffic_list_phase(self, *args, **kwargs):
         """Traffic load phase command handler"""

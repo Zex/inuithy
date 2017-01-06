@@ -3,6 +3,8 @@
 """
 from inuithy.common.predef import _s, _l, T_EVERYONE
 from inuithy.util.helper import clear_list
+from inuithy.util.cmd_helper import gen_pidfile
+from inuithy.common.runtime import Runtime as rt
 import os
 import multiprocessing as mp
 import threading
@@ -36,6 +38,9 @@ class ProcTaskManager(object):
 
         if self.with_child:
             task.start()
+            pidfile = rt.tcfg.config.get(T_PIDFILE)
+            if pidfile:
+                gen_pidfile(pidfile, task.pid)
         else:
             task.run()
 
@@ -103,12 +108,5 @@ def dummy_task(port):
 
 if __name__ == '__main__':
 
-#    from inuithy.common.node import *
-    import glob, time
-    DEV_TTYS = '/dev/ttyS1{}'
-    ports = enumerate(name for name in glob.glob(DEV_TTYS.format(T_EVERYONE)))
-    mng = TaskManager()
-    mng.create_task_foreach(dummy_task, ports)
-    mng.waitall()
-
+    pass
 

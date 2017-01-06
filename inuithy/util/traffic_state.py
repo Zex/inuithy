@@ -4,13 +4,13 @@
 from inuithy.common.predef import T_TID, T_GENID, T_TRAFFIC_TYPE,\
 T_CLIENTID, T_NODE, T_HOST, T_DURATION, T_INTERVAL, T_GATEWAY, T_SRC,\
 T_DEST, T_PKGSIZE, T_NODES, T_PATH, T_NWLAYOUT, T_PANID, T_SPANID,\
-_c, _s, _l, TrafficType, T_TRAFFIC_FINISH_DELAY,\
+_c, _s, _l, TrafficType, T_TRAFFIC_FINISH_DELAY, T_ALL,\
 TrafficStorage, StorageType, TrafficStatus, T_JITTER, T_DESTS
 from inuithy.common.runtime import Runtime as rt
 from inuithy.util.helper import getnwlayoutname
 from inuithy.util.cmd_helper import pub_nwlayout, pub_traffic, start_agents,\
 stop_agents, force_stop_agents
-from inuithy.common.traffic import create_phases#, TRAFFIC_BROADCAST_ADDRESS
+from inuithy.common.traffic import create_phases
 from inuithy.analysis.report_adapter import ReportAdapter
 from inuithy.util.task_manager import ProcTaskManager
 from inuithy.util.sniffer import start_sniffer, stop_sniffer
@@ -537,7 +537,7 @@ class TrafficState:
                 T_CLIENTID: agent,
                 T_TRAFFIC_TYPE: TrafficType.START.name,
             }
-            pub_traffic(self.ctrl.mqclient, rt.tcfg.mqtt_qos, data)
+            pub_traffic(self.ctrl.mqclient, data)
 
     @before('phase_finish')
     def do_phase_finish(self):
@@ -585,7 +585,7 @@ class TrafficState:
         try:
             self.phases.clear()
             _l.info("Stopping agents ...")
-            stop_agents(self.ctrl.mqclient, 'all', rt.tcfg.mqtt_qos)
+            stop_agents(self.ctrl.mqclient, T_ALL)
             self.chk.set_all()
             if len(self.chk.available_agents) > 0:
                 _l.info("Wait for last notifications")
