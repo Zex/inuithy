@@ -5,10 +5,10 @@ import sys
 sys.path.append('/opt/inuithy')
 from inuithy.common.predef import _s, INUITHY_TITLE, TT_NWLAYOUT, TT_TSH, _l,\
 __version__, INUITHY_CONFIG_PATH, CtrlCmd, TT_TRAFFIC,\
-TT_CONFIG, AGENT_CLIENT_ID, T_ADDR, T_HOST, T_NODE,\
+TT_CONFIG, AGENT_CLIENT_ID, T_ADDR, T_HOST, T_NODE, T_PIDFILE,\
 T_CLIENTID, T_TID, T_INTERVAL, T_DURATION, T_NODES, T_DEST, T_DESTS,\
 T_TRAFFIC_STATUS, T_MSG, T_CTRLCMD, TrafficStatus, T_TRAFFIC_TYPE,\
-TT_COMMAND, TrafficType, DEV_TTY, T_GENID,\
+TT_COMMAND, TrafficType, DEV_TTY, T_GENID, T_ALL, \
 T_SRC, T_PKGSIZE, T_EVERYONE, T_VERSION, T_MSG_TYPE, T_MQTT_VERSION, T_JITTER
 from inuithy.common.runtime import Runtime as rt
 from inuithy.common.runtime import load_tcfg
@@ -16,16 +16,16 @@ from inuithy.common.node_adapter import NodeAdapter, scan_nodes
 from inuithy.common.traffic import TrafficExecutor, TRAFFIC_BROADCAST_ADDRESS
 from inuithy.util.helper import getpredefaddr, clear_list
 from inuithy.util.cmd_helper import pub_status, pub_heartbeat, pub_unregister, extract_payload
-from inuithy.util.cmd_helper import Heartbeat, mqlog_map, subscribe
+from inuithy.util.cmd_helper import Heartbeat, mqlog_map, subscribe, gen_pidfile
 from inuithy.util.worker import Worker
 import paho.mqtt.client as mqtt
 import threading
 from random import randint
+import time
 try:
     from queue import Queue, Empty
 except ImportError:
     from Queue import Queue, Empty
-import time
 
 class Agent(object):
     """
@@ -109,7 +109,6 @@ class Agent(object):
         _l.info(_s(
             "MQ.Connection client:{} userdata:[{}] rc:{}",
             client, userdata, rc))
-#        userdata.register()
 
     @staticmethod
     def on_message(client, userdata, message):
@@ -181,7 +180,7 @@ class Agent(object):
                     self.adapter.teardown()
                 if self.worker:
                     self.worker.stop()
-                pub_status(self.mqclient, rt.tcfg.mqtt_qos, {T_MSG: msg})
+                pub_status(self.mqclient, {T_MSG: msg})
                 self.unregister()
                 self.mqclient.disconnect()
         except Exception as ex:
@@ -213,10 +212,10 @@ class Agent(object):
                 T_VERSION: __version__,
                 T_MQTT_VERSION: mqtt.VERSION_NUMBER,
             }
-            pub_heartbeat(self.mqclient, rt.tcfg.mqtt_qos, data)
+            pub_heartbeat(self.mqclient, data)
         except Exception as ex:
             _l.error(_s("Alive notification exception:{}", ex))
-            pub_status(self.mqclient, rt.tcfg.mqtt_qos, {
+            pub_status(self.mqclient, {
                 T_TRAFFIC_STATUS: TrafficStatus.AGENTFAILED.name,
                 T_VERSION: __version__,
                 T_MQTT_VERSION: mqtt.VERSION_NUMBER,
@@ -230,7 +229,7 @@ class Agent(object):
         """
         _l.info(_s("Unregistering {}", self.clientid))
         try:
-            pub_unregister(self.mqclient, rt.tcfg.mqtt_qos, self.clientid)
+            pub_unregister(self.mqclient, self.clientid)
         except Exception as ex:
             _l.error(_s("Unregister failed: {}", ex))
 
@@ -245,16 +244,16 @@ class Agent(object):
 #        self.mqclient.on_publish = Agent.on_publish
 #        self.mqclient.on_subscribe = Agent.on_subscribe
         self.mqclient.connect(host, port)
-        subscribe(self.mqclient, _s(TT_COMMAND, self.clientid), Agent.on_topic_command, rt.tcfg.mqtt_qos)
-        subscribe(self.mqclient, _s(TT_COMMAND, 'all'), Agent.on_topic_command, rt.tcfg.mqtt_qos)
-        subscribe(self.mqclient, _s(TT_CONFIG, self.clientid), Agent.on_topic_config, rt.tcfg.mqtt_qos)
-        subscribe(self.mqclient, _s(TT_CONFIG, 'all'), Agent.on_topic_config, rt.tcfg.mqtt_qos)
-        subscribe(self.mqclient, _s(TT_TRAFFIC, self.clientid), Agent.on_topic_traffic, rt.tcfg.mqtt_qos)
-        subscribe(self.mqclient, _s(TT_TRAFFIC, 'all'), Agent.on_topic_traffic, rt.tcfg.mqtt_qos)
-        subscribe(self.mqclient, _s(TT_NWLAYOUT, self.clientid), Agent.on_topic_nwlayout, rt.tcfg.mqtt_qos)
-        subscribe(self.mqclient, _s(TT_NWLAYOUT, 'all'), Agent.on_topic_nwlayout, rt.tcfg.mqtt_qos)
-        subscribe(self.mqclient, _s(TT_TSH, self.clientid), Agent.on_topic_tsh, rt.tcfg.mqtt_qos)
-        subscribe(self.mqclient, _s(TT_TSH, 'all'), Agent.on_topic_tsh, rt.tcfg.mqtt_qos)
+        subscribe(self.mqclient, _s(TT_COMMAND, self.clientid), Agent.on_topic_command)
+        subscribe(self.mqclient, _s(TT_COMMAND, T_ALL), Agent.on_topic_command)
+        subscribe(self.mqclient, _s(TT_CONFIG, self.clientid), Agent.on_topic_config)
+        subscribe(self.mqclient, _s(TT_CONFIG, T_ALL), Agent.on_topic_config)
+        subscribe(self.mqclient, _s(TT_TRAFFIC, self.clientid), Agent.on_topic_traffic)
+        subscribe(self.mqclient, _s(TT_TRAFFIC, T_ALL), Agent.on_topic_traffic)
+        subscribe(self.mqclient, _s(TT_NWLAYOUT, self.clientid), Agent.on_topic_nwlayout)
+        subscribe(self.mqclient, _s(TT_NWLAYOUT, T_ALL), Agent.on_topic_nwlayout)
+        subscribe(self.mqclient, _s(TT_TSH, self.clientid), Agent.on_topic_tsh)
+        subscribe(self.mqclient, _s(TT_TSH, T_ALL), Agent.on_topic_tsh)
         #TODO agent-based topic
         self.ctrlcmd_routes = {
             CtrlCmd.NEW_CONTROLLER.name:               self.on_new_controller,
@@ -297,7 +296,7 @@ class Agent(object):
             Agent.initialized = True
         except Exception as ex:
             _l.error(_s("Failed to initialize: {}", ex))
-            pub_status(self.mqclient, rt.tcfg.mqtt_qos, {
+            pub_status(self.mqclient, {
                 T_TRAFFIC_STATUS: TrafficStatus.INITFAILED.name,
                 T_CLIENTID: self.clientid,
                 T_MSG: str(ex),
@@ -354,9 +353,10 @@ class Agent(object):
         if not Agent.initialized:
             _l.error(_s("Agent not initialized"))
             return
-        status_msg = 'Agent fine'
+        status_msg = 'OK'
         try:
             _l.info(_s("Starting Agent {}", self.clientid))
+            gen_pidfile(rt.tcfg.config.get(T_PIDFILE))
             if self.worker:
                 self.worker.start()
             self.alive_notification()
@@ -370,7 +370,7 @@ class Agent(object):
         except Exception as ex:
             status_msg = _s("Exception on Agent: {}", ex)
             _l.error(status_msg)
-            pub_status(self.mqclient, rt.tcfg.mqtt_qos, {
+            pub_status(self.mqclient, {
                 T_TRAFFIC_STATUS: TrafficStatus.AGENTFAILED.name,
                 T_CLIENTID: self.clientid,
                 T_MSG: status_msg,
@@ -426,7 +426,7 @@ class Agent(object):
                 _l.error(_s("{}: Node [{}] not found", self.clientid, naddr))
         except Exception as ex:
             _l.error(_s("Failure on handling nwlayout request: {}", ex))
-            pub_status(self.mqclient, rt.tcfg.mqtt_qos, {
+            pub_status(self.mqclient, {
                 T_TRAFFIC_STATUS: TrafficStatus.AGENTFAILED.name,
                 T_CLIENTID: self.clientid,
                 T_MSG: 'Failed to configure network',
@@ -443,7 +443,7 @@ class Agent(object):
             self.traffic_dispatch(data)
         except Exception as ex:
             _l.error(_s("Failure on handling traffic request: {}", ex))
-            pub_status(self.mqclient, rt.tcfg.mqtt_qos, {
+            pub_status(self.mqclient, {
                 T_TRAFFIC_STATUS: TrafficStatus.AGENTFAILED.name,
                 T_CLIENTID: self.clientid,
                 T_MSG: 'Failed to register traffic',
@@ -479,14 +479,14 @@ class Agent(object):
                 request=request, mqclient=self.mqclient, tid=data.get(T_TID))
 
             self.__traffic_executors.put(te)
-            pub_status(self.mqclient, rt.tcfg.mqtt_qos, {
+            pub_status(self.mqclient, {
                 T_TRAFFIC_STATUS: TrafficStatus.REGISTERED.name,
                 T_CLIENTID: self.clientid,
                 T_TID: data.get(T_TID),
             })
 # start on registered
 #            te.start()
-#            pub_status(self.mqclient, rt.tcfg.mqtt_qos, {
+#            pub_status(self.mqclient, {
 #                T_TRAFFIC_STATUS: TrafficStatus.RUNNING.name,
 #                T_CLIENTID: self.clientid,
 #                T_TID: te.tid,
@@ -534,7 +534,7 @@ class Agent(object):
                 _l.info(_s("{}: executors: {}, agent init: {}", self.clientid, self.__traffic_executors.qsize(), Agent.initialized))
                 te = self.__traffic_executors.get()
                 te.run()
-                pub_status(self.mqclient, rt.tcfg.mqtt_qos, {
+                pub_status(self.mqclient, {
                     T_TRAFFIC_STATUS: TrafficStatus.RUNNING.name,
                     T_CLIENTID: self.clientid,
                     T_TID: te.tid,
@@ -542,7 +542,7 @@ class Agent(object):
 #                te.finished.wait()
         except Exception as ex:
             _l.error(_s("Exception on running traffic: {}", ex))
-            pub_status(self.mqclient, rt.tcfg.mqtt_qos, {
+            pub_status(self.mqclient, {
                 T_TRAFFIC_STATUS: TrafficStatus.AGENTFAILED.name,
                 T_VERSION: __version__,
                 T_MQTT_VERSION: mqtt.VERSION_NUMBER,
