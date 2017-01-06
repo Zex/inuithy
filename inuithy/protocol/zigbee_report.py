@@ -295,18 +295,15 @@ class ZbeeReport(object):
                ginfo.csv_path = 'docs/UID1478067701.csv'
                ginfo.csv_path = 'docs/UID1470021754.csv'
         """
-#        try:
-        if True:
+        try:
             ginfo = ZbeeReport.prep_info(genid)
-#TODO: uncomment
             if csv_path is not None:
                 ginfo.csv_path = csv_path
             raw, pdata, hasdiag = ZbeeReport.gen_csv(ginfo)
             ginfo.hasdiag = hasdiag
             ZbeeReport.gen_report(raw, pdata, ginfo, gw, nodes, irange)
-#        finally: pass
-#        except Exception as ex:
-#            _l.error(_s("Exception on generate reports: {}", ex))
+        except Exception as ex:
+            _l.error(_s("Exception on generate reports: {}", ex))
 
     @staticmethod
     def handle_args(in_args=None):

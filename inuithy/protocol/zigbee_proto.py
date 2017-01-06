@@ -837,7 +837,7 @@ class ZigbeeProtocol(Protocol):
 
     @staticmethod
     def parse_rbuf(data, node, adapter=None):
-
+# TODO: subproto check
 #        if PROTO.subproto:
         if data is None or len(data) == 0:
             return 
